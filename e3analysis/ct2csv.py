@@ -39,6 +39,7 @@ import argparse
 import csv
 import datetime
 import fileinput
+import logging
 import re
 import sys
 import textwrap
@@ -70,11 +71,24 @@ def write_report(files, pattern, subfields, sep):
     fields = list(standard_fields) + list(subfields)
     writer = csv.writer(sys.stdout)
     writer.writerow(list(standard_fields) + list(subfields))
-    for line in fileinput.input(*files, openhook=fileinput.hook_compressed):
-        values = split(line, sep)
-        if pattern.search(values[1]):
-            values[2] = parse_timestamp(values[2])
-            writer.writerow(values)
+    input = fileinput.input(*files, openhook=fileinput.hook_compressed)
+    try:
+        failed = 0
+        for line in input:
+            try:
+                values = split(line, sep)
+                if pattern.search(values[1]):
+                    values[2] = parse_timestamp(values[2])
+                    writer.writerow(values)
+            except:
+                failed = failed + 1
+                logging.exception("Failed to parse: %s, line %s",
+                                  input.filename(), input.lineno())
+        if failed:
+            logging.error("%d line(s) failed to parse.", failed)
+    finally:
+        input.close()
+
 
 
 def main():

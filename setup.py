@@ -15,7 +15,7 @@ setup(
     url='http://meta.wikimedia.org/wiki/E3',
     license='GPL',
     description='E3 Data Analysis Library',
-    author='Wikimedia Foundation -- E3 Team'
+    author='Wikimedia Foundation -- E3 Team',
     email="e3-team@lists.wikimedia.org",
     long_description=__doc__,
     entry_points = {
