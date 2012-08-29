@@ -71,7 +71,7 @@ def write_report(files, pattern, subfields, sep):
     fields = list(standard_fields) + list(subfields)
     writer = csv.writer(sys.stdout)
     writer.writerow(list(standard_fields) + list(subfields))
-    input = fileinput.input(*files, openhook=fileinput.hook_compressed)
+    input = fileinput.input(files, openhook=fileinput.hook_compressed)
     try:
         failed = 0
         for line in input:
