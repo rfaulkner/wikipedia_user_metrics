@@ -371,6 +371,8 @@ class DataLoader(object):
             clause_op = self.AND
         elif clause_type == self.OR:
             clause_op = self.OR
+        else:
+            clause_op = self.AND
 
         for row in elems:
 
@@ -710,7 +712,7 @@ class DataLoader(object):
                             lines[tokens[index]] = line
                 else:
                     if use_regex:
-                        if not(regex_pattern, re.search(tokens[index])):
+                        if not(re.search(regex_pattern, tokens[index])):
                             lines[tokens[index]] = line
                     else:
                         if not(tokens[index] in elems):
@@ -774,7 +776,7 @@ class DataLoader(object):
         return elements
 
 
-    def transform_xsv(self, filename, index_generator_methods=[], separator_from='\t', separator_to='\t', outfile = None, header=False, **kwargs):
+    def transform_xsv(self, filename, index_generator_methods=None, separator_from='\t', separator_to='\t', outfile = None, header=False, **kwargs):
         """
             Transform the fields of an xsv file using transform method pointers.  The outfile by default is named as the input file with the extension
             '.trn' appended.  The field separator may also optionally be changed.
@@ -791,6 +793,10 @@ class DataLoader(object):
                 - empty.
         """
 
+        # Pre- process defaults
+        if index_generator_methods is None: index_generator_methods = []
+
+        # Begin function
         if outfile == None:
             file_obj_out = open(projSet.__data_file_dir__ + filename + '.trn', 'w')
         else:
@@ -1060,6 +1066,7 @@ class ExperimentsLoader(DataLoader):
 
     E3_PEF_BA_TABLE = "create table `rfaulk`.`e3_pef_iter1_bytesadded` (" +\
                        "`user_id` varbinary(255) NOT NULL DEFAULT ''," +\
+                      "`hour_offset` varbinary(255) NOT NULL DEFAULT ''," +\
                       "`bytes_added_net` varbinary(255) NOT NULL DEFAULT ''," +\
                       "`bytes_added_abs` varbinary(255) NOT NULL DEFAULT ''," +\
                       "`bytes_added_pos` varbinary(255) NOT NULL DEFAULT ''," +\
@@ -1676,7 +1683,7 @@ class NecromancyLoader(ExperimentsLoader):
                 
                             
         # Find all editors in the post period 
-        sql_formatted = sql % (end_ts, TP.timestamp_from_obj(curr_obj, 1, 0))
+        sql_formatted = sql % (end_ts, TP.timestamp_from_obj(ref_datetime, 1, 0))
         
         logging.info('Executing: %s' % sql_formatted)
         results = self.execute_SQL(sql_formatted)
@@ -1788,7 +1795,7 @@ class TableLoader(DataLoader):
         logging.info('%s rows successfully updated in %s' % (str(rows_updated), self._table_name_))
 
 
-    def build_table_query(self, select_fields, table_name, where_fields=[], where_ops=[], group_fields=[], order_fields=[]):
+    def build_table_query(self, select_fields, table_name, where_fields=None, where_ops=None, group_fields=None, order_fields=None):
         """
             Constructs a SQL query given the parameters.
 
@@ -1803,6 +1810,13 @@ class TableLoader(DataLoader):
                 - String.  Formatted SQL query constructed from parameters.  Note that this may be an invalid query if the input was not well formed.
         """
 
+        # Pre- process defaults
+        if where_fields is None: where_fields = []
+        if where_ops is None: where_ops = []
+        if group_fields is None: group_fields = []
+        if order_fields is None: order_fields = []
+
+        # Begin function
         try:
             
             select_str = 'select '
@@ -1824,7 +1838,7 @@ class TableLoader(DataLoader):
                     group_str = field + ','
                 group_str = group_str[:-1]
             else:
-                where_str = ''
+                group_str = ''
                            
             if order_fields:
                 order_str = 'order by '
@@ -1832,7 +1846,7 @@ class TableLoader(DataLoader):
                     order_str = field + ','
                 order_str = order_str[:-1]
             else:
-                where_str = ''
+                order_str = ''
                             
             sql = '%s from %s %s %s %s' % (select_str, table_name, where_str, group_str, order_str)        
             
@@ -1897,13 +1911,10 @@ class PageCategoryTableLoader(TableLoader):
             Retrieve article top-level category for a list of page ids
 
                 - Parameters:
-
                     - **page_id_list**: List(string or numeric).  List of IDs from the `enwiki`.`page` table.
 
                 - Return:
-
-                    Dictionary(key=string).  **key**: Top-level categories name; **value**: count of occurrence as most relevant category among page IDs
-
+                    Dictionary(String).  **key**: Top-level categories name; **value**: count of occurrence as most relevant category among page IDs
         """
 
         page_id_str = ''
@@ -1949,7 +1960,7 @@ class PageCategoryTableLoader(TableLoader):
             portion = NormalizedCategoryScoresTableLoader().get_record_field(row, 'portion')
             norm_cats[category] = portion
         
-        category_counts = self.get_article_vector_counts(page_id_list)
+        category_counts = self.get_article_categories_by_page_ids(page_id_list)
         cat_count_total = 0.0
         
         for category in category_counts:

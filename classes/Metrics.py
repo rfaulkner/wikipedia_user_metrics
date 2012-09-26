@@ -277,6 +277,7 @@ class BytesAdded(UserMetric):
 
 
         bytes_added = dict()
+        edit_count = dict()
         ts_condition  = 'and rev_timestamp >= "%s" and rev_timestamp < "%s"' % (self._start_ts_, self._end_ts_)
 
         # Escape user_handle for SQL injection
@@ -297,6 +298,7 @@ class BytesAdded(UserMetric):
             sql = sql % {'field_name' : field_name, 'user_handle' : str(user_handle), 'ts_condition' : ts_condition, 'project' : self._project_}
 
         # Process results and add to key-value
+        results = list()
         try:
             results = self._datasource_.execute_SQL(sql)
         except:
@@ -407,16 +409,17 @@ class EditRate(UserMetric):
             namespace=self._namespace_).process(user_handle, is_id=is_id)
 
         # Convert start and end times to objects, compute the difference
-        if isinstance(self._start_ts_, string):
+        if isinstance(self._start_ts_, str):
             start_ts_obj = parse(self._start_ts_)
         else:
             start_ts_obj = self._start_ts_
 
-        if isinstance(self._end_ts_, string):
+        if isinstance(self._end_ts_, str):
             end_ts_obj = parse(self._end_ts_)
         else:
             end_ts_obj = self._end_ts_
 
+        # Compute time difference between datetime objects and get the integer number of seconds
         time_diff_sec = (end_ts_obj - start_ts_obj).total_seconds()
 
 
@@ -432,7 +435,7 @@ class EditRate(UserMetric):
 
         if isinstance(edit_rate, dict):
             for key in edit_rate:
-                edit_rate[key] = edit_count[key] / (time_diff * self._time_unit_count_)
+                edit_rate[key] = edit_rate[key] / (time_diff * self._time_unit_count_)
         else:
             edit_rate /= (time_diff * self._time_unit_count_)
 
@@ -441,13 +444,15 @@ class EditRate(UserMetric):
 
 class RevertRate(UserMetric):
     """
-        `https://meta.wikimedia.org/wiki/Research:Metrics/revert_rate`
+        Skeleton class for "RevertRate" metric:  `https://meta.wikimedia.org/wiki/Research:Metrics/revert_rate`
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         UserMetric.__init__(self, **kwargs)
 
     def process(self, user_handle, is_id=True):
+
+        revert_rate = dict()
         return revert_rate
 
 
@@ -544,7 +549,8 @@ class TimeToThreshold(UserMetric):
             if len(results) < self._threshold_edit_:
                 return -1
             else:
-                minutes_to_threshold = int((parse(results[self._threshold_edit_ - 1][0]) - parse(results[self._first_edit_ - 1][0])).seconds / 60)
+                time_diff = parse(results[self._threshold_edit_ - 1][0]) - parse(results[self._first_edit_ - 1][0])
+                minutes_to_threshold = int((time_diff).seconds / 60) + abs(time_diff.days) * 24
 
             return minutes_to_threshold
 
