@@ -1,0 +1,38 @@
+# Project settings:
+#
+# Hard coded project settings
+
+__home__ = '<home_dir>'
+__project_home__ = ''.join([__home__, '<project_dir>'])
+__web_home__ = ''.join([__home__, '<project_dir>'])
+
+__server_log_local_home__ = ''.join([__project_home__, '<log_subdir>'])
+__data_file_dir__ = ''.join([__project_home__, '<data_file_subdir>'])
+
+__web_app_module__ = <django_web_home> # (where applicable)
+__system_user__ = <system_user>
+
+# Database connection settings:
+#
+# These credentials will be consumed by the E3 Analysis modules in order to generate datasource and cursor objects via the MySQLdb module
+
+__user__ = <mysql_user_name>
+__db__ = <database_name>
+__pass__= <mysql_user_pass>
+__db_port__ = <mysql_user_port>
+
+__db_server__ = <default_db_host>
+__db_storage3__ = <storage3_db_host>
+__db_db1008__ = <db1008_db_host>
+__db_db1025__ = <db1025_db_host>
+__db_db1047__ = <db1047_db_host>
+
+# Analysis server credentials:
+#
+# These are currently defined in the context of the old analysis machine 'internproxy' but will be modified to be more generic
+
+__user_internproxy__ = <user>
+__db_internproxy__ = <default_db>
+__db_server_internproxy__ = <default_db_host>
+__db_port_internproxy__ = <default_db_port>
+__pass_internproxy__= <user_pass>
