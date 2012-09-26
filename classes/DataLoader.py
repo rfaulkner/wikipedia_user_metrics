@@ -199,7 +199,6 @@ class DataLoader(object):
         """
         return sorted(results, key=operator.itemgetter(key), reverse=False)
 
-
     def get_column_names(self):
         """
             Return the column names from the connection cursor (latest executed query)
@@ -239,76 +238,6 @@ class DataLoader(object):
             return False
 
         return output
-
-    def listify(self, list):
-        """
-            Turns input into a list
-
-            Parameters:
-              - **input**: List(), list to listify
-
-            Return:
-                - String.  List() or Boolean.  List with listified elements.
-        """
-
-        if not(isinstance(input,list)):
-            return False
-        else:
-            output = list()
-            for elem in list:
-                output.append([elem])
-
-            return output
-
-    def stringify(self, input):
-        """
-            String processing tool - appends and prepends the string argument with double quotes
-
-            Parameters:
-              - **input**: list, dict, or obj argument
-
-            Return:
-                - String.  List(String), Dict(String), or Boolean.  Structure with stringified elements or boolean=False if the input was malformed.
-        """
-
-        if input is None:
-            return False
-
-        if isinstance(input, list):
-            output = list()
-            for elem in input:
-                output.append(''.join(['"', str(elem), '"']))
-        elif isinstance(input, dict):
-            output = dict()
-            for elem in input.keys():
-                output[elem] = ''.join(['"', str(input[elem]), '"'])
-        else:
-            output = ''.join(['"', str(input), '"'])
-
-        return output
-
-
-    def histify(self, data, label_indices):
-        """
-            Turn a counts vector into a set of samples
-
-            Parameters:
-                - **data**: string argument
-                - **label_indices**:
-
-            Return:
-                - List(Integer).  Histogram sample counts.
-        """
-
-        indices = range(len(data))
-        hist_list = list()
-
-        for index in indices:
-            samples = [label_indices[index]] * data[index]            
-            hist_list.extend(samples)
-            
-        return hist_list
-
 
     def dump_to_csv(self, **kwargs):
         """
