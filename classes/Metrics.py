@@ -61,7 +61,7 @@ class UserMetric(object):
                  **kwargs):
 
         if not(isinstance(datasource, DL.DataLoader)):
-            self._datasource_ = DL.DataLoader(db='db42')
+            self._datasource_ = DL.DataLoader(db='slave')
         else:
             self._datasource_ = datasource
 
