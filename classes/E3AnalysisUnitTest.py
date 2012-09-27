@@ -8,6 +8,8 @@ __license__ = "GPL (version 2 or later)"
 
 import sys
 import unittest
+import random
+# import math
 import classes.DataLoader as DL
 import classes.Metrics as M
 
@@ -52,10 +54,25 @@ class TestTimeToThreshold(unittest.TestCase):
             Ensure that the time to threshold when exceeding one day reports the correct value
         """
 
-        self.assertEqual(self.ttt.process(self.uid), 1441)
+        self.assertEqual(self.ttt.process(self.uid)[0][1], 3367)
 
 
-def main():
+class TestExperimentsLoader(unittest.TestCase):
+    """
+        Class that defines unit tests across the TimeToThreshold Metrics class
+    """
+
+    def setUp(self):
+        self.el = DL.ExperimentsLoader()
+        self.data = {'samples' : [1,1,1], 'buckets' : ['ctrl','test1','test2'], 'bins' : [1,2,3]}
+
+    def test_write_sample_aggregates(self):
+
+        out = self.el.write_sample_aggregates(self.data['samples'], self.data['buckets'], self.data['bins'])
+        self.assertEqual(out['y0'], [1,0,0])
+
+
+def main(args):
     # Execute desired unit tests
     unittest.main()
 
