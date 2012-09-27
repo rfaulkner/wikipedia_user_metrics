@@ -53,7 +53,7 @@ import re
 import logging
 import gzip
 import operator
-# import numpy as np
+import numpy as np
 from dateutil.parser import parse as date_parse
 from abc import ABCMeta
 
@@ -779,7 +779,50 @@ class DataLoader(object):
         file_obj_out.close()
 
 
-    # Helper classes
+    def write_dict_to_xsv(self, d, separator="\t", outfile='dict_to_xsv.out'):
+        """
+            Write the contents of a dictionary whose values are lists to a file
+
+            Parameters:
+                - **d** - dict(list).  The dictionary to write from.
+                - **outfile** - String.  The output filename, assumed to be located in the project data folder.
+                - **separator** - String.  The separating character in the output file.  Default to tab.
+
+            Return:
+                - empty.
+        """
+
+        file_obj_out = open(projSet.__data_file_dir__ + outfile, 'w')
+
+        # All keys must reference a list
+        for key in d.keys():
+            if not(isinstance(d[key],list)):
+                logging.error('DataLoader::write_dict_to_xsv - All keys must index lists, bad key = %s' % key)
+                raise Exception('DataLoader::write_dict_to_xsv - All keys must index lists, bad key = %s' % key)
+
+        # Determine the length of each key-list and store
+        max_lens = dict()
+        max_list_len = 0
+        for key in d.keys():
+            max_lens[key] = len(d[key])
+            if max_lens[key] > max_list_len:
+                max_list_len = max_lens[key]
+
+        # Write to xsv
+        file_obj_out.write(separator.join(d.keys()) + '\n')
+        for i in range(max_list_len):
+            line_elems = list()
+            for key in d:
+                if i < max_lens[key]:
+                    line_elems.append(str(d[key][i]))
+                else:
+                    line_elems.append('None')
+            file_obj_out.write(separator.join(line_elems) + '\n')
+
+        file_obj_out.close()
+
+
+        # Helper classes
     # ==============
 
     class TransformMethods():
@@ -1173,6 +1216,110 @@ class ExperimentsLoader(DataLoader):
         return id_list
         # user_list_str = self.format_comma_separated_list(id_list)
         # return "".join(["rev_page in (", user_list_str, ")"])
+
+    def write_sample_aggregates(self, samples, buckets, bins=None, interval=1):
+        """
+            Takes a set of samples and corresponding buckets and builds a dictionary (which is written to a file) containing binned
+            samples and the parameters for each bin by treatment
+
+            Parameters:
+                - **samples** - List(numeric).  The sample values.
+                - **buckets** - List(String).  The treatments fro each sample.
+                - **bins** - List(numeric).  list of bin breaks - defaults to None.
+                - **interval** - Integer.  Interval length between bins - ignored in 'bins' is defined.
+
+            Return:
+                - Dict(list).  The dictionary composed from the samples.
+        """
+
+        # Input verification
+        samples = list(samples)
+        buckets = list(buckets)
+
+        if not(len(samples) == len(buckets)):
+            raise Exception('Samples and buckets must be of the same length.')
+
+        # Set the bins
+        if bins == None:
+            bins = np.array(range(min(samples), max(samples), interval))
+        else:
+            bins = np.array(bins).sort()
+
+        treatments = list(set(buckets)) # get the unique
+        out_keys = ['x']
+
+        ret = dict()
+        ret['x'] = list(bins + interval / 2.0)
+
+        all_samples = dict()
+
+        # format
+        for i in range(len(treatments)):
+            effect_index = ''.join(['y',str(i)])
+            out_keys.append(effect_index)
+            out_keys.append(''.join(['bucket',str(i)]))
+            out_keys.append(''.join([effect_index, '_mean']))
+            out_keys.append(''.join([effect_index, '_sd']))
+            out_keys.append(''.join([effect_index, '_min']))
+            out_keys.append(''.join([effect_index, '_min']))
+
+            # I itialize dict to store all samples by treatment and bin
+            all_samples[effect_index] = list()
+            for j in range(len(bins)):
+                all_samples[effect_index].append(list())
+
+        out_keys = np.array(out_keys)
+        for key in out_keys:
+            ret[key] = [0] * len(bins)
+
+        # Pass through the sample list to extract samples and counts
+        bad_bin = 0
+        for i in len(samples):
+            s = samples[i]  # sample value
+            b = buckets[i]  # sample treatment
+            b_i = treatments.index(b) # index of sample treatment
+
+            # find bin
+            try:
+                bin_index = list(bins > s).index(True) - 1
+
+                if bin_index < 0:
+                    bad_bin += 1
+                    continue
+            except ValueError:
+                bad_bin += 1
+                continue
+
+            index = ''.join(['y',str(b_i)])
+            if index in all_samples.keys():
+                all_samples[index][bin_index].append(s)
+
+        # report the number of "bad bins" - that is samples that fell outside of any bin
+        logging.info('There were %s un-"binned" samples out of %s.' % (bad_bin, len(samples)))
+
+        # Compute parameters
+        for i in range(len(treatments)):
+
+            sub_keys = list()
+            for key in ret.keys():
+                if key.find(str(i)):
+                    sub_keys.append(key)
+
+            for bin_index in len(bins):
+                sample_subset = all_samples[sub_keys[0]][bin_index]
+
+                ret[sub_keys[0]][bin_index] = len(sample_subset)
+                ret[sub_keys[2]][bin_index] = np.mean(sample_subset)
+                ret[sub_keys[3]][bin_index] = np.std(sample_subset)
+                ret[sub_keys[3]][bin_index] = min(sample_subset)
+                ret[sub_keys[3]][bin_index] = max(sample_subset)
+
+
+        # Write to xsv
+        self.write_dict_to_xsv(ret)
+
+        return ret
+
 
 
 
