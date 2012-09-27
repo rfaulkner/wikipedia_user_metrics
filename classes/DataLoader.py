@@ -115,19 +115,8 @@ class DataLoader(object):
         """
 
         if 'db' in kwargs:
-            if kwargs['db'] == 'storage3':
-                self._db_ = MySQLdb.connect(host=projSet.__db_storage3__, user=projSet.__user__, db=projSet.__db__, port=projSet.__db_port__, passwd=projSet.__pass__)
-            elif kwargs['db'] == 'db1008':
-                self._db_ = MySQLdb.connect(host=projSet.__db_db1008__, user=projSet.__user__, db=projSet.__db__, port=projSet.__db_port__, passwd=projSet.__pass__)
-            elif kwargs['db'] == 'db1025':
-                self._db_ = MySQLdb.connect(host=projSet.__db_db1025__, user=projSet.__user__, db=projSet.__db__, port=projSet.__db_port__, passwd=projSet.__pass__)
-            elif kwargs['db'] == 'db42':
-                if 'db_instance' in kwargs:
-                    self._db_ = MySQLdb.connect(host=projSet.__db_server_internproxy__, user=projSet.__user_internproxy__, db=kwargs['db_instance'], passwd=projSet.__pass_internproxy__)
-                else:
-                    self._db_ = MySQLdb.connect(host=projSet.__db_server_internproxy__, user=projSet.__user_internproxy__, db=projSet.__db_internproxy__, passwd=projSet.__pass_internproxy__, port=projSet.__db_port_internproxy__)
-            elif kwargs['db'] == 'db1047':
-                self._db_ = MySQLdb.connect(host=projSet.__db_db1047__, user=projSet.__user_internproxy__, db=projSet.__db_internproxy__, passwd=projSet.__pass_internproxy__, port=projSet.__db_port_internproxy__)
+            if kwargs['db'] == 'slave':
+                self._db_ = MySQLdb.connect(host=projSet.__db_server__, user=projSet.__user__, db=projSet.__db__, port=projSet.__db_port__, passwd=projSet.__pass__)
         else:            
             self._db_ = MySQLdb.connect(host=projSet.__db_server__, user=projSet.__user__, db=projSet.__db__, port=projSet.__db_port__, passwd=projSet.__pass__)
             # self._db_ = MySQLdb.connect(host=projSet.__db_server__, user=projSet.__user__, db=projSet.__db__, port=projSet.__db_port__)
@@ -1066,7 +1055,7 @@ class ExperimentsLoader(DataLoader):
         
     def __init__(self):     
         # Call constructor of parent
-        DataLoader.__init__(self, db='db42')
+        DataLoader.__init__(self, db='slave')
 
 
 
@@ -1217,7 +1206,7 @@ class ExperimentsLoader(DataLoader):
         # user_list_str = self.format_comma_separated_list(id_list)
         # return "".join(["rev_page in (", user_list_str, ")"])
 
-    def write_sample_aggregates(self, samples, buckets, bins=None, interval=1):
+    def write_sample_aggregates(self, samples, buckets, bin_values, bins=None, interval=1):
         """
             Takes a set of samples and corresponding buckets and builds a dictionary (which is written to a file) containing binned
             samples and the parameters for each bin by treatment
@@ -1235,23 +1224,22 @@ class ExperimentsLoader(DataLoader):
         # Input verification
         samples = list(samples)
         buckets = list(buckets)
+        bin_values = list(bin_values)
 
-        if not(len(samples) == len(buckets)):
-            raise Exception('Samples and buckets must be of the same length.')
+        if not(len(samples) == len(buckets) and len(bin_values) == len(buckets)):
+            raise Exception('Samples, bin values and buckets must be of the same length.')
 
         # Set the bins
         if bins == None:
-            bins = np.array(range(min(samples), max(samples), interval))
+            bins = np.array(range(min(bin_values), max(bin_values) + 1, interval))
         else:
             bins = np.array(bins).sort()
 
+        logging.info('The bin break values are: %s' % str(bins))
+
         treatments = list(set(buckets)) # get the unique
-        out_keys = ['x']
-
-        ret = dict()
-        ret['x'] = list(bins + interval / 2.0)
-
         all_samples = dict()
+        out_keys = list()
 
         # format
         for i in range(len(treatments)):
@@ -1261,27 +1249,30 @@ class ExperimentsLoader(DataLoader):
             out_keys.append(''.join([effect_index, '_mean']))
             out_keys.append(''.join([effect_index, '_sd']))
             out_keys.append(''.join([effect_index, '_min']))
-            out_keys.append(''.join([effect_index, '_min']))
+            out_keys.append(''.join([effect_index, '_max']))
 
-            # I itialize dict to store all samples by treatment and bin
+            # Initialize dict to store all samples by treatment and bin
             all_samples[effect_index] = list()
             for j in range(len(bins)):
                 all_samples[effect_index].append(list())
 
         out_keys = np.array(out_keys)
+        ret = dict()
         for key in out_keys:
             ret[key] = [0] * len(bins)
 
+        ret['x'] = list(bins + interval / 2.0)
+
         # Pass through the sample list to extract samples and counts
         bad_bin = 0
-        for i in len(samples):
+        for i in range(len(samples)):
             s = samples[i]  # sample value
             b = buckets[i]  # sample treatment
             b_i = treatments.index(b) # index of sample treatment
 
             # find bin
             try:
-                bin_index = list(bins > s).index(True) - 1
+                bin_index = list(bins >= s).index(True)
 
                 if bin_index < 0:
                     bad_bin += 1
@@ -1301,18 +1292,27 @@ class ExperimentsLoader(DataLoader):
         for i in range(len(treatments)):
 
             sub_keys = list()
-            for key in ret.keys():
-                if key.find(str(i)):
+            for key in out_keys:
+                if key.find(str(i)) >= 0:
                     sub_keys.append(key)
 
-            for bin_index in len(bins):
+            for bin_index in range(len(bins)):
                 sample_subset = all_samples[sub_keys[0]][bin_index]
 
                 ret[sub_keys[0]][bin_index] = len(sample_subset)
+                ret[sub_keys[1]][bin_index] = buckets[i]
                 ret[sub_keys[2]][bin_index] = np.mean(sample_subset)
                 ret[sub_keys[3]][bin_index] = np.std(sample_subset)
-                ret[sub_keys[3]][bin_index] = min(sample_subset)
-                ret[sub_keys[3]][bin_index] = max(sample_subset)
+
+                if len(sample_subset) > 0:
+                    ret[sub_keys[4]][bin_index] = np.min(sample_subset)
+                else:
+                    ret[sub_keys[4]][bin_index] = None
+
+                if len(sample_subset) > 0:
+                    ret[sub_keys[5]][bin_index] = np.max(sample_subset)
+                else:
+                    ret[sub_keys[5]][bin_index] = None
 
 
         # Write to xsv
