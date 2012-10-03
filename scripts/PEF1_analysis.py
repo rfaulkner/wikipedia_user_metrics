@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.INFO, stream=sys.stderr, format='%(asctime)s %
 def main(args):
 
     # initialize dataloader objects
-    dl = DL.DataLoader(db='db42')
+    dl = DL.DataLoader(db='slave')
     el = DL.ExperimentsLoader()
 
     # Loop through each user and get byte count data two weeks ahead of registration

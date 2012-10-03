@@ -47,7 +47,7 @@ def main(args):
 
     # Verify that the user made at least one edit
     # dl.execute_SQL('create table e3_pef_iter2_ns select r.rev_user, p.page_namespace, count(*) as revisions from enwiki.revision as r join enwiki.page as p on r.rev_page = p.page_id where rev_user in (%s) group by 1,2 order by 1 asc, 2 asc' % user_id_str)
-    eligible_users = dl.cast_elems_to_string(dl.get_elem_from_nested_list(dl.execute_SQL('select distinct user_id from rfaulk.e3_pef_iter1_ns'),0))
+    eligible_users = dl.cast_elems_to_string(dl.get_elem_from_nested_list(dl.execute_SQL('select distinct rev_user from rfaulk.e3_pef_iter2_ns'),0))
     # user_id_str = dl.format_comma_separated_list(eligible_users, include_quotes=False)
 
     logging.info('There are %s eligible user.  Processing ...' % len(eligible_users))
@@ -97,7 +97,29 @@ def main(args):
 
     dl.list_to_xsv(bytes_added)
 
-    sql_file_obj = open(settings.__sql_home__ + 'create_e3_pef_iter2_bytes_added.sql','r')
+    # Create table
+    sql = read_file(settings.__sql_home__ + 'create_e3_pef_iter2_bytes_added.sql')
+
+    dl.create_table_from_xsv('list_to_xsv.out', sql, 'e3_pef_iter2_bytesadded', create_table=True)
+    dl.create_xsv_from_SQL("select r.user_id, d.bucket, r.hour_offset, r.bytes_added_net, r.bytes_added_abs, r.bytes_added_pos, r.bytes_added_neg, r.edit_count " + \
+    "from rfaulk.e3_pef_iter2_bytesadded as r join dartar.e3_pef_iter2_users as d on d.user_id = r.user_id;",
+    outfile = 'e3_pef_iter2_ba_bucket.tsv')
+
+    # PROCESS TIME TO THRESHOLD
+    # ========================
+
+    # create table
+    sql = read_file(settings.__sql_home__ + 'create_e3_pef_iter2_timetothreshold.sql')
+
+    ttt = M.TimeToThreshold(M.TimeToThreshold.EDIT_COUNT_THRESHOLD, first_edit=1, threshold_edit=2).process(eligible_users)
+    dl.list_to_xsv(ttt)
+    dl.create_table_from_xsv('list_to_xsv.out', sql, 'e3_pef_iter2_timetothreshold', create_table=True)
+    dl.create_xsv_from_SQL('select r.user_id, d.bucket, r.time_minutes from rfaulk.e3_pef_iter2_timetothreshold as r join dartar.e3_pef_iter2_users as d on d.user_id = r.user_id;', outfile = 'e3_pef_iter1_ttt_bucket.tsv')
+
+
+def read_file(filepath_name):
+
+    sql_file_obj = open(filepath_name,'r')
 
     sql = ''
     line = sql_file_obj.readline()
@@ -106,21 +128,7 @@ def main(args):
         line = sql_file_obj.readline()
     sql_file_obj.close()
 
-    dl.execute_SQL(sql)
-
-    dl.create_table_from_xsv('list_to_xsv.out', sql, 'e3_pef_iter2_bytesadded', create_table=True)
-    dl.create_xsv_from_SQL('select r.user_id, d.bucket, r.hour_offset, r.bytes_added_net, r.bytes_added_abs, r.bytes_added_pos, r.bytes_added_neg, " + \
-    "r.edit_count from rfaulk.e3_pef_iter1_bytesadded as r join dartar.e3_pef_iter2_users as d on d.user_id = r.user_id;',
-    outfile = 'e3_pef_iter2_ba_bucket.tsv')
-
-    # PROCESS TIME TO THRESHOLD
-    # ========================
-
-    # ttt = M.TimeToThreshold(M.TimeToThreshold.EDIT_COUNT_THRESHOLD, first_edit=1, threshold_edit=2).process(eligible_users)
-    # dl.list_to_xsv(ttt)
-    # dl.create_table_from_xsv('list_to_xsv.out', '', 'e3_pef_iter2_timetothreshold')
-    # dl.create_xsv_from_SQL('select r.user_id, d.bucket, r.time_minutes from rfaulk.e3_pef_iter2_timetothreshold as r join dartar.e3_pef_iter2_users as d on d.user_id = r.user_id;', outfile = 'e3_pef_iter1_ttt_bucket.tsv')
-
+    return sql
 
 # Call Main
 if __name__ == "__main__":
