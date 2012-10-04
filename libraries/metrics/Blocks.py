@@ -25,10 +25,13 @@ class Blocks(UM.UserMetric):
     def __init__(self,
                  date_start='2001-01-01 00:00:00',
                  wiki='enwiki',
+                 return_list=True,
                  **kwargs):
 
         self._date_start_ = date_start
-        self.__wiki__ = wiki
+        self._wiki_ = wiki
+        self._return_list_ = return_list
+
         UM.UserMetric.__init__(self, **kwargs)
 
 
@@ -48,13 +51,20 @@ class Blocks(UM.UserMetric):
 
         if isinstance(user_handle, list):
             for i in range(len(user_handle)):
-                user_handle[i] = user_handle[i].encode('utf-8').replace(" ", "_")
-                rowValues[user_handle[i]] = {'block' : [0,-1,-1], 'ban' : -1}
+                try:
+                    user_handle[i] = user_handle[i].encode('utf-8').replace(" ", "_")
+                except UnicodeDecodeError:
+                    user_handle[i] = user_handle[i].replace(" ", "_")
+                rowValues[user_handle[i]] = {'block_count' : 0, 'block_first' : -1, 'block_last' : -1, 'ban' : -1}
 
             user_handle_str = self._datasource_.format_comma_separated_list(user_handle)
         else:
-            user_handle = user_handle.encode('utf-8').replace(" ", "_")
-            rowValues[user_handle] = {'block' : [0,-1,-1], 'ban' : -1}
+            try:
+                user_handle = user_handle.encode('utf-8').replace(" ", "_")
+            except UnicodeDecodeError:
+                user_handle = user_handle.replace(" ", "_")
+
+            rowValues[user_handle] = {'block_count' : 0, 'block_first' : -1, 'block_last' : -1, 'ban' : -1}
             user_handle_str = self._datasource_.format_comma_separated_list([user_handle])
 
         cursor = self._datasource_._cur_
@@ -74,7 +84,7 @@ class Blocks(UM.UserMetric):
 			""" % {
             'timestamp': self._date_start_,
             'usernames': user_handle_str,
-            'wiki' : self.__wiki__
+            'wiki' : self._wiki_
             }
 
         sql = " ".join(sql.strip().split())
@@ -89,11 +99,14 @@ class Blocks(UM.UserMetric):
             last = row[4]
 
             if type == "block":
-                rowValues[username][type][0] = count
-                rowValues[username][type][1] = first
-                rowValues[username][type][2] = last
+                rowValues[username]['block_count'] = count
+                rowValues[username]['block_first'] = first
+                rowValues[username]['block_last'] = last
 
             elif type == "ban":
-                rowValues[username][type][0] = first
+                rowValues[username][type] = first
 
-        return rowValues
+        if self._return_list_:
+            return [[user, rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']] for user in rowValues.keys()]
+        else:
+            return rowValues
