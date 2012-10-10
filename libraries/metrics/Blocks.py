@@ -24,13 +24,13 @@ class Blocks(UM.UserMetric):
     """
     def __init__(self,
                  date_start='2001-01-01 00:00:00',
-                 wiki='enwiki',
+                 project='enwiki',
                  return_list=False,
                  return_generator=True,
                  **kwargs):
 
         self._date_start_ = date_start
-        self._wiki_ = wiki
+        self._project_ = project
         self._return_list_ = return_list
         self._return_generator_ = return_generator
 
@@ -86,7 +86,7 @@ class Blocks(UM.UserMetric):
 			""" % {
             'timestamp': self._date_start_,
             'usernames': user_handle_str,
-            'wiki' : self._wiki_
+            'wiki' : self._project_
             }
 
         sql = " ".join(sql.strip().split())
