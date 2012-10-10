@@ -31,6 +31,7 @@ class BytesAdded(UM.UserMetric):
                  date_start='2001-01-01 00:00:00',
                  date_end=datetime.datetime.now(),
                  raw_count=True,
+                 project='enwiki',
                  **kwargs):
         """
             - Parameters:
@@ -45,6 +46,7 @@ class BytesAdded(UM.UserMetric):
         self._start_ts_ = self.get_timestamp(date_start)
         self._end_ts_ = self.get_timestamp(date_end)
         self.raw_count = raw_count
+        self._project_ = project
 
         UM.UserMetric.__init__(self, **kwargs)
 
