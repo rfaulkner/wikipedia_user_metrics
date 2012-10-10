@@ -6,7 +6,7 @@
         >>> import libraries.etl.WPAPI
         >>> api = WPAPI.WPAPI()
         >>> api.getDiff(515866670)
-        (u'\n[[Category:People from Palermo]]\n[[Category:Sportspeople from Sicily|Palermo]]\n[[Category:Sport in Palermo|People]]\n[[Category:Sportspeople by city in Italy|Palermo]]', True)
+        (u'[[Category:People from Palermo]] [[Category:Sportspeople from Sicily|Palermo]] [[Category:Sport in Palermo|People]] [[Category:Sportspeople by city in Italy|Palermo]]', True    )
 """
 
 __author__ = "Ryan Faulkner and Aaron Halfaker"
