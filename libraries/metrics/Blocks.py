@@ -25,12 +25,14 @@ class Blocks(UM.UserMetric):
     def __init__(self,
                  date_start='2001-01-01 00:00:00',
                  wiki='enwiki',
-                 return_list=True,
+                 return_list=False,
+                 return_generator=True,
                  **kwargs):
 
         self._date_start_ = date_start
         self._wiki_ = wiki
         self._return_list_ = return_list
+        self._return_generator_ = return_generator
 
         UM.UserMetric.__init__(self, **kwargs)
 
@@ -50,7 +52,7 @@ class Blocks(UM.UserMetric):
         rowValues = {}
 
         if isinstance(user_handle, list):
-            for i in range(len(user_handle)):
+            for i in xrange(len(user_handle)):
                 try:
                     user_handle[i] = user_handle[i].encode('utf-8').replace(" ", "_")
                 except UnicodeDecodeError:
@@ -106,7 +108,9 @@ class Blocks(UM.UserMetric):
             elif type == "ban":
                 rowValues[username][type] = first
 
-        if self._return_list_:
+        if self._return_generator_:
+            return ([user, rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']] for user in rowValues.keys())
+        elif self._return_list_:
             return [[user, rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']] for user in rowValues.keys()]
         else:
             return rowValues
