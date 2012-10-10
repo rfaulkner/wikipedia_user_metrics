@@ -22,19 +22,20 @@ class Blocks(UM.UserMetric):
             >>> p.process(['Wesley Mouse', 'Nickyp88'])
             {'Nickyp88': {'ban': -1, 'block': [1L, '20110809143215', '20110809143215']}, 'Wesley_Mouse': {'ban': -1, 'block': [2L, '20110830010835', '20120526192657']}}
     """
+
+    HEADER = ['block_count', 'block_first', 'block_last', 'ban']
+
     def __init__(self,
                  date_start='2001-01-01 00:00:00',
                  project='enwiki',
-                 return_list=False,
-                 return_generator=True,
+                 return_type=UM.UserMetric.RETURN_GEN,
                  **kwargs):
 
         self._date_start_ = date_start
         self._project_ = project
-        self._return_list_ = return_list
-        self._return_generator_ = return_generator
+        self._return_type_ = return_type
 
-        UM.UserMetric.__init__(self, **kwargs)
+        UM.UserMetric.__init__(self, project=project, **kwargs)
 
 
     def process(self, user_handle, is_id=False):
@@ -108,9 +109,12 @@ class Blocks(UM.UserMetric):
             elif type == "ban":
                 rowValues[username][type] = first
 
-        if self._return_generator_:
+        if self._return_type_ == 2:
             return ([user, rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']] for user in rowValues.keys())
-        elif self._return_list_:
+        elif self._return_type_ == 1:
             return [[user, rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']] for user in rowValues.keys()]
+        elif self._return_type_ == 0:
+            user = rowValues.keys()[0]
+            return [rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']]
         else:
             return rowValues

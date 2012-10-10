@@ -53,6 +53,12 @@ logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s 
 
 class UserMetric(object):
 
+    RETURN_AGGREGATE = 0
+    RETURN_LIST = 1
+    RETURN_GEN = 2
+
+    HEADER = ['metric_value']
+
     def __init__(self,
                  datasource=None,
                  project='enwiki',
@@ -66,7 +72,6 @@ class UserMetric(object):
 
         self._namespace_ = namespace
         self._project_ = project
-
 
     def get_timestamp(self, ts_representation):
         """
@@ -109,7 +114,6 @@ class UserMetric(object):
         """
 
         # If the input is a list recursively call on elements
-        # TODO: potentailly extend for dictionaries
         if isinstance(var, list):
             escaped_var = list()
             for elem in var:

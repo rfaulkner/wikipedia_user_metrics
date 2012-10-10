@@ -12,7 +12,6 @@ import UserMetric as UM
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
-
 class BytesAdded(UM.UserMetric):
     """
         Produces a float value that reflects the rate of edit behaviour
@@ -27,10 +26,12 @@ class BytesAdded(UM.UserMetric):
                 1200
     """
 
+    HEADER = ['net_bytes_added', 'absolute_bytes_added', 'positive_bytes_added', 'negative_bytes_added', 'edit_count']
+
     def __init__(self,
                  date_start='2001-01-01 00:00:00',
                  date_end=datetime.datetime.now(),
-                 raw_count=True,
+                 return_type=UM.UserMetric.RETURN_AGGREGATE,
                  project='enwiki',
                  **kwargs):
         """
@@ -45,10 +46,9 @@ class BytesAdded(UM.UserMetric):
 
         self._start_ts_ = self.get_timestamp(date_start)
         self._end_ts_ = self.get_timestamp(date_end)
-        self.raw_count = raw_count
-        self._project_ = project
+        self._return_type_ = return_type
 
-        UM.UserMetric.__init__(self, **kwargs)
+        UM.UserMetric.__init__(self, project=project, **kwargs)
 
     def process(self, user_handle, is_id=True):
         """
@@ -97,7 +97,7 @@ class BytesAdded(UM.UserMetric):
         results = list()
         try:
             results = self._datasource_.execute_SQL(sql)
-        except:
+        except Exception:
             logging.error('Could not get bytes added for specified users(s).' )
 
         # Get the difference for each revision length from the parent to compute bytes added
@@ -143,7 +143,7 @@ class BytesAdded(UM.UserMetric):
                 logging.error('Could not perform bytes added calculation for user %s, rev_len_total: %s, parent_rev_len: %s' % (user, rev_len_total, parent_rev_len))
 
         # If a raw count has been flagged produce a sum of all
-        if self.raw_count:
+        if self._return_type_ == 0:
             total_bytes_added = [0,0,0,0,0]
             for user in bytes_added:
                 for i in range(5):
