@@ -2,10 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-	reformat_1k.py - special purpose script for reformatting tsv columns
-
-	Usage:
-	    python reformat_1k.py [OPTIONS]
+	call_metric_on_users.py - Write metrics to a user list
 
 	Example:
 
