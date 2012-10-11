@@ -47,6 +47,7 @@ __date__ = "October 3rd, 2012"
 import sys
 import MySQLdb
 import datetime
+import cgi
 import re
 import logging
 import gzip
@@ -464,7 +465,7 @@ class DataLoader(object):
         # Crawl the log line by line
         # insert the contents of each line into the slave table
 
-        count = 1
+        count = 0
 
         if header:
             file_obj.readline()
@@ -494,7 +495,7 @@ class DataLoader(object):
                         include_line = False
                         break
 
-            if not(include_line):
+            if not include_line:
                 continue
 
             # Check condition for optional logging
@@ -502,7 +503,7 @@ class DataLoader(object):
                 logging.info('Current line: %s\nProcessed %s lines' % (line, str(count)))
 
             # Parse input line
-            if parse_function == None:
+            if not parse_function:
                 insert_field_str = self.format_comma_separated_list(line.split(separator))
             else:
                 insert_field_str = self.format_comma_separated_list(parse_function(line))
@@ -513,7 +514,8 @@ class DataLoader(object):
                 #else:
             #    logging.info('Skipped line: %s' % insert_field_str)
 
-            count += 1
+                count += 1
+
             line = file_obj.readline().strip()
 
 
@@ -521,7 +523,8 @@ class DataLoader(object):
         logging.info('Inserting %s records into %s' % (str(count), str(table_name)))
 
         insert_sql = insert_sql[:-2]
-        self.execute_SQL(insert_sql)
+        if count:
+            self.execute_SQL(insert_sql)
 
 
 
@@ -966,4 +969,81 @@ class DataLoader(object):
 
             return l
 
+        def e3_acux_log_parse(self, line):
+            """
+                Process client and server side events.  Read to table, gather clean funnels.
 
+                Dario says:
+
+                    enwiki ext.accountCreationUX@2-acux_1-assignment	20121005000446	0	hGba7rOPWNmpc9lA7EQLnB5Nvb7ziBqoT	-1	0	0	0	0	frGBqVHW1eAHGQwldL8dhFs3R8ocZ9TC|http://en.wikipedia.org/w/index.php?title=Special:UserLogin&returnto=Miguel_(singer)&returntoquery=action%3Dedit
+                    enwiki ext.accountCreationUX@2-acux_1-impression	20121005000447	0	hGba7rOPWNmpc9lA7EQLnB5Nvb7ziBqoT	-1	0	0	0	0	frGBqVHW1eAHGQwldL8dhFs3R8ocZ9TC|http://en.wikipedia.org/w/index.php?title=Special:UserLogin&returnto=Miguel_(singer)&returntoquery=action%3Dedit
+                    enwiki ext.accountCreationUX@2-acux_1-submit	20121005000508	0	hGba7rOPWNmpc9lA7EQLnB5Nvb7ziBqoT	-1	0	0	0	0	frGBqVHW1eAHGQwldL8dhFs3R8ocZ9TC|http://en.wikipedia.org/w/index.php?title=Special:UserLogin&returnto=Miguel_(singer)&returntoquery=action%3Dedit|Mariellaknaus
+                    enwiki ?event_id=account_create&user_id=17637802&timestamp=1349395510&username=Mariellaknaus&self_made=1&creator_user_id=17637802&by_email=0&userbuckets=%7B%22ACUX%22%3A%5B%22acux_1%22%2C2%5D%7D&mw_user_token=frGBqVHW1eAHGQwldL8dhFs3R8ocZ9TC&version=2
+
+                    The sequence of events in this "clean" funnel is the following:
+
+                    acux_1-assignment 	(client event)
+                    acux_1-impression 	(client event)
+                    acux_1-submit 		(client event)
+                    account_create 		(server event)
+
+                    The full specs of the events are here: https://meta.wikimedia.org/wiki/Research:Account_creation_UX/Logging
+
+                    Duplicate events
+                    Since users can go through complex funnels before submitting the account create form and generate errors after submitting, "clean"
+                    funnels are going to be the exception, not the norm and we will need to collapse all funnels by token to extract meaningful metrics.
+                    In other words, raw counts of -impression or -submit events will be meaningless and should not be used to calculate click through/conversion
+                    rates prior to deduplication.
+
+                    As a rule, there should only be one (server-side) account_create event associated with a token. The only exception is shared browsers
+                    creating multiple accounts. In this case we will see multiple account_create events associated with the same token (which is persistent
+                     across sessions and logins) but different user_id's.
+
+                    Early stats
+                    In the first hour since activation (23.30-00.30 UTC), we had 87 successful account creations from the acux_1 bucket vs 74
+                    accounts from the control. This doesn't include users who by-passed the experiment by having JS disabled. The total number of
+                    accounts registered in this hour on enwiki, per the logging table, is 180, so users who didn't get bucketed are 19 (i.e.
+                    about 10% of all account registrations). This figure is higher than I expected so there might be other causes on top of JS
+                    disabled that cause users to register without a bucket and that we may want to investigate.
+            """
+
+            line_bits = line.split('\t')
+            num_fields = len(line_bits)
+
+            # handle
+            if num_fields == 1:
+                line_bits = line.split()
+                query_vars = cgi.parse_qs(line_bits[1])
+
+                try:
+                    key = query_vars['userbuckets'][0].keys()[0]
+
+                    # Ensure that the user is self made
+                    if query_vars['self_made'][0]:
+                        return [line_bits[0], query_vars['username'][0], query_vars['userbuckets'][0][key][0], query_vars['user_id'][0],
+                            query_vars['timestamp'][0], query_vars['?event_id'][0], query_vars['self_made'][0], query_vars['mw_user_token'][0],
+                            query_vars['version'][0], query_vars['by_email'][0], query_vars['creator_user_id'][0]]
+                    else:
+                        return []
+
+                except Exception:
+                    #logging.error('Could not parse: %s' % line)
+                    return []
+
+            # Handle log impression, assignment, and subimt events
+            elif num_fields == 10:
+
+                fields = line_bits[0].split()
+                fields.extend(line_bits[1:9])
+
+                additional_fields = ['','']
+                last_field = line_bits[9].split('|')
+
+                for i in xrange(min(2,len(last_field))):
+                    additional_fields[i] = last_field[i]
+
+                fields.extend(additional_fields[:2])
+
+                return fields
+
+            return []
