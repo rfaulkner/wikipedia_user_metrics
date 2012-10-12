@@ -48,6 +48,7 @@ import sys
 import MySQLdb
 import datetime
 import cgi
+from urlparse import urlparse
 import re
 import logging
 import gzip
@@ -581,7 +582,8 @@ class DataLoader(object):
                 file_obj.write(lines[key])
 
 
-    def remove_elems_from_xsv(self, filename, elems, index, separator='\t', header=True, inclusive=True, opt_ext='.rem', regex_pattern=None):
+    def remove_elems_from_xsv(self, filename, elems, index, separator='\t',
+                              header=True, inclusive=True, opt_ext='.rem', regex_pattern=None):
         """
             Evaluates each line of an .xsv on a condition.  The field is conditioned on being contained in a list or on matching a regex.  The results
             overwrite the input unless an optional extension is specified.  To choose to condition on matching a list of strings the parameter
@@ -689,7 +691,8 @@ class DataLoader(object):
         return elements
 
 
-    def transform_xsv(self, filename, index_generator_methods=None, separator_from='\t', separator_to='\t', outfile = None, header=False, **kwargs):
+    def transform_xsv(self, filename, index_generator_methods=None, separator_from='\t',
+                      separator_to='\t', outfile = None, header=False, **kwargs):
         """
             Transform the fields of an xsv file using transform method pointers.  The outfile by default is named as the input file with the extension
             '.trn' appended.  The field separator may also optionally be changed.
@@ -1010,28 +1013,30 @@ class DataLoader(object):
             line_bits = line.split('\t')
             num_fields = len(line_bits)
 
-            # handle
+            # handle both events generated from the server and client side via ACUX.  Discriminate the two cases based
+            # on the number of fields in the log
+
             if num_fields == 1:
+                # SERVER EVENT - account creation
+
                 line_bits = line.split()
                 query_vars = cgi.parse_qs(line_bits[1])
 
                 try:
-                    key = query_vars['userbuckets'][0].keys()[0]
-
                     # Ensure that the user is self made
                     if query_vars['self_made'][0]:
-                        return [line_bits[0], query_vars['username'][0], query_vars['userbuckets'][0][key][0], query_vars['user_id'][0],
-                            query_vars['timestamp'][0], query_vars['?event_id'][0], query_vars['self_made'][0], query_vars['mw_user_token'][0],
-                            query_vars['version'][0], query_vars['by_email'][0], query_vars['creator_user_id'][0]]
+                        return [line_bits[0], query_vars['username'][0], query_vars['user_id'][0],
+                            query_vars['timestamp'][0], query_vars['?event_id'][0], query_vars['self_made'][0],
+                            query_vars['mw_user_token'][0], query_vars['version'][0], query_vars['by_email'][0],
+                            query_vars['creator_user_id'][0]]
                     else:
                         return []
 
                 except Exception:
-                    #logging.error('Could not parse: %s' % line)
                     return []
 
-            # Handle log impression, assignment, and subimt events
             elif num_fields == 10:
+                # CLIENT EVENT - impression, assignment, and submit events
 
                 fields = line_bits[0].split()
                 fields.extend(line_bits[1:9])
@@ -1039,10 +1044,18 @@ class DataLoader(object):
                 additional_fields = ['','']
                 last_field = line_bits[9].split('|')
 
-                for i in xrange(min(2,len(last_field))):
-                    additional_fields[i] = last_field[i]
+                if len(last_field) == 2:
+                    additional_fields[0] = last_field[0]
+                    additional_fields[1] = last_field[1]
 
-                fields.extend(additional_fields[:2])
+                elif len(last_field) == 1:
+                    # Check whether the additional fields contain only a url
+                    if urlparse(last_field[0]).scheme:
+                        additional_fields[1] = last_field[0]
+                    else:
+                        additional_fields[0] = last_field[0]
+
+                fields.extend(additional_fields)
 
                 return fields
 
