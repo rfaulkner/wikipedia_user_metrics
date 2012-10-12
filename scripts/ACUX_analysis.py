@@ -12,7 +12,11 @@
 
 	Usage:
 
+        ./ACUX_analysis.py [OPTS]
+
 	Example:
+
+	    ./ACUX_analysis.py -l True -c True      # Loads the click tracking logs + determines ACUX event clickthrough
 """
 
 __author__ = "Ryan Faulkner <rfaulkner@wikimedia.org>"
@@ -42,29 +46,12 @@ def main(args):
     global el
     el = EL.ExperimentsLoader()
 
-    # Create tables to store log data
-    sql = read_file(settings.__sql_home__ + 'create_e3_acux_client_events.sql')
-    dl.execute_SQL('drop table if exists e3_acux_client_events')
-    dl.execute_SQL(sql)
+    if args.load:
+        load_log_data()
 
-    sql = read_file(settings.__sql_home__ + 'create_e3_acux_server_events.sql')
-    dl.execute_SQL('drop table if exists e3_acux_server_events')
-    dl.execute_SQL(sql)
+    if args.clickthrough:
+        get_click_through()
 
-    lpm = DL.DataLoader.LineParseMethods()
-
-    # Load users from logs
-
-    logs = ['clicktracking.log-20121001.gz','clicktracking.log-20121002.gz','clicktracking.log-20121003.gz',
-            'clicktracking.log-20121004.gz','clicktracking.log-20121005.gz','clicktracking.log-20121006.gz',
-            'clicktracking.log-20121007.gz','clicktracking.log-20121008.gz','clicktracking.log-20121009.gz',
-            'clicktracking.log-20121010.gz',]
-
-    for log in logs:
-        dl.create_table_from_xsv(log,'','e3_acux_client_events',
-            parse_function=lpm.e3_acux_log_parse, regex_list=['ext.accountCreationUX'], header=False)
-        dl.create_table_from_xsv(log,'','e3_acux_server_events',
-            parse_function=lpm.e3_acux_log_parse, regex_list=['event_id=account_create'], header=False)
 
 def read_file(filepath_name):
 
@@ -78,6 +65,34 @@ def read_file(filepath_name):
     sql_file_obj.close()
 
     return sql
+
+def load_log_data():
+    # Create tables to store log data
+    sql = read_file(settings.__sql_home__ + 'create_e3_acux_client_events.sql')
+    dl.execute_SQL('drop table if exists e3_acux1_client_events')
+    dl.execute_SQL(sql)
+
+    sql = read_file(settings.__sql_home__ + 'create_e3_acux_server_events.sql')
+    dl.execute_SQL('drop table if exists e3_acux1_server_events')
+    dl.execute_SQL(sql)
+
+    lpm = DL.DataLoader.LineParseMethods()
+
+    # Load users from logs
+
+    logs = ['clicktracking.log-20121004.gz','clicktracking.log-20121005.gz','clicktracking.log-20121006.gz',
+            'clicktracking.log-20121007.gz','clicktracking.log-20121008.gz','clicktracking.log-20121009.gz',
+            'clicktracking.log-20121010.gz',]
+
+    for log in logs:
+        dl.create_table_from_xsv(log,'','e3_acux1_client_events',
+            parse_function=lpm.e3_acux_log_parse, regex_list=['ext.accountCreationUX'], header=False)
+        dl.create_table_from_xsv(log,'','e3_acux1_server_events',
+            parse_function=lpm.e3_acux_log_parse, regex_list=['event_id=account_create'], header=False)
+
+
+def get_click_through():
+    return
 
 def get_blocks(experiment_start_date):
     return
@@ -96,7 +111,8 @@ if __name__ == "__main__":
         epilog="",
         conflict_handler="resolve"
     )
-    parser.add_argument('-d', '--dummy',type=str, help='Dummy arg.',default="")
+    parser.add_argument('-l', '--load',type=str, help='Load the clicktracking logs.',default=False)
+    parser.add_argument('-c', '--clickthrough',type=str, help='Compute event click through.',default=False)
 
     args = parser.parse_args()
 
