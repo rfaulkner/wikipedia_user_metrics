@@ -102,10 +102,10 @@ class DataLoader(object):
         self._col_names_ = None
         self._valid_ = False
 
-        self.init_db(**kwargs)
+        self.set_connection(**kwargs)
 
 
-    def init_db(self, **kwargs):
+    def set_connection(self, **kwargs):
         """
             Establishes a database connection.
 
