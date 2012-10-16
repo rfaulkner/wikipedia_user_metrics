@@ -110,10 +110,11 @@ class DataLoader(object):
 
         if 'db' in kwargs:
             if kwargs['db'] == 'slave':
-                self._db_ = MySQLdb.connect(host=projSet.__db_server__, user=projSet.__user__, db=projSet.__db__, port=projSet.__db_port__, passwd=projSet.__pass__)
+                self._db_ = MySQLdb.connect(host=projSet.__db_server__, user=projSet.__user__, db=projSet.__db__,
+                    port=projSet.__db_port__, passwd=projSet.__pass__)
         else:
-            self._db_ = MySQLdb.connect(host=projSet.__db_server__, user=projSet.__user__, db=projSet.__db__, port=projSet.__db_port__, passwd=projSet.__pass__)
-            # self._db_ = MySQLdb.connect(host=projSet.__db_server__, user=projSet.__user__, db=projSet.__db__, port=projSet.__db_port__)
+            self._db_ = MySQLdb.connect(host=projSet.__db_server__, user=projSet.__user__, db=projSet.__db__,
+                port=projSet.__db_port__, passwd=projSet.__pass__)
 
         # Create cursor
         self._cur_ = self._db_.cursor()
@@ -121,18 +122,6 @@ class DataLoader(object):
     def close_db(self):
         self._cur_.close()
         self._db_.close()
-
-    def establish_faulkner_conn(self):
-
-        self.close_db()
-        self._db_ = MySQLdb.connect(host=projSet.__db_server__, user=projSet.__user__, db=projSet.__db__, port=projSet.__db_port__)
-        self._cur_ = self._db_.cursor()
-
-    def establish_enwiki_conn(self):
-
-        self.close_db()
-        self._db_ = MySQLdb.connect(host=projSet.__db_server_internproxy__, user=projSet.__user_internproxy__, db=projSet.__db_internproxy__, port=projSet.__db_port_internproxy__, passwd=projSet.__pass_internproxy__)
-        self._cur_ = self._db_.cursor()
 
 
     def execute_SQL(self, SQL_statement):
@@ -1044,7 +1033,7 @@ class DataLoader(object):
                 additional_fields = ['','']
                 last_field = line_bits[9].split('|')
 
-                if len(last_field) == 2:
+                if len(last_field) >= 2:
                     additional_fields[0] = last_field[0]
                     additional_fields[1] = last_field[1]
 
