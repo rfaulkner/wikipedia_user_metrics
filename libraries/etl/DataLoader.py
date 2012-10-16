@@ -67,7 +67,7 @@ logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s 
 class DataLoader(object):
     """
 
-        Base class for loading data from a specified source.  This class and its children also provide data processing functionality.
+        Base class for loading data from a specified source.  This is a Singleton class.
 
         The general functionality is as follows:
 
@@ -86,6 +86,14 @@ class DataLoader(object):
 
     AND = 'and'
     OR = 'or'
+
+    __instance = None
+
+    def __init__( self ):
+
+        if DataLoader.__instance:
+            raise self.__class__.__instance
+        self.__class__.__instance = self
 
     def __init__(self, **kwargs):
         """ Constructor - Initialize class members and initialize the database connection  """
@@ -150,9 +158,6 @@ class DataLoader(object):
             self._db_.rollback()
             self._valid_ = False
 
-            # logging.error('Could not execute: ' + SQL_statement)
-            logging.error(str(type(inst)))      # the exception instance
-            logging.error(str(inst.args))       # arguments stored in .args
             logging.error(inst.__str__())       # __str__ allows args to printed directly
 
             return -1
@@ -251,7 +256,6 @@ class DataLoader(object):
         except Exception as e:
             logging.error(e.message)
 
-
     def format_clause(self, elems, index, clause_type, field_name):
         """
             Helper method.  Builds a "WHERE" clause for a SQL statement
@@ -286,7 +290,6 @@ class DataLoader(object):
         clause = clause[:-4]
 
         return clause
-
 
     def format_comma_separated_list(self, elems, include_quotes=True):
         """
@@ -343,7 +346,6 @@ class DataLoader(object):
 
         return out_list
 
-
     def get_elem_from_xsv(self, xsv_name, index, separator='\t', header=True):
         """
             Parse element from separated value file.  Return a list containing the values matched on each line of the file.
@@ -377,7 +379,6 @@ class DataLoader(object):
 
         return elems
 
-
     def list_to_xsv(self, nested_list, separator='\t'):
         """
             Transforms a nested list or t
@@ -401,7 +402,6 @@ class DataLoader(object):
                 logging.error('Could not parse: "%s"' % str(elem))
 
         file_obj.close()
-
 
     def create_table_from_xsv(self, filename, create_sql, table_name, parse_function=None,
                               create_table = False, log_out=False, log_velocity=10000, user_db='rfaulk',
@@ -515,7 +515,6 @@ class DataLoader(object):
         insert_sql = insert_sql[:-2]
         if count:
             self.execute_SQL(insert_sql)
-
 
 
     def remove_duplicates_from_xsv(self, filename, separator='\t', index=None, header=True, opt_ext=".dup"):
