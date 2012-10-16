@@ -1,7 +1,9 @@
 """
 
-This module will be used to define WMF metrics.  The Template Method behavioural pattern (http://en.wikipedia.org/wiki/Template_method_pattern) will
-be used to implement the metrics generation.  For example: ::
+This module will be used to define WMF metrics.  The Strategy behavioural pattern
+(http://en.wikipedia.org/wiki/Template_method_pattern) will be used to implement the metrics generation.
+
+For example: ::
 
     class Metric(object):
 
@@ -31,8 +33,8 @@ be used to implement the metrics generation.  For example: ::
             return metric_value
 
 
-These metrics will be used to support experimentation and measurement at the Wikimedia Foundation.  The guidelines for this development may be found at
-https://meta.wikimedia.org/wiki/Research:Metrics.
+These metrics will be used to support experimentation and measurement at the Wikimedia Foundation.  The guidelines for
+this development may be found at https://meta.wikimedia.org/wiki/Research:Metrics.
 
 """
 
@@ -73,7 +75,7 @@ class UserMetric(object):
         self._namespace_ = namespace
         self._project_ = project
 
-    def get_timestamp(self, ts_representation):
+    def _get_timestamp(self, ts_representation):
         """
             Helper method.  Takes a representation of a date object (String or datetime.datetime object) and formats
             as a timestamp: "YYYY-MM-DD HH:II:SS"
@@ -100,8 +102,7 @@ class UserMetric(object):
             logging.info('Could not parse datetime: %s' % str(ts_representation))
             return None
 
-
-    def escape_var(self, var):
+    def _escape_var(self, var):
         """
             Escapes either elements of a list (recursively visiting elements) or a single variable.  The variable
             is cast to string before being escaped.
@@ -122,9 +123,8 @@ class UserMetric(object):
         else:
             return MySQLdb._mysql.escape_string(str(var))
 
+    def process(self, user_handle, is_id=True): raise NotImplementedError
 
-    def process(self, user_handle, is_id=True):
-        """
+    def header(self): raise NotImplementedError
 
-        """
-        return 0
+    def __str__(self): return ""
