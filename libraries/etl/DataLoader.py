@@ -63,7 +63,6 @@ import umetrics.postings as post
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
-
 class DataLoader(object):
     """
 
@@ -89,14 +88,13 @@ class DataLoader(object):
 
     __instance = None
 
-    def __init__( self ):
+    def __init__(self, **kwargs):
+        """ Constructor - Initialize class members and initialize the database connection  """
 
+        # Setup Singleton instance - subclasses must call this constructor
         if DataLoader.__instance:
             raise self.__class__.__instance
         self.__class__.__instance = self
-
-    def __init__(self, **kwargs):
-        """ Constructor - Initialize class members and initialize the database connection  """
 
         self._results_ = (())
         self._col_names_ = None
@@ -104,16 +102,12 @@ class DataLoader(object):
 
         self.set_connection(**kwargs)
 
-
     def set_connection(self, **kwargs):
         """
             Establishes a database connection.
 
             Parameters (\*\*kwargs):
                 - **db**: string value used to determine the database connection
-
-            Return:
-                - empty.
         """
 
         if 'db' in kwargs:
@@ -130,7 +124,6 @@ class DataLoader(object):
     def close_db(self):
         self._cur_.close()
         self._db_.close()
-
 
     def execute_SQL(self, SQL_statement):
         """
@@ -161,7 +154,6 @@ class DataLoader(object):
             logging.error(inst.__str__())       # __str__ allows args to printed directly
 
             return -1
-
 
     def sort_results(self, results, key):
         """
@@ -341,7 +333,7 @@ class DataLoader(object):
         for elem in in_list:
             try:
                 out_list.append(elem[index])
-            except:
+            except Exception:
                 logging.info('Unable to extract index %s from %s' % (str(index), str(elem)))
 
         return out_list
@@ -404,7 +396,7 @@ class DataLoader(object):
         file_obj.close()
 
     def create_table_from_xsv(self, filename, create_sql, table_name, parse_function=None,
-                              create_table = False, log_out=False, log_velocity=10000, user_db='rfaulk',
+                              log_out=False, log_velocity=10000, user_db=projSet.__db__,
                               regex_list=None, neg_regex_list=None, header=True, separator='\t'):
         """
             Populates or creates a table from a .xsv file.
@@ -427,40 +419,35 @@ class DataLoader(object):
                 - empty.
         """
 
-        if re.search("\.gz", filename):
+        # Open the data file - Process the header
+        if re.search('\.gz', filename):
             file_obj = gzip.open(projSet.__data_file_dir__ + filename, 'rb')
         else:
             file_obj = open(projSet.__data_file_dir__ + filename, 'r')
+        if header:
+            file_obj.readline()
 
-        if create_table:
+        # Optionally create the table - if no create sql is specified create a generic tbale based on column names
+        if create_sql:
             try:
-                self.execute_SQL("drop table if exists `rfaulk`.`%s`" % table_name)
+                self.execute_SQL("drop table if exists `%s`.`%s`" % (user_db, table_name))
                 self.execute_SQL(create_sql)
-            except:
+
+            except Exception:
                 logging.error('Could not create table: %s' % create_sql)
                 return
 
-
-        # Get column names
-
+        # Get column names - reset the values if header has already been set
         self.execute_SQL('select * from `%s`.`%s` limit 1' % (user_db, table_name))
         column_names = self.get_column_names()
         column_names_str = self.format_comma_separated_list(column_names, include_quotes=False)
 
-
         # Prepare SQL syntax
         insert_sql = 'insert into `%(user_db)s`.`%(table_name)s` (%(column_names)s) values ' % {'table_name' : table_name, 'column_names' : column_names_str, 'user_db' : user_db}
 
-
-        # Crawl the log line by line
-        # insert the contents of each line into the slave table
-
+        # Crawl the log line by line - insert the contents of each line into the table
         count = 0
-
-        if header:
-            file_obj.readline()
-
-        line = file_obj.readline().strip()
+        line = file_obj.readline().strip(separator)
         while line != '':
 
             # First evaluate whether there are any regex's n which to test the string
@@ -475,7 +462,6 @@ class DataLoader(object):
                         line = file_obj.readline().strip()
                         include_line = False
                         break
-
 
             # patterns that must be not be present
             if isinstance(neg_regex_list, list):
@@ -506,8 +492,7 @@ class DataLoader(object):
 
                 count += 1
 
-            line = file_obj.readline().strip()
-
+            line = file_obj.readline().strip(separator)
 
         # Perform insert
         logging.info('Inserting %s records into %s' % (str(count), str(table_name)))
@@ -515,7 +500,6 @@ class DataLoader(object):
         insert_sql = insert_sql[:-2]
         if count:
             self.execute_SQL(insert_sql)
-
 
     def remove_duplicates_from_xsv(self, filename, separator='\t', index=None, header=True, opt_ext=".dup"):
         """
@@ -568,7 +552,6 @@ class DataLoader(object):
                 file_obj.write(key)
             else:
                 file_obj.write(lines[key])
-
 
     def remove_elems_from_xsv(self, filename, elems, index, separator='\t',
                               header=True, inclusive=True, opt_ext='.rem', regex_pattern=None):
@@ -638,7 +621,6 @@ class DataLoader(object):
         for key in lines.keys():
             file_obj.write(lines[key])
 
-
     def extract_pattern_from_text_file(self, filename, parse_method, header=True):
         """
             Extracts selected elements from a text file on a line by line basis by using a parsing method on each line.
@@ -677,7 +659,6 @@ class DataLoader(object):
         file_obj.close()
 
         return elements
-
 
     def transform_xsv(self, filename, index_generator_methods=None, separator_from='\t',
                       separator_to='\t', outfile = None, header=False, **kwargs):
@@ -728,7 +709,6 @@ class DataLoader(object):
         file_obj_in.close()
         file_obj_out.close()
 
-
     def create_xsv_from_SQL(self, sql, outfile = 'sql_to_xsv.out', separator = '\t'):
         """
             Generate an xsv file from SQL output.  The rows from the query resutls are written to a file using the specified field separator.
@@ -752,7 +732,6 @@ class DataLoader(object):
             line_str = line_str[:-1] + '\n'
             file_obj_out.write(line_str)
         file_obj_out.close()
-
 
     def write_dict_to_xsv(self, d, separator="\t", outfile='dict_to_xsv.out'):
         """
@@ -796,9 +775,19 @@ class DataLoader(object):
 
         file_obj_out.close()
 
+    def create_generic_table(self, table_name, column_names):
+        """
+            Given a table name and a set of column names create a generic table
 
-    # Helper classes
-    # ==============
+            Parameters:
+                - **table_name** - str.
+                = **column_names** - list(str).
+        """
+        create_stmt = 'CREATE TABLE `%s` (' % table_name
+        for col in column_names:
+            create_stmt += "`%s` varbinary(255) NOT NULL DEFAULT ''," % col
+        create_stmt = create_stmt[:-1] + ") ENGINE=MyISAM DEFAULT CHARSET=binary"
+        self.execute_SQL(create_stmt)
 
     class TransformMethods():
         """
@@ -886,7 +875,6 @@ class DataLoader(object):
                 Uses the data_parse method to extract a date object from tokens[index].
             """
             return str(date_parse(tokens[index]))
-
 
     class LineParseMethods():
         """
