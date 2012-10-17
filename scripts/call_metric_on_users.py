@@ -18,8 +18,8 @@ import logging
 import settings
 import datetime
 import argparse
-from libraries.metrics import BytesAdded as BA
-from libraries.metrics import Blocks as B
+from src.metrics import bytes_added as ba
+from src.metrics import blocks as b
 
 sys.path.append(settings.__E3_Analysis_Home__)
 
@@ -62,9 +62,9 @@ def get_metric(args):
     global header
 
     m_index = [metric == args.metric for metric in metric_types].index(True)
-    metric_class = [BA.BytesAdded(date_start=args.date_start, date_end=args.date_start, project=args.project, raw_count=True),
-                 B.Blocks(date_start=args.date_start, project=args.project, return_list=True, return_generator=False)]
-    metric_headers = [BA.BytesAdded.HEADER, B.Blocks.HEADER]
+    metric_class = [ba.BytesAdded(date_start=args.date_start, date_end=args.date_start, project=args.project, raw_count=True),
+                 b.Blocks(date_start=args.date_start, project=args.project, return_list=True, return_generator=False)]
+    metric_headers = [ba.BytesAdded.HEADER, b.Blocks.HEADER]
     header = metric_headers[m_index]
     header.extend('\n')
 
