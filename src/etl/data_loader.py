@@ -43,6 +43,7 @@ These classes are used to define the data source for the DataReporting family of
 
 __author__ = "Ryan Faulkner"
 __date__ = "October 3rd, 2012"
+__license__ = "GPL (version 2 or later)"
 
 import sys
 import MySQLdb
@@ -59,6 +60,7 @@ import timestamp_processor as tp
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
+
 
 class DataLoader(object):
     """
@@ -98,6 +100,9 @@ class DataLoader(object):
         self._valid_ = False
 
         self.set_connection(**kwargs)
+
+    def __del__(self):
+        self.close_db()
 
     def set_connection(self, **kwargs):
         """
@@ -294,7 +299,7 @@ class DataLoader(object):
 
         if include_quotes:
             for i in range(len(elems)):
-                elems[i] = MySQLdb._mysql.escape_string(elems[i])
+                elems[i] = MySQLdb.escape_string(elems[i])
             join_tag = '" <join_tag_1234> "'
         else:
             join_tag = ' <join_tag_1234> '
@@ -1033,3 +1038,11 @@ class DataLoader(object):
                 return fields
 
             return []
+
+def Handle(x = DataLoader, **kwargs):
+    """ Handles object reference for EngineQuery Singleton and subclasses """
+    try:
+        single = x(**kwargs)
+    except DataLoader, s:
+        single = s
+    return single
