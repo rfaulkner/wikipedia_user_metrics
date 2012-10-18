@@ -400,8 +400,8 @@ class DataLoader:
         file_obj.close()
 
     def create_table_from_xsv(self, filename, create_sql, table_name, parse_function=None,
-                              log_out=False, log_velocity=10000, user_db=projSet.__db__,
-                              regex_list=None, neg_regex_list=None, header=True, separator='\t'):
+                              max_records=10000, user_db=projSet.__db__, regex_list=None, neg_regex_list=None,
+                              header=True, separator='\t'):
         """
             Populates or creates a table from a .xsv file.
 
@@ -411,8 +411,7 @@ class DataLoader:
                 - **table_name** - String.  Name of table to populate.
                 - **parse_function** - Method Pointer.  Method that performs line parsing (see helper class TransformMethod)
                 - **create_table** - Boolean.  Flag that indicates whether table creation is to occur.
-                - **log_out** - Boolean.  Flag indicating whether to output logging.
-                - **log_velocity** - Integer. Determines the frequency of logging.
+                - **max_record** - Integer. Maximum number of records allowable in insert statement.
                 - **user_db** - String. Database instance.
                 - **regex_list** - List(string).  List of inclusive regex strings over which each line of input will be conditioned.
                 - **neg_regex_list** - List(string).  List of exclusive regex strings over which each line of input will be conditioned.
@@ -447,19 +446,31 @@ class DataLoader:
         column_names_str = self.format_comma_separated_list(column_names, include_quotes=False)
 
         # Prepare SQL syntax
-        insert_sql = 'insert into `%(user_db)s`.`%(table_name)s` (%(column_names)s) values ' % {'table_name' : table_name, 'column_names' : column_names_str, 'user_db' : user_db}
+        sql = """
+                        insert into `%(user_db)s`.`%(table_name)s`
+                        (%(column_names)s) values
+                    """ % {
+                'table_name' : table_name,
+                'column_names' : column_names_str,
+                'user_db' : user_db}
+
+        insert_sql = " ".join(sql.strip().split())
 
         # Crawl the log line by line - insert the contents of each line into the table
         count = 0
         line = file_obj.readline().strip(separator)
         while line != '':
 
-            # First evaluate whether there are any regex's n which to test the string
-            # Skip to the next line if the condition is not satisfied
+            # Perform batch insert if max is reached
+            if count % max_records == 0 and count:
+                logging.info('Inserting %s records. Total = %s' % (str(max_records), str(count)))
+                self.execute_SQL(insert_sql[:-2])
+                insert_sql = " ".join(sql.strip().split())
 
-            # patterns that must be present
+            # Determine whether the row qualifies for insertion based on regex patterns
             include_line = True
 
+            # positive patterns
             if isinstance(regex_list, list):
                 for r in regex_list:
                     if not(re.search(r, line)):
@@ -467,7 +478,7 @@ class DataLoader:
                         include_line = False
                         break
 
-            # patterns that must be not be present
+            # negative patterns
             if isinstance(neg_regex_list, list):
                 for r in neg_regex_list:
                     if re.search(r, line):
@@ -478,10 +489,6 @@ class DataLoader:
             if not include_line:
                 continue
 
-            # Check condition for optional logging
-            if log_out and count % log_velocity == 0:
-                logging.info('Current line: %s\nProcessed %s lines' % (line, str(count)))
-
             # Parse input line
             if not parse_function:
                 insert_field_str = self.format_comma_separated_list(line.split(separator))
@@ -491,19 +498,14 @@ class DataLoader:
             # Only add the record
             if len(insert_field_str.split(',')) == len(column_names):
                 insert_sql += '(%s), ' % insert_field_str
-                #else:
-            #    logging.info('Skipped line: %s' % insert_field_str)
-
                 count += 1
 
             line = file_obj.readline().strip(separator)
 
         # Perform insert
-        logging.info('Inserting %s records into %s' % (str(count), str(table_name)))
-
-        insert_sql = insert_sql[:-2]
         if count:
-            self.execute_SQL(insert_sql)
+            logging.info('Inserting remaining records. Total = %s' % str(count))
+            self.execute_SQL(insert_sql[:-2])
 
     def remove_duplicates_from_xsv(self, filename, separator='\t', index=None, header=True, opt_ext=".dup"):
         """
