@@ -1,4 +1,4 @@
-CREATE TABLE `rfaulk`.`e3_pef_iter2_blocks` (
+CREATE TABLE `e3_pef_iter2_blocks` (
   `user_id` varbinary(255) NOT NULL DEFAULT '',
   `block_count` varbinary(255) NOT NULL DEFAULT '',
   `first_block` varbinary(255) NOT NULL DEFAULT '',

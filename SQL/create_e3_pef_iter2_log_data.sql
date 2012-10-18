@@ -1,5 +1,5 @@
 
-CREATE TABLE `rfaulk`.`e3_pef_iter2_log_data` (
+CREATE TABLE `e3_pef_iter2_log_data` (
   `e3pef_project` varbinary(255) NOT NULL DEFAULT '',
   `e3pef_event` varbinary(255) NOT NULL DEFAULT '',
   `e3pef_timestamp` varbinary(255) NOT NULL DEFAULT '',
