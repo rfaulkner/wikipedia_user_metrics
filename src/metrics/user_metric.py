@@ -55,23 +55,18 @@ logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s 
 
 class UserMetric(object):
 
-    RETURN_AGGREGATE = 0
-    RETURN_LIST = 1
-    RETURN_GEN = 2
-
-    HEADER = ['metric_value']
-
     def __init__(self,
-                 datasource=None,
+                 data_source=None,
                  project='enwiki',
                  namespace=0,
                  **kwargs):
 
-        if not(isinstance(datasource, dl.DataLoader)):
-            self._datasource_ = dl.DataLoader(db='slave')
+        if not(isinstance(data_source, dl.DataLoader)):
+            self._data_source_ = dl.Handle(db='slave')
         else:
-            self._datasource_ = datasource
+            self._data_source_ = data_source
 
+        self._results = list()
         self._namespace_ = namespace
         self._project_ = project
 
@@ -98,7 +93,7 @@ class UserMetric(object):
             ts = tp.timestamp_convert_format(ts,2,1)
 
             return ts
-        except:
+        except Exception:
             logging.info('Could not parse datetime: %s' % str(ts_representation))
             return None
 
@@ -121,10 +116,18 @@ class UserMetric(object):
                 escaped_var.append(self._escape_var(elem))
             return escaped_var
         else:
-            return MySQLdb._mysql.escape_string(str(var))
+            return MySQLdb.escape_string(str(var))
+
+    def __iter__(self): return (r for r in self._results)
 
     def process(self, user_handle, is_id=True): raise NotImplementedError
 
     def header(self): raise NotImplementedError
 
-    def __str__(self): return ""
+    def __str__(self): return "\n".join([str(self._data_source_._db_), str(self.__class__),
+                                         str(self._namespace_), self._project_])
+
+    class UserMetricError(Exception):
+        """ Basic exception class for UserMetric types """
+        def __init__(self, message="Unable to process results using strategy."):
+            Exception.__init__(self, message)

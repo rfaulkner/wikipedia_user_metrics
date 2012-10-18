@@ -4,7 +4,6 @@ __author__ = "Ryan Faulkner"
 __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
-import MySQLdb
 import sys
 import logging
 from dateutil.parser import *
@@ -12,7 +11,6 @@ import user_metric as um
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
-
 
 class TimeToThreshold(um.UserMetric):
     """
@@ -27,27 +25,19 @@ class TimeToThreshold(um.UserMetric):
             500
     """
 
-    EDIT_COUNT_THRESHOLD = 0
-
     def __init__(self,
-                 threshold_type,
+                 threshold_type_class,
                  **kwargs):
 
         um.UserMetric.__init__(self, **kwargs)
+        self._threshold_obj_ = threshold_type_class(**kwargs)
 
-        if threshold_type == self.EDIT_COUNT_THRESHOLD:
-
-            try:
-                first_edit = kwargs['first_edit']
-                threshold_edit = kwargs['threshold_edit']
-
-                self._threshold_obj_ = TimeToThreshold.EditCountThreshold(first_edit, threshold_edit)
-
-            except Exception:
-                logging.info('Could not instantiate EditCountThreshold object.')
+    def header(self):
+        return self._threshold_obj_.header()
 
     def process(self, user_handle, is_id=True):
-        return self._threshold_obj_.process(user_handle, self, is_id=is_id)
+        self._results =  self._threshold_obj_.process(user_handle, self, is_id=is_id)
+        return self
 
     class EditCountThreshold():
         """
@@ -55,7 +45,7 @@ class TimeToThreshold(um.UserMetric):
             process(), which computes the time, in minutes, taken between making N edits and M edits for a user.  N < M.
         """
 
-        def __init__(self, first_edit, threshold_edit):
+        def __init__(self, **kwargs):
             """
                 Object constructor.  There are two required parameters:
 
@@ -64,9 +54,15 @@ class TimeToThreshold(um.UserMetric):
                         - **threshold_edit** - Integer.  The numeric value of the threshold edit from which to measure the threshold
             """
 
-            self._first_edit_ = first_edit
-            self._threshold_edit_ = threshold_edit
+            try:
+                self._first_edit_ = kwargs['first_edit']
+                self._threshold_edit_ = kwargs['threshold_edit']
 
+            except Exception:
+                raise um.UserMetric.UserMetricError(str(self.__class__()) + ': Invalid init params.')
+
+        def header(self):
+            return []
 
         def process(self, user_handle, threshold_obj, is_id=True):
             """
@@ -80,18 +76,18 @@ class TimeToThreshold(um.UserMetric):
 
             minutes_to_threshold = list()
 
+            # Operate on either user ids or names
             if is_id:
                 user_revs_SQL = 'select rev_timestamp from %(project)s.revision where rev_user = "%(user_handle)s" order by 1 desc'
             else:
                 user_revs_SQL = 'select rev_timestamp from %(project)s.revision where rev_user_text = "%(user_handle)s" order by 1 desc'
 
-            if isinstance(user_handle,list):
-                for user in user_handle:
-                    sql = user_revs_SQL % {'user_handle' : str(user), 'project' : threshold_obj._project_}
-                    minutes_to_threshold.append([user, self._get_minute_diff_result(threshold_obj._datasource_.execute_SQL(sql))])
-            else:
-                sql = user_revs_SQL % {'user_handle' : str(user_handle), 'project' : threshold_obj._project_}
-                minutes_to_threshold.append([user_handle, self._get_minute_diff_result(threshold_obj._datasource_.execute_SQL(sql))])
+            if not isinstance(user_handle,list):
+                user_handle = [user_handle]
+
+            for user in user_handle:
+                sql = user_revs_SQL % {'user_handle' : str(user), 'project' : threshold_obj._project_}
+                minutes_to_threshold.append([user, self._get_minute_diff_result(threshold_obj._data_source_.execute_SQL(sql))])
 
             return minutes_to_threshold
 
@@ -108,6 +104,6 @@ class TimeToThreshold(um.UserMetric):
                 return -1
             else:
                 time_diff = parse(results[self._threshold_edit_ - 1][0]) - parse(results[self._first_edit_ - 1][0])
-                minutes_to_threshold = int((time_diff).seconds / 60) + abs(time_diff.days) * 24
+                minutes_to_threshold = int(time_diff.seconds / 60) + abs(time_diff.days) * 24
 
             return minutes_to_threshold

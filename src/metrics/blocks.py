@@ -23,20 +23,20 @@ class Blocks(um.UserMetric):
             {'Nickyp88': {'ban': -1, 'block': [1L, '20110809143215', '20110809143215']}, 'Wesley_Mouse': {'ban': -1, 'block': [2L, '20110830010835', '20120526192657']}}
     """
 
-    HEADER = ['block_count', 'block_first', 'block_last', 'ban']
+
 
     def __init__(self,
                  date_start='2001-01-01 00:00:00',
                  project='enwiki',
-                 return_type=um.UserMetric.RETURN_GEN,
                  **kwargs):
 
         self._date_start_ = date_start
         self._project_ = project
-        self._return_type_ = return_type
 
         um.UserMetric.__init__(self, project=project, **kwargs)
 
+    def header(self):
+        return ['user_id', 'block_count', 'block_first', 'block_last', 'ban']
 
     def process(self, user_handle, is_id=False):
         """
@@ -60,7 +60,7 @@ class Blocks(um.UserMetric):
                     user_handle[i] = user_handle[i].replace(" ", "_")
                 rowValues[user_handle[i]] = {'block_count' : 0, 'block_first' : -1, 'block_last' : -1, 'ban' : -1}
 
-            user_handle_str = self._datasource_.format_comma_separated_list(user_handle)
+            user_handle_str = self._data_source_.format_comma_separated_list(user_handle)
         else:
             try:
                 user_handle = user_handle.encode('utf-8').replace(" ", "_")
@@ -68,9 +68,9 @@ class Blocks(um.UserMetric):
                 user_handle = user_handle.replace(" ", "_")
 
             rowValues[user_handle] = {'block_count' : 0, 'block_first' : -1, 'block_last' : -1, 'ban' : -1}
-            user_handle_str = self._datasource_.format_comma_separated_list([user_handle])
+            user_handle_str = self._data_source_.format_comma_separated_list([user_handle])
 
-        cursor = self._datasource_._cur_
+        cursor = self._data_source_._cur_
 
         sql = """
 				SELECT
@@ -109,12 +109,6 @@ class Blocks(um.UserMetric):
             elif type == "ban":
                 rowValues[username][type] = first
 
-        if self._return_type_ == 2:
-            return ([user, rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']] for user in rowValues.keys())
-        elif self._return_type_ == 1:
-            return [[user, rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']] for user in rowValues.keys()]
-        elif self._return_type_ == 0:
-            user = rowValues.keys()[0]
-            return [rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']]
-        else:
-            return rowValues
+        self._results = [[user, rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']] for user in rowValues.keys()]
+
+        return self
