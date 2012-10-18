@@ -62,7 +62,7 @@ import timestamp_processor as tp
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 
-class DataLoader(object):
+class DataLoader:
     """
 
         Base class for loading data from a specified source.  This is a Singleton class.
@@ -124,8 +124,10 @@ class DataLoader(object):
         self._cur_ = self._db_.cursor()
 
     def close_db(self):
-        self._cur_.close()
-        self._db_.close()
+        if hasattr(self, '_cur_'):
+            self._cur_.close()
+        if hasattr(self, '_db_'):
+            self._db_.close()
 
     def execute_SQL(self, SQL_statement):
         """
