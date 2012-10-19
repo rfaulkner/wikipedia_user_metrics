@@ -1,4 +1,4 @@
-CREATE TABLE `rfaulk`.`e3_acux1_server_events` (
+CREATE TABLE `e3_acux1_server_events` (
   `project` varbinary(255) NOT NULL DEFAULT '',
   `username` varbinary(255) NOT NULL DEFAULT '',
 --   `userbuckets` varbinary(255) NOT NULL DEFAULT '',
