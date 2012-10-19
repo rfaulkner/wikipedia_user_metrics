@@ -116,12 +116,10 @@ class DataLoader:
             if kwargs['db'] == 'slave':
                 self._db_ = MySQLdb.connect(host=projSet.__db_server__, user=projSet.__user__, db=projSet.__db__,
                     port=projSet.__db_port__, passwd=projSet.__pass__)
+            # Create cursor
+            self._cur_ = self._db_.cursor()
         else:
-            self._db_ = MySQLdb.connect(host=projSet.__db_server__, user=projSet.__user__, db=projSet.__db__,
-                port=projSet.__db_port__, passwd=projSet.__pass__)
-
-        # Create cursor
-        self._cur_ = self._db_.cursor()
+            logging.info('No connection specified.  MySQLdb connector is null.')
 
     def close_db(self):
         if hasattr(self, '_cur_'):
