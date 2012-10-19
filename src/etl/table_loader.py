@@ -5,50 +5,48 @@ __license__ = "GPL (version 2 or later)"
 
 # Import python base modules
 import sys
-import MySQLdb
 import logging
-from abc import ABCMeta
 import data_loader as dl
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
-class TableLoader(dl.DataLoader):
+def decorator_virtual_func_table_loader(f):
+    """ This decorator is used to render certain functions virtual """
+    def wrapper(self):
+        if self.__class__ == TableLoader:
+            return 'TableLoader is virtual.  Use subclass.'
+        else:
+            return f(self)
+    return wrapper
+
+class TableLoader(dl.Connector):
     """
         Base class for providing MySQL table access.  Inherits DataLoader.  This class is abstract (not enforced) and implements the
         Template Method design pattern.
-
     """
 
-    __metaclass__ = ABCMeta
-
     def __init__(self, **kwargs):
-        """
-            Constructor. Call constructor of parent class.
-        """
+        """ Initialize parent class. """
         self._table_name_ = 'meta'
-        dl.DataLoader.__init__(self, **kwargs)
+        # self.set_connection(**kwargs)
 
+    @decorator_virtual_func_table_loader
     def record_exists(self, **kwargs):
-        """
-            Returns a boolean value reflecting whether a record exists in the table.
-        """
+        """ Returns a boolean value reflecting whether a record exists in the table. """
         return
 
+    @decorator_virtual_func_table_loader
     def insert_row(self, record_list, **kwargs):
-        """
-            Try to insert a new record (s)into the table.
-        """
-
+        """ Try to insert a new record (s)into the table. """
         return
 
+    @decorator_virtual_func_table_loader
     def delete_row(self, **kwargs):
-        """
-            Try to delete a record() from the table.
-        """
-
+        """ Try to delete a record() from the table. """
         return
 
+    @decorator_virtual_func_table_loader
     def update_row(self, set_col, set_vals, id_field, ids):
         """
             Issues generic update quer(ies).  Try to modify a record(s) in the table.
@@ -89,11 +87,10 @@ class TableLoader(dl.DataLoader):
 
                 self.execute_SQL(sql % {'tablename' : self._table_name_, 'set_col' : set_col, 'id_field' : id_field, 'set_val' : set_val, 'id' : id})
                 rows_updated += 1
-        except:
+        except Exception:
             logging.info('Failed to assign all values.')
 
         logging.info('%s rows successfully updated in %s' % (str(rows_updated), self._table_name_))
-
 
     def build_table_query(self, select_fields, table_name, where_fields=None, where_ops=None, group_fields=None, order_fields=None):
         """
@@ -150,7 +147,7 @@ class TableLoader(dl.DataLoader):
 
             sql = '%s from %s %s %s %s' % (select_str, table_name, where_str, group_str, order_str)
 
-        except:
+        except Exception:
             logging.info('Could not build query for %s: ' % table_name)
             sql = ''
 
