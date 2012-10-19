@@ -61,48 +61,8 @@ import timestamp_processor as tp
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
-
-class DataLoader:
-    """
-
-        Base class for loading data from a specified source.  This is a Singleton class.
-
-        The general functionality is as follows:
-
-            * Initializes remote database connections
-            * Provides entry-point for execution of generic queries
-            * Functionality for processing results from query execution
-            * Functionality for outputting results from query execution
-
-        Class members:
-
-            - **_results_**: stores the output from the latest SQL execution
-            - **_col_names_**: column names from the latest SQL execution
-            - **_valid_**: flag that indicates whether the current results are valid
-
-    """
-
-    AND = 'and'
-    OR = 'or'
-
-    __instance = None
-
-    def __init__(self, **kwargs):
-        """ Constructor - Initialize class members and initialize the database connection  """
-
-        # Setup Singleton instance - subclasses must call this constructor
-        if DataLoader.__instance:
-            raise self.__class__.__instance
-        self.__class__.__instance = self
-
-        self._results_ = (())
-        self._col_names_ = None
-        self._valid_ = False
-
-        self.set_connection(**kwargs)
-
-    def __del__(self):
-        self.close_db()
+class Connector:
+    """ This class implements the connection logic to MySQL """
 
     def set_connection(self, **kwargs):
         """
@@ -139,23 +99,56 @@ class DataLoader:
         """
 
         try:
-
             self._cur_.execute(SQL_statement)
             self._db_.commit()
-
             self._valid_ = True
-
             self._results_ =  self._cur_.fetchall()
             return self._results_
 
         except Exception as inst:
-
             self._db_.rollback()
             self._valid_ = False
-
             logging.error(inst.__str__())       # __str__ allows args to printed directly
 
-            return -1
+
+class DataLoader(Connector):
+    """
+        Base class for loading data from a specified source.  This is a Singleton class.
+
+        The general functionality is as follows:
+
+            * Initializes remote database connections
+            * Provides entry-point for execution of generic queries
+            * Functionality for processing results from query execution
+            * Functionality for outputting results from query execution
+
+        Class members:
+
+            - **_results_**: stores the output from the latest SQL execution
+            - **_col_names_**: column names from the latest SQL execution
+            - **_valid_**: flag that indicates whether the current results are valid
+    """
+
+    AND = 'and'
+    OR = 'or'
+    __instance = None
+
+    def __init__(self, **kwargs):
+        """ Constructor - Initialize class members and initialize the database connection  """
+
+        # Setup Singleton instance - subclasses must call this constructor
+        if DataLoader.__instance:
+            raise self.__class__.__instance
+        self.__class__.__instance = self
+
+        self._results_ = (())
+        self._col_names_ = None
+        self._valid_ = False
+
+        self.set_connection(**kwargs)
+
+    def __del__(self):
+        self.close_db()
 
     def sort_results(self, results, key):
         """
