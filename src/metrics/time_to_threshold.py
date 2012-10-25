@@ -6,7 +6,7 @@ __license__ = "GPL (version 2 or later)"
 
 import sys
 import logging
-from dateutil.parser import *
+from dateutil.parser import parse as date_parse
 import user_metric as um
 
 # CONFIGURE THE LOGGER
@@ -103,13 +103,13 @@ class TimeToThreshold(um.UserMetric):
                         - **first_edit** - Integer.  The numeric value of the first edit from which to measure the threshold.
                         - **threshold_edit** - Integer.  The numeric value of the threshold edit from which to measure the threshold
             """
-            if self._threshold_edit_ == LAST_EDIT:
-                time_diff = parse(results[len(results) - 1][0]) - parse(results[self._first_edit_ - 1][0])
+            if self._threshold_edit_ == LAST_EDIT and len(results) > 0:
+                time_diff = date_parse(results[len(results) - 1][0]) - date_parse(results[self._first_edit_ - 1][0])
                 minutes_to_threshold = int(time_diff.seconds / 60) + abs(time_diff.days) * 24
             elif len(results) < self._threshold_edit_:
                 return -1
             else:
-                time_diff = parse(results[self._threshold_edit_ - 1][0]) - parse(results[self._first_edit_ - 1][0])
+                time_diff = date_parse(results[self._threshold_edit_ - 1][0]) - date_parse(results[self._first_edit_ - 1][0])
                 minutes_to_threshold = int(time_diff.seconds / 60) + abs(time_diff.days) * 24
 
             return minutes_to_threshold
