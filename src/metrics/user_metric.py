@@ -119,10 +119,9 @@ class UserMetric(object):
         """
 
         # If the input is a list recursively call on elements
-        if isinstance(var, list):
+        if hasattr(var, '__iter__'):
             escaped_var = list()
-            for elem in var:
-                escaped_var.append(cls._escape_var(elem))
+            for elem in var: escaped_var.append(cls._escape_var(elem))
             return escaped_var
         else:
             return MySQLdb.escape_string(str(var))
