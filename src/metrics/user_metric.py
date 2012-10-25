@@ -70,8 +70,7 @@ class UserMetric(object):
         self._namespace_ = namespace
         self._project_ = project
 
-    def __repr__(self):
-        return "User Metric"
+    def __repr__(self): return "UserMetric"
 
     def __str__(self): return "\n".join([str(self._data_source_._db_), str(self.__class__),
                                          str(self._namespace_), self._project_])
@@ -126,10 +125,10 @@ class UserMetric(object):
         else:
             return MySQLdb.escape_string(str(var))
 
+    @staticmethod
+    def header(): raise NotImplementedError
+
     def process(self, user_handle, is_id=True): raise NotImplementedError
-
-    def header(self): raise NotImplementedError
-
 
     class UserMetricError(Exception):
         """ Basic exception class for UserMetric types """

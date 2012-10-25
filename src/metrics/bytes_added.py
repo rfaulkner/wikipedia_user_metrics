@@ -6,6 +6,7 @@ __license__ = "GPL (version 2 or later)"
 import datetime
 import sys
 import logging
+# from collections import namedtuple
 import user_metric as um
 
 # CONFIGURE THE LOGGER
@@ -40,16 +41,14 @@ class BytesAdded(um.UserMetric):
             - Return:
                 - Empty.
         """
-
         self._start_ts_ = self._get_timestamp(date_start)
         self._end_ts_ = self._get_timestamp(date_end)
-
         um.UserMetric.__init__(self, project=project, **kwargs)
 
     def __repr__(self): return "Bytes Added"
 
-    def header(self):
-        return ['user_id', 'bytes_added_net', 'bytes_added_absolute', 'bytes_added_pos', 'bytes_added_neg', 'edit_count']
+    @staticmethod
+    def header(): return ['user_id', 'bytes_added_net', 'bytes_added_absolute', 'bytes_added_pos', 'bytes_added_neg', 'edit_count']
 
     def process(self, user_handle, is_id=True):
 

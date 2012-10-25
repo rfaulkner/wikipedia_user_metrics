@@ -30,14 +30,12 @@ class Blocks(um.UserMetric):
 
         self._date_start_ = date_start
         self._project_ = project
-
         um.UserMetric.__init__(self, project=project, **kwargs)
 
-    def __repr__(self):
-        return "Blocks"
+    def __repr__(self): return "Blocks"
 
-    def header(self):
-        return ['user_id', 'block_count', 'block_first', 'block_last', 'ban']
+    @staticmethod
+    def header(): return ['user_id', 'block_count', 'block_first', 'block_last', 'ban']
 
     def process(self, user_handle, is_id=False):
         """

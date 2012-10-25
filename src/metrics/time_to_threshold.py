@@ -34,8 +34,10 @@ class TimeToThreshold(um.UserMetric):
         um.UserMetric.__init__(self, **kwargs)
         self._threshold_obj_ = threshold_type_class(**kwargs)
 
-    def header(self):
-        return self._threshold_obj_.header()
+    def __repr__(self): return "TimeToThreshold"
+
+    @staticmethod
+    def header(): return ['user_id', 'minutes_diff']
 
     def process(self, user_handle, is_id=True):
         self._results =  self._threshold_obj_.process(user_handle, self, is_id=is_id)
@@ -62,12 +64,6 @@ class TimeToThreshold(um.UserMetric):
 
             except Exception:
                 raise um.UserMetric.UserMetricError(str(self.__class__()) + ': Invalid init params.')
-
-        def __repr__(self):
-            return "Time to Threshold"
-
-        def header(self):
-            return []
 
         def process(self, user_handle, threshold_obj, is_id=True):
             """
@@ -103,11 +99,11 @@ class TimeToThreshold(um.UserMetric):
                         - **first_edit** - Integer.  The numeric value of the first edit from which to measure the threshold.
                         - **threshold_edit** - Integer.  The numeric value of the threshold edit from which to measure the threshold
             """
-            if self._threshold_edit_ == LAST_EDIT and len(results) > 0:
+            if len(results) < self._threshold_edit_ or len(results) == 0:
+                return -1
+            elif self._threshold_edit_ == LAST_EDIT and len(results) > 0:
                 time_diff = date_parse(results[len(results) - 1][0]) - date_parse(results[self._first_edit_ - 1][0])
                 minutes_to_threshold = int(time_diff.seconds / 60) + abs(time_diff.days) * 24
-            elif len(results) < self._threshold_edit_:
-                return -1
             else:
                 time_diff = date_parse(results[self._threshold_edit_ - 1][0]) - date_parse(results[self._first_edit_ - 1][0])
                 minutes_to_threshold = int(time_diff.seconds / 60) + abs(time_diff.days) * 24
