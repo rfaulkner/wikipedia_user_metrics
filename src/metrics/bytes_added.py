@@ -59,6 +59,9 @@ class BytesAdded(um.UserMetric):
 
         um.UserMetric.__init__(self, project=project, **kwargs)
 
+    def __repr__(self):
+        return "Bytes Added"
+
     def header(self):
         return ['user_id', 'bytes_added_net', 'bytes_added_absolute', 'bytes_added_pos', 'bytes_added_neg', 'edit_count']
 
@@ -85,77 +88,62 @@ class BytesAdded(um.UserMetric):
         """
 
         bytes_added = dict()
-        edit_count = dict()
         ts_condition  = 'and rev_timestamp >= "%s" and rev_timestamp < "%s"' % (self._start_ts_, self._end_ts_)
 
         # Escape user_handle for SQL injection
         user_handle = self._escape_var(user_handle)
 
+        # determine the format field
+        field_name = ['rev_user_text','rev_user'][is_id]
+
+        # build the user set for inclusion into the query
+        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
+        for u in user_handle: bytes_added[u] = [0] * 5
         if is_id:
-            field_name = 'rev_user'
+            user_set = self._data_source_.format_comma_separated_list(user_handle, include_quotes=False)
         else:
-            field_name = 'rev_user_text'
+            user_set = self._data_source_.format_comma_separated_list(user_handle, include_quotes=False)
 
-        if isinstance(user_handle, list):
-            # where_clause = DL.DataLoader().format_clause(user_handle,0,DL.DataLoader.OR,field_name)
-            user_set = self._data_source_.format_comma_separated_list(user_handle)
-            sql = """
-                    select
-                        %(field_name)s,
-                        rev_len,
-                        rev_parent_id
-                    from %(project)s.revision
-                    where %(field_name)s in (%(user_set)s) %(ts_condition)s
-                """ % {
-                    'field_name' : field_name,
-                    'user_set' : user_set,
-                    'ts_condition' : ts_condition,
-                    'project' : self._project_}
-        else:
-            sql = """
-                    select
-                        %(field_name)s,
-                        rev_len,
-                        rev_parent_id
-                    from %(project)s.revision
-                    where %(field_name)s = "%(user_handle)s" %(ts_condition)s
-                """ % {
-                    'field_name' : field_name,
-                    'user_handle' : str(user_handle),
-                    'ts_condition' : ts_condition,
-                    'project' : self._project_}
+        sql = """
+                select
+                    %(field_name)s,
+                    rev_len,
+                    rev_parent_id
+                from %(project)s.revision
+                where %(field_name)s in (%(user_set)s) %(ts_condition)s
+            """ % {
+                'field_name' : field_name,
+                'user_set' : user_set,
+                'ts_condition' : ts_condition,
+                'project' : self._project_}
 
-        # Process results and add to key-value
+
+        sql = " ".join(sql.strip().split())
+        logging.info(sql)
         try:
-            results = self._data_source_.execute_SQL(sql)
-
-        except Exception:
+            self._data_source_._cur_.execute(sql)
+        except um.MySQLdb.ProgrammingError:
             logging.error('Could not get bytes added for specified users(s).' )
             raise self.UserMetricError()
 
         # Get the difference for each revision length from the parent to compute bytes added
-        for row in results:
-
+        for row in self._data_source_._cur_.fetchall():
             try:
                 user = row[0]
                 rev_len_total = int(row[1])
                 parent_rev_id = row[2]
 
-                if not(user in bytes_added.keys()):
-                    bytes_added[user] = [0,0,0,0,0]
-                    edit_count[user] = 0
-
-            except Exception:
+            except IndexError:
                 logging.error('Could not retrieve results from row: %s' % str(row))
                 continue
 
-            # Produce the
+            # Produce the revision length of the parent
             try:
-                # In case of a new article - parent_rev_id = 0, there will not be a record in the db
-                if parent_rev_id == 0:
+                if parent_rev_id == 0: # In case of a new article, parent_rev_id = 0, no record in the db
                     parent_rev_len = 0
                 else:
-                    sql = 'select rev_len from enwiki.revision where rev_id = %(parent_rev_id)s' % {'parent_rev_id' : parent_rev_id}
+                    sql = 'select rev_len from enwiki.revision where rev_id = %(parent_rev_id)s' % \
+                          {'parent_rev_id' : parent_rev_id}
                     parent_rev_len = int(self._data_source_.execute_SQL(sql)[0][0])
 
             except Exception:
