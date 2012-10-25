@@ -733,7 +733,7 @@ class DataLoader(Connector):
         for row in results:
             line_str = ''
             for elem in row:
-                line_str = line_str + str(elem) + separator
+                line_str = line_str + str(elem).strip() + separator
             line_str = line_str[:-1] + '\n'
             file_obj_out.write(line_str)
         file_obj_out.close()
