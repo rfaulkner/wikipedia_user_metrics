@@ -23,8 +23,6 @@ class Blocks(um.UserMetric):
             {'Nickyp88': {'ban': -1, 'block': [1L, '20110809143215', '20110809143215']}, 'Wesley_Mouse': {'ban': -1, 'block': [2L, '20110830010835', '20120526192657']}}
     """
 
-
-
     def __init__(self,
                  date_start='2001-01-01 00:00:00',
                  project='enwiki',
@@ -34,6 +32,9 @@ class Blocks(um.UserMetric):
         self._project_ = project
 
         um.UserMetric.__init__(self, project=project, **kwargs)
+
+    def __repr__(self):
+        return "Blocks"
 
     def header(self):
         return ['user_id', 'block_count', 'block_first', 'block_last', 'ban']
@@ -52,26 +53,17 @@ class Blocks(um.UserMetric):
         """
         rowValues = {}
 
-        if isinstance(user_handle, list):
-            for i in xrange(len(user_handle)):
-                try:
-                    user_handle[i] = user_handle[i].encode('utf-8').replace(" ", "_")
-                except UnicodeDecodeError:
-                    user_handle[i] = user_handle[i].replace(" ", "_")
-                rowValues[user_handle[i]] = {'block_count' : 0, 'block_first' : -1, 'block_last' : -1, 'ban' : -1}
-
-            user_handle_str = self._data_source_.format_comma_separated_list(user_handle)
-        else:
+        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
+        for i in xrange(len(user_handle)):
             try:
-                user_handle = user_handle.encode('utf-8').replace(" ", "_")
+                user_handle[i] = user_handle[i].encode('utf-8').replace(" ", "_")
             except UnicodeDecodeError:
-                user_handle = user_handle.replace(" ", "_")
+                user_handle[i] = user_handle[i].replace(" ", "_")
+            rowValues[user_handle[i]] = {'block_count' : 0, 'block_first' : -1, 'block_last' : -1, 'ban' : -1}
 
-            rowValues[user_handle] = {'block_count' : 0, 'block_first' : -1, 'block_last' : -1, 'ban' : -1}
-            user_handle_str = self._data_source_.format_comma_separated_list([user_handle])
+        user_handle_str = self._data_source_.format_comma_separated_list(user_handle)
 
         cursor = self._data_source_._cur_
-
         sql = """
 				SELECT
 				    log_title as user_name,
@@ -110,5 +102,4 @@ class Blocks(um.UserMetric):
                 rowValues[username][type] = first
 
         self._results = [[user, rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']] for user in rowValues.keys()]
-
         return self
