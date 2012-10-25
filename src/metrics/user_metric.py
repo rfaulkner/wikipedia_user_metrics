@@ -43,17 +43,17 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import src.etl.data_loader as dl
-import src.etl.timestamp_processor as tp
-import datetime
 import MySQLdb
 import sys
 import logging
-from dateutil.parser import *
+from dateutil.parser import parse as date_parse
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 class UserMetric(object):
+
+    DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
     def __init__(self,
                  data_source=None,
@@ -70,7 +70,16 @@ class UserMetric(object):
         self._namespace_ = namespace
         self._project_ = project
 
-    def _get_timestamp(self, ts_representation):
+    def __repr__(self):
+        return "User Metric"
+
+    def __str__(self): return "\n".join([str(self._data_source_._db_), str(self.__class__),
+                                         str(self._namespace_), self._project_])
+
+    def __iter__(self): return (r for r in self._results)
+
+    @classmethod
+    def _get_timestamp(cls, ts_representation):
         """
             Helper method.  Takes a representation of a date object (String or datetime.datetime object) and formats
             as a timestamp: "YYYY-MM-DD HH:II:SS"
@@ -83,21 +92,21 @@ class UserMetric(object):
         """
 
         try:
-            if isinstance(ts_representation, datetime.datetime):
-                ts = str(ts_representation)[:19]
-            elif isinstance(ts_representation, str):
-                ts = str(parse(ts_representation))
-            else:
-                raise Exception()
+            datetime_obj = date_parse(ts_representation[:19]) # timestamp strings should
+        except AttributeError:
+            datetime_obj = ts_representation
+        except TypeError:
+            datetime_obj = ts_representation
 
-            ts = tp.timestamp_convert_format(ts,2,1)
+        # datetime_obj
+        try:
+            timestamp = datetime_obj.strftime(cls.DATETIME_STR_FORMAT)
+            return timestamp
+        except ValueError:
+            raise cls.UserMetricError(message='Could not parse timestamp: %s' % datetime_obj.__str__())
 
-            return ts
-        except Exception:
-            logging.info('Could not parse datetime: %s' % str(ts_representation))
-            return None
-
-    def _escape_var(self, var):
+    @classmethod
+    def _escape_var(cls, var):
         """
             Escapes either elements of a list (recursively visiting elements) or a single variable.  The variable
             is cast to string before being escaped.
@@ -113,19 +122,15 @@ class UserMetric(object):
         if isinstance(var, list):
             escaped_var = list()
             for elem in var:
-                escaped_var.append(self._escape_var(elem))
+                escaped_var.append(cls._escape_var(elem))
             return escaped_var
         else:
             return MySQLdb.escape_string(str(var))
-
-    def __iter__(self): return (r for r in self._results)
 
     def process(self, user_handle, is_id=True): raise NotImplementedError
 
     def header(self): raise NotImplementedError
 
-    def __str__(self): return "\n".join([str(self._data_source_._db_), str(self.__class__),
-                                         str(self._namespace_), self._project_])
 
     class UserMetricError(Exception):
         """ Basic exception class for UserMetric types """
