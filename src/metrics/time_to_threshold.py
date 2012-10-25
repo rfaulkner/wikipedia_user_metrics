@@ -12,6 +12,8 @@ import user_metric as um
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
+LAST_EDIT = 0
+
 class TimeToThreshold(um.UserMetric):
     """
         Produces an integer value representing the number of minutes taken to reach a threshold.
@@ -61,6 +63,9 @@ class TimeToThreshold(um.UserMetric):
             except Exception:
                 raise um.UserMetric.UserMetricError(str(self.__class__()) + ': Invalid init params.')
 
+        def __repr__(self):
+            return "Time to Threshold"
+
         def header(self):
             return []
 
@@ -82,8 +87,7 @@ class TimeToThreshold(um.UserMetric):
             else:
                 user_revs_SQL = 'select rev_timestamp from %(project)s.revision where rev_user_text = "%(user_handle)s" order by 1 desc'
 
-            if not isinstance(user_handle,list):
-                user_handle = [user_handle]
+            if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
 
             for user in user_handle:
                 sql = user_revs_SQL % {'user_handle' : str(user), 'project' : threshold_obj._project_}
@@ -99,8 +103,10 @@ class TimeToThreshold(um.UserMetric):
                         - **first_edit** - Integer.  The numeric value of the first edit from which to measure the threshold.
                         - **threshold_edit** - Integer.  The numeric value of the threshold edit from which to measure the threshold
             """
-
-            if len(results) < self._threshold_edit_:
+            if self._threshold_edit_ == LAST_EDIT:
+                time_diff = parse(results[len(results) - 1][0]) - parse(results[self._first_edit_ - 1][0])
+                minutes_to_threshold = int(time_diff.seconds / 60) + abs(time_diff.days) * 24
+            elif len(results) < self._threshold_edit_:
                 return -1
             else:
                 time_diff = parse(results[self._threshold_edit_ - 1][0]) - parse(results[self._first_edit_ - 1][0])
