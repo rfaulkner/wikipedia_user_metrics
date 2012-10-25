@@ -25,19 +25,6 @@ class BytesAdded(um.UserMetric):
                 1200
     """
 
-    CREATE_SQL = """
-                    CREATE TABLE `rfaulk`.`e3_pef_iter2_bytesadded` (
-                      `user_id` varbinary(255) NOT NULL DEFAULT '',
-                      `bytes_added_net` varbinary(255) NOT NULL DEFAULT '',
-                      `bytes_added_abs` varbinary(255) NOT NULL DEFAULT '',
-                      `bytes_added_pos` varbinary(255) NOT NULL DEFAULT '',
-                      `bytes_added_neg` varbinary(255) NOT NULL DEFAULT '',
-                      `edit_count` varbinary(255) NOT NULL DEFAULT '',
-                      `hour_offset` varbinary(255) NOT NULL DEFAULT ''
-                    ) ENGINE=MyISAM DEFAULT CHARSET=binary
-                """
-
-
     def __init__(self,
                  date_start='2001-01-01 00:00:00',
                  date_end=datetime.datetime.now(),
@@ -102,7 +89,7 @@ class BytesAdded(um.UserMetric):
         if is_id:
             user_set = self._data_source_.format_comma_separated_list(user_handle, include_quotes=False)
         else:
-            user_set = self._data_source_.format_comma_separated_list(user_handle, include_quotes=False)
+            user_set = self._data_source_.format_comma_separated_list(user_handle, include_quotes=True)
 
         sql = """
                 select
@@ -116,20 +103,18 @@ class BytesAdded(um.UserMetric):
                 'user_set' : user_set,
                 'ts_condition' : ts_condition,
                 'project' : self._project_}
-
-
         sql = " ".join(sql.strip().split())
-        logging.info(sql)
+
         try:
             self._data_source_._cur_.execute(sql)
         except um.MySQLdb.ProgrammingError:
-            logging.error('Could not get bytes added for specified users(s).' )
+            logging.error('Could not get bytes added for specified users(s) - Query Failed.' )
             raise self.UserMetricError()
 
         # Get the difference for each revision length from the parent to compute bytes added
         for row in self._data_source_._cur_.fetchall():
             try:
-                user = row[0]
+                user = str(row[0])
                 rev_len_total = int(row[1])
                 parent_rev_id = row[2]
 
