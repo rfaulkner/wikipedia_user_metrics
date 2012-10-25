@@ -61,6 +61,15 @@ import timestamp_processor as tp
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
+def read_file(file_path_name):
+    """ reads a text file line by line """
+    with open(file_path_name) as f:
+        content = f.readlines()
+    f.close()
+    content = map(lambda s: s.strip(), content) # strip any leading/trailing whitespace
+    return " ".join(content)
+
+
 class Connector:
     """ This class implements the connection logic to MySQL """
 
@@ -291,8 +300,7 @@ class DataLoader(Connector):
         """
 
         if include_quotes:
-            for i in range(len(elems)):
-                elems[i] = MySQLdb.escape_string(elems[i])
+            elems = map(lambda x: MySQLdb.escape_string(x), elems)
             join_tag = '" <join_tag_1234> "'
         else:
             join_tag = ' <join_tag_1234> '
@@ -982,7 +990,6 @@ class DataLoader(Connector):
                     about 10% of all account registrations). This figure is higher than I expected so there might be other causes on top of JS
                     disabled that cause users to register without a bucket and that we may want to investigate.
             """
-
             line_bits = line.split('\t')
             num_fields = len(line_bits)
 
@@ -991,7 +998,6 @@ class DataLoader(Connector):
 
             if num_fields == 1:
                 # SERVER EVENT - account creation
-
                 line_bits = line.split()
                 query_vars = cgi.parse_qs(line_bits[1])
 
@@ -1010,10 +1016,8 @@ class DataLoader(Connector):
 
             elif num_fields == 10:
                 # CLIENT EVENT - impression, assignment, and submit events
-
                 fields = line_bits[0].split()
                 fields.extend(line_bits[1:9])
-
                 additional_fields = ['','']
                 last_field = line_bits[9].split('|')
 
@@ -1027,11 +1031,8 @@ class DataLoader(Connector):
                         additional_fields[1] = last_field[0]
                     else:
                         additional_fields[0] = last_field[0]
-
                 fields.extend(additional_fields)
-
                 return fields
-
             return []
 
 def Handle(x = DataLoader, **kwargs):
