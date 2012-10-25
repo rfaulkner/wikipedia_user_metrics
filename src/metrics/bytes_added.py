@@ -46,8 +46,7 @@ class BytesAdded(um.UserMetric):
 
         um.UserMetric.__init__(self, project=project, **kwargs)
 
-    def __repr__(self):
-        return "Bytes Added"
+    def __repr__(self): return "Bytes Added"
 
     def header(self):
         return ['user_id', 'bytes_added_net', 'bytes_added_absolute', 'bytes_added_pos', 'bytes_added_neg', 'edit_count']
