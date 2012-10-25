@@ -4,10 +4,9 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import datetime
-import MySQLdb
 import sys
 import logging
-from dateutil.parser import *
+from dateutil.parser import parse as date_parse
 import user_metric as um
 import edit_count as ec
 
@@ -38,13 +37,16 @@ class EditRate(um.UserMetric):
                  date_start='2001-01-01 00:00:00',
                  date_end=datetime.datetime.now(),
                  **kwargs):
-
         self._time_unit_count_ = time_unit_count
         self._time_unit_ = time_unit
         self._start_ts_ = self._get_timestamp(date_start)
         self._end_ts_ = self._get_timestamp(date_end)
-
         um.UserMetric.__init__(self, **kwargs)
+
+    def __repr__(self): return "Edit Rate"
+
+    def header(self):
+        return ['user_id', 'edit_rate', 'start_time', 'period_len']
 
     def process(self, user_handle, is_id=True):
         """
@@ -61,41 +63,38 @@ class EditRate(um.UserMetric):
         """
 
         # Extract edit count for given parameters
-        edit_rate = ec.EditCount(date_start = self._start_ts_,
+        edit_rate = list()
+        e = ec.EditCount(date_start = self._start_ts_,
             date_end = self._end_ts_,
-            datasource = self._datasource_,
+            datasource = self._data_source_,
             namespace=self._namespace_).process(user_handle, is_id=is_id)
 
-        # Convert start and end times to objects, compute the difference
-        if isinstance(self._start_ts_, str):
-            start_ts_obj = parse(self._start_ts_)
-        else:
-            start_ts_obj = self._start_ts_
-
-        if isinstance(self._end_ts_, str):
-            end_ts_obj = parse(self._end_ts_)
-        else:
-            end_ts_obj = self._end_ts_
+        try:
+            start_ts_obj = date_parse(self._start_ts_)
+            end_ts_obj = date_parse(self._end_ts_)
+        except AttributeError:
+            logging.error('')
+            raise um.UserMetric.UserMetricError()
+        except ValueError:
+            raise um.UserMetric.UserMetricError()
 
         # Compute time difference between datetime objects and get the integer number of seconds
         time_diff_sec = (end_ts_obj - start_ts_obj).total_seconds()
 
-
         if self._time_unit_ == EditRate.DAY:
             time_diff = time_diff_sec / (24 * 60 * 60)
-
         elif self._time_unit_ == EditRate.HOUR:
             time_diff = time_diff_sec / (60 * 60)
-
         else:
             time_diff = time_diff_sec
 
-
-        if isinstance(edit_rate, dict):
-            for key in edit_rate:
-                edit_rate[key] = edit_rate[key] / (time_diff * self._time_unit_count_)
-        else:
-            edit_rate /= (time_diff * self._time_unit_count_)
-
-        return edit_rate
+        # Build the list of edit rate metrics
+        for i in e.__iter__():
+            new_i = i[:]  # Make a copy of the edit count element
+            new_i[1] /= time_diff * self._time_unit_count_
+            new_i.append(self._start_ts_)
+            new_i.append(time_diff)
+            edit_rate.append(new_i)
+        self._results = edit_rate
+        return self
 

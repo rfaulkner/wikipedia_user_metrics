@@ -4,7 +4,6 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import datetime
-import MySQLdb
 import sys
 import logging
 import user_metric as um
@@ -30,7 +29,6 @@ class EditCount(um.UserMetric):
     def __init__(self,
                  date_start='2001-01-01 00:00:00',
                  date_end=datetime.datetime.now(),
-                 raw_count=True,
                  **kwargs):
         """
             Constructor for EditCount class.  Initialize timestamps over which metric is computed.
@@ -40,14 +38,12 @@ class EditCount(um.UserMetric):
                 - **date_end**: string or datetime.datetime. end date of edit interval
                 - **raw_count**: Boolean. Flag that when set to True returns one total count for all users.  Count by user otherwise.
         """
-
         self._start_ts_ = self._get_timestamp(date_start)
         self._end_ts_ = self._get_timestamp(date_end)
-        self.raw_count = raw_count
-
         um.UserMetric.__init__(self, **kwargs)
 
-
+    def header(self):
+        return ['user_id', 'edit_count']
 
     def process(self, user_handle, is_id=True):
         """
@@ -64,40 +60,36 @@ class EditCount(um.UserMetric):
                 - Dictionary. key(string): user handle, value(Integer): edit counts
         """
 
-        if self.raw_count:
-            edit_count = 0
-        else:
-            edit_count = dict()
-
+        edit_count = list()
         ts_condition  = 'and rev_timestamp >= "%s" and rev_timestamp < "%s"' % (self._start_ts_, self._end_ts_)
 
         # Escape user_handle for SQL injection
         user_handle = self._escape_var(user_handle)
 
-        if is_id:
-            field_name = 'rev_user'
-        else:
-            field_name = 'rev_user_text'
+        # determine the format field
+        field_name = ['rev_user_text','rev_user'][is_id]
 
-        if isinstance(user_handle, list):
-            # where_clause = DL.DataLoader().format_clause(user_handle,0,DL.DataLoader.OR,field_name)
-            user_set = self._datasource_.format_comma_separated_list(user_handle)
-            sql = 'select %(field_name)s, count(*), sum(rev_len) from %(project)s.revision where %(field_name)s in (%(user_set)s) %(ts_condition)s group by 1'
-            sql = sql % {'field_name' : field_name, 'user_set' : user_set, 'ts_condition' : ts_condition, 'project' : self._project_}
-        else:
-            sql = 'select %(field_name)s, count(*), sum(rev_len) from %(project)s.revision where %(field_name)s = "%(user_handle)s" %(ts_condition)s group by 1'
-            sql = sql % {'field_name' : field_name, 'user_handle' : str(user_handle), 'ts_condition' : ts_condition, 'project' : self._project_}
+        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
+        user_set = self._data_source_.format_comma_separated_list(user_handle)
+        sql = """
+                select
+                    %(field_name)s,
+                    count(*)
+                from %(project)s.revision
+                where %(field_name)s in (%(user_set)s) %(ts_condition)s
+                group by 1
+                """ % {
+            'field_name' : field_name,
+            'user_set' : user_set,
+            'ts_condition' : ts_condition,
+            'project' : self._project_}
+        sql = " ".join(sql.strip().split())
 
-        # Process results and add to key-value
         try:
-            results = self._datasource_.execute_SQL(sql)
+            self._data_source_._cur_.execute(sql)
+        except um.MySQLdb.ProgrammingError:
+            logging.info('Could not get edit counts - Query failed.')
 
-            for row in results:
-                if self.raw_count:
-                    edit_count = edit_count + int(row[1])
-                else:
-                    edit_count[row[0]] = [int(row[1]), int(row[2])]
-        except:
-            logging.info('Could not get edit count for %s' % str(user_handle))
-
-        return edit_count
+        for row in self._data_source_._cur_.fetchall(): edit_count.append([row[0], int(row[1])])
+        self._results = edit_count
+        return self
