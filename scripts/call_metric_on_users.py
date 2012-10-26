@@ -67,8 +67,8 @@ def get_metric(args):
     global header
 
     m_index = [metric == args.metric for metric in metric_types].index(True)
-    metric_class = [ba.BytesAdded(date_start=args.date_start, date_end=args.date_end, project=args.project, raw_count=True),
-                 b.Blocks(date_start=args.date_start, project=args.project, return_list=True, return_generator=False)]
+    metric_class = [ba.BytesAdded(date_start=args.date_start, date_end=args.date_end, project=args.project),
+                 b.Blocks(date_start=args.date_start, project=args.project)]
     metric_headers = [o.header() for o in metric_class]
     header = metric_headers[m_index]
     header.extend('\n')
