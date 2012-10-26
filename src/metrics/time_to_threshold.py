@@ -79,9 +79,9 @@ class TimeToThreshold(um.UserMetric):
 
             # Operate on either user ids or names
             if is_id:
-                user_revs_SQL = 'select rev_timestamp from %(project)s.revision where rev_user = "%(user_handle)s" order by 1 desc'
+                user_revs_SQL = 'select rev_timestamp from %(project)s.revision where rev_user = "%(user_handle)s" order by 1 asc'
             else:
-                user_revs_SQL = 'select rev_timestamp from %(project)s.revision where rev_user_text = "%(user_handle)s" order by 1 desc'
+                user_revs_SQL = 'select rev_timestamp from %(project)s.revision where rev_user_text = "%(user_handle)s" order by 1 asc'
 
             if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
 
