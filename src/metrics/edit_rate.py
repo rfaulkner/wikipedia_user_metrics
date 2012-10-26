@@ -43,10 +43,8 @@ class EditRate(um.UserMetric):
         self._end_ts_ = self._get_timestamp(date_end)
         um.UserMetric.__init__(self, **kwargs)
 
-    def __repr__(self): return "Edit Rate"
-
-    def header(self):
-        return ['user_id', 'edit_rate', 'start_time', 'period_len']
+    @staticmethod
+    def header(): return ['user_id', 'edit_rate', 'start_time', 'period_len']
 
     def process(self, user_handle, is_id=True):
         """

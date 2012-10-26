@@ -45,8 +45,6 @@ class BytesAdded(um.UserMetric):
         self._end_ts_ = self._get_timestamp(date_end)
         um.UserMetric.__init__(self, project=project, **kwargs)
 
-    def __repr__(self): return "Bytes Added"
-
     @staticmethod
     def header(): return ['user_id', 'bytes_added_net', 'bytes_added_absolute', 'bytes_added_pos', 'bytes_added_neg', 'edit_count']
 

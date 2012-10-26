@@ -34,8 +34,6 @@ class TimeToThreshold(um.UserMetric):
         um.UserMetric.__init__(self, **kwargs)
         self._threshold_obj_ = threshold_type_class(**kwargs)
 
-    def __repr__(self): return "TimeToThreshold"
-
     @staticmethod
     def header(): return ['user_id', 'minutes_diff']
 

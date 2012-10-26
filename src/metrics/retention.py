@@ -53,7 +53,7 @@ class Retention(um.UserMetric):
 
         # Get
         retention_sql = ''
-        self._datasource_.execute_SQL(retention_sql)
+        self._data_source_.execute_SQL(retention_sql)
 
         return retention
 

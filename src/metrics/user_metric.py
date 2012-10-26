@@ -46,12 +46,14 @@ import src.etl.data_loader as dl
 import MySQLdb
 import sys
 import logging
+from collections import namedtuple
 from dateutil.parser import parse as date_parse
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 class UserMetric(object):
+
 
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
@@ -70,12 +72,13 @@ class UserMetric(object):
         self._namespace_ = namespace
         self._project_ = project
 
-    def __repr__(self): return "UserMetric"
-
     def __str__(self): return "\n".join([str(self._data_source_._db_), str(self.__class__),
                                          str(self._namespace_), self._project_])
 
     def __iter__(self): return (r for r in self._results)
+
+    @classmethod
+    def _construct_data_point(cls): return namedtuple(cls.__name__, cls.header())
 
     @classmethod
     def _get_timestamp(cls, ts_representation):

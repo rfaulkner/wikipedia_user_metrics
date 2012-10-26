@@ -42,8 +42,8 @@ class EditCount(um.UserMetric):
         self._end_ts_ = self._get_timestamp(date_end)
         um.UserMetric.__init__(self, **kwargs)
 
-    def header(self):
-        return ['user_id', 'edit_count']
+    @staticmethod
+    def header(): return ['user_id', 'edit_count']
 
     def process(self, user_handle, is_id=True):
         """
