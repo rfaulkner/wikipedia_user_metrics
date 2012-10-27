@@ -22,50 +22,6 @@ class ExperimentsLoader(dl.DataLoader):
         """
         dl.DataLoader.__init__(self, db='slave')
 
-
-    def filter_bots(self, users):
-        """
-            Filter bots from a user list.
-
-            Parameters:
-                - **users** - list of user names to be matched on the bot REGEX
-
-            Return:
-                - List(string).  Filtered results.
-        """
-
-        logging.info('Finding bots in list')
-
-        bot_regex = r'[Bb][Oo][Tt]'
-        non_bots = list()
-        for user in users:
-            if not(re.search(bot_regex, user)):
-                non_bots.append(user)
-        return non_bots
-
-
-    def filter_blocks(self, users, start, end):
-        """
-            Filter blocked users from a list for a given time range.  The method determines all users in blocked in the given timeframe by querying
-            the *logging* table.  Returns all users in the input list that are ***not*** blocked.
-
-            Parameters:
-                - **users** - list of user names to be checked for blocks
-                - **start** - start timestamp of the block period
-                - **end** - end timestamp of the block period
-
-            Return:
-                - List(tuple).  Query results.
-        """
-
-        value = ','.join('"???"'.join(users).split('???')[1:-2])
-        sql = 'select log_title, max(log_timestamp) from logging where log_title in (%s) and log_timestamp >= "%s" and log_timestamp < "%s" and log_action = "block" group by 1;'
-        sql = sql % (value, start, end)
-
-        logging.info('Finding blocked users in list')
-        return self.execute_SQL(sql)
-
-
     def get_user_email(self, users):
         """
             Get user emails from a list of users.  Queries the *user* table.  Returns a list of tuples containing user name and email.
