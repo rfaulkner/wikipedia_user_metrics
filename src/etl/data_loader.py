@@ -70,8 +70,14 @@ def read_file(file_path_name):
     return " ".join(content)
 
 
-class Connector:
+class Connector(object):
     """ This class implements the connection logic to MySQL """
+
+    def __del__(self):
+        self.close_db()
+
+    def __init__(self, **kwargs):
+        self.set_connection(**kwargs)
 
     def set_connection(self, **kwargs):
         """
@@ -80,12 +86,11 @@ class Connector:
             Parameters (\*\*kwargs):
                 - **db**: string value used to determine the database connection
         """
-
-        if 'db' in kwargs:
-            if kwargs['db'] == 'slave':
-                self._db_ = MySQLdb.connect(host=projSet.__db_server__, user=projSet.__user__, db=projSet.__db__,
-                    port=projSet.__db_port__, passwd=projSet.__pass__)
-            # Create cursor
+        mysql_kwargs = dict()
+        if 'instance' in kwargs:
+            for key in projSet.connections[kwargs['instance']]:
+                mysql_kwargs[key] = projSet.connections[kwargs['instance']][key]
+            self._db_ = MySQLdb.connect(**mysql_kwargs)
             self._cur_ = self._db_.cursor()
         else:
             logging.info('No connection specified.  MySQLdb connector is null.')
@@ -95,6 +100,20 @@ class Connector:
             self._cur_.close()
         if hasattr(self, '_db_'):
             self._db_.close()
+
+    def get_column_names(self):
+        """
+            Return the column names from the connection cursor (latest executed query)
+
+            Return:
+                - List(string).  Column names from latest query results.
+        """
+        try:
+            column_data = self._cur_.description
+        except AttributeError:
+            column_data = []
+            logging.error(__name__ + ':: No column description for this connection.')
+        return [elem[0] for elem in column_data]
 
     def execute_SQL(self, SQL_statement):
         """
@@ -110,17 +129,14 @@ class Connector:
         try:
             self._cur_.execute(SQL_statement)
             self._db_.commit()
-            self._valid_ = True
-            self._results_ =  self._cur_.fetchall()
-            return self._results_
 
-        except Exception as inst:
+        except MySQLdb.ProgrammingError as inst:
             self._db_.rollback()
-            self._valid_ = False
             logging.error(inst.__str__())       # __str__ allows args to printed directly
 
+        return self._cur_.fetchall()
 
-class DataLoader(Connector):
+class DataLoader(object):
     """
         Base class for loading data from a specified source.  This is a Singleton class.
 
@@ -144,20 +160,25 @@ class DataLoader(Connector):
 
     def __init__(self, **kwargs):
         """ Constructor - Initialize class members and initialize the database connection  """
-
-        # Setup Singleton instance - subclasses must call this constructor
-        if DataLoader.__instance:
-            raise self.__class__.__instance
         self.__class__.__instance = self
+        self._conn_ = Connector(**kwargs)
 
-        self._results_ = (())
-        self._col_names_ = None
-        self._valid_ = False
+    def __new__(cls, *args, **kwargs):
+        """ This class is Singleton, return only one instance """
+        if not cls.__instance:
+            cls.__instance = super(DataLoader, cls).__new__(cls, *args, **kwargs)
+        return cls.__instance
 
-        self.set_connection(**kwargs)
+    @property
+    def connection(self):
+        return self._conn_
 
-    def __del__(self):
-        self.close_db()
+    @connection.setter
+    def connection(self, value):
+        self._conn_.set_connection(**{'instance' : value})
+    @connection.getter
+    def connection(self):
+        return self._conn_
 
     def sort_results(self, results, key):
         """
@@ -172,22 +193,6 @@ class DataLoader(Connector):
         """
         return sorted(results, key=operator.itemgetter(key), reverse=False)
 
-    def get_column_names(self):
-        """
-            Return the column names from the connection cursor (latest executed query)
-
-            Return:
-                - List(srting).  Column names from latest query results.
-        """
-
-        column_data = self._cur_.description
-        column_names = list()
-
-        for elem in column_data:
-            column_names.append(elem[0])
-
-        return column_names
-
     def cast_elems_to_string(self, input):
         """
             Casts the elements of a list or dictionary structure as strings.
@@ -198,12 +203,9 @@ class DataLoader(Connector):
             Return:
                 - List(String), Dict(String), or Boolean.  Structure with string casted elements or boolean=False if the input was malformed.
         """
-
-        if isinstance(input, list):
-            output = list()
-            for elem in input:
-                output.append(str(elem))
-        elif isinstance(input, dict):
+        if hasattr(input, '__iter__') and hasattr(input, 'keys'):
+            output = [str(elem) for elem in input]
+        elif hasattr(input, '__iter__'):
             output = dict()
             for elem in input.keys():
                 output[elem] = str(input[elem])
@@ -212,7 +214,7 @@ class DataLoader(Connector):
 
         return output
 
-    def dump_to_csv(self, **kwargs):
+    def dump_to_csv(self, results, column_names):
         """
             Data Processing - take **__results__** and dump into out.tsv in the data directory
 
@@ -223,34 +225,26 @@ class DataLoader(Connector):
                 - empty.
         """
 
-        try:
-            if 'column_names' in kwargs:
-                column_names = kwargs['column_names']
+        logging.info('Writing results to: ' + projSet.__data_file_dir__ + 'out.tsv')
+        output_file = open(projSet.__data_file_dir__ + 'out.tsv', 'wb')
+
+        # Write Column headers
+        for index in range(len(column_names)):
+            if index < (len(column_names) - 1):
+                output_file.write(column_names[index] + '\t')
             else:
-                column_names = self.get_column_names()
+                output_file.write(column_names[index] + '\n')
 
-            logging.info('Writing results to: ' + projSet.__data_file_dir__ + 'out.tsv')
-            output_file = open(projSet.__data_file_dir__ + 'out.tsv', 'wb')
-
-            # Write Column headers
+        # Write Rows
+        for row in results:
             for index in range(len(column_names)):
                 if index < (len(column_names) - 1):
-                    output_file.write(column_names[index] + '\t')
+                    output_file.write(str(row[index]) + '\t')
                 else:
-                    output_file.write(column_names[index] + '\n')
+                    output_file.write(str(row[index]) + '\n')
 
-            # Write Rows
-            for row in self._results_:
-                for index in range(len(column_names)):
-                    if index < (len(column_names) - 1):
-                        output_file.write(str(row[index]) + '\t')
-                    else:
-                        output_file.write(str(row[index]) + '\n')
+        output_file.close()
 
-            output_file.close()
-
-        except Exception as e:
-            logging.error(e.message)
 
     def format_clause(self, elems, index, clause_type, field_name):
         """
@@ -399,8 +393,8 @@ class DataLoader(Connector):
         file_obj.close()
 
     def create_table_from_xsv(self, filename, create_sql, table_name, parse_function=None,
-                              max_records=10000, user_db=projSet.__db__, regex_list=None, neg_regex_list=None,
-                              header=True, separator='\t'):
+                              max_records=10000, user_db=projSet.connections['slave']['db'],
+                              regex_list=None, neg_regex_list=None, header=True, separator='\t'):
         """
             Populates or creates a table from a .xsv file.
 
@@ -432,16 +426,16 @@ class DataLoader(Connector):
         # Optionally create the table - if no create sql is specified create a generic tbale based on column names
         if create_sql:
             try:
-                self.execute_SQL("drop table if exists `%s`.`%s`" % (user_db, table_name))
-                self.execute_SQL(create_sql)
+                self._conn_.execute_SQL("drop table if exists `%s`.`%s`" % (user_db, table_name))
+                self._conn_.execute_SQL(create_sql)
 
             except Exception:
                 logging.error('Could not create table: %s' % create_sql)
                 return
 
         # Get column names - reset the values if header has already been set
-        self.execute_SQL('select * from `%s`.`%s` limit 1' % (user_db, table_name))
-        column_names = self.get_column_names()
+        self._conn_.execute_SQL('select * from `%s`.`%s` limit 1' % (user_db, table_name))
+        column_names = self._conn_.get_column_names()
         column_names_str = self.format_comma_separated_list(column_names, include_quotes=False)
 
         # Prepare SQL syntax
@@ -463,7 +457,7 @@ class DataLoader(Connector):
             # Perform batch insert if max is reached
             if count % max_records == 0 and count:
                 logging.info('Inserting %s records. Total = %s' % (str(max_records), str(count)))
-                self.execute_SQL(insert_sql[:-2])
+                self._conn_.execute_SQL(insert_sql[:-2])
                 insert_sql = " ".join(sql.strip().split())
 
             # Determine whether the row qualifies for insertion based on regex patterns
@@ -504,7 +498,7 @@ class DataLoader(Connector):
         # Perform insert
         if count:
             logging.info('Inserting remaining records. Total = %s' % str(count))
-            self.execute_SQL(insert_sql[:-2])
+            self._conn_.execute_SQL(insert_sql[:-2])
 
     def remove_duplicates_from_xsv(self, filename, separator='\t', index=None, header=True, opt_ext=".dup"):
         """
@@ -728,7 +722,7 @@ class DataLoader(Connector):
         """
 
         file_obj_out = open(projSet.__data_file_dir__ + outfile, 'w')
-        results = self.execute_SQL(sql)
+        results = self._conn_.execute_SQL(sql)
 
         for row in results:
             line_str = ''
@@ -792,7 +786,7 @@ class DataLoader(Connector):
         for col in column_names:
             create_stmt += "`%s` varbinary(255) NOT NULL DEFAULT ''," % col
         create_stmt = create_stmt[:-1] + ") ENGINE=MyISAM DEFAULT CHARSET=binary"
-        self.execute_SQL(create_stmt)
+        self._conn_.execute_SQL(create_stmt)
 
     class TransformMethods():
         """
@@ -868,7 +862,7 @@ class DataLoader(Connector):
 
                     return ts
 
-                except:
+                except KeyError:
                     # logging.debug('Bad parse')
                     return tokens[index]
 
@@ -1034,11 +1028,3 @@ class DataLoader(Connector):
                 fields.extend(additional_fields)
                 return fields
             return []
-
-def Handle(x = DataLoader, **kwargs):
-    """ Handles object reference for EngineQuery Singleton and subclasses """
-    try:
-        single = x(**kwargs)
-    except DataLoader, s:
-        single = s
-    return single
