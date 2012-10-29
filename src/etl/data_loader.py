@@ -86,14 +86,16 @@ class Connector(object):
             Parameters (\*\*kwargs):
                 - **db**: string value used to determine the database connection
         """
-        mysql_kwargs = dict()
         if 'instance' in kwargs:
+            logging.info(self.__str__() + '::Connecting data loader to "%s"' % kwargs['instance'])
+
+            mysql_kwargs = {}
             for key in projSet.connections[kwargs['instance']]:
                 mysql_kwargs[key] = projSet.connections[kwargs['instance']][key]
+
+            self.close_db()
             self._db_ = MySQLdb.connect(**mysql_kwargs)
             self._cur_ = self._db_.cursor()
-        else:
-            logging.info('No connection specified.  MySQLdb connector is null.')
 
     def close_db(self):
         if hasattr(self, '_cur_'):
@@ -167,6 +169,11 @@ class DataLoader(object):
         """ This class is Singleton, return only one instance """
         if not cls.__instance:
             cls.__instance = super(DataLoader, cls).__new__(cls, *args, **kwargs)
+        else:
+            try:
+                cls.__instance.connection=kwargs['instance']
+            except KeyError:
+                pass
         return cls.__instance
 
     @property
