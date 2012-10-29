@@ -75,6 +75,8 @@ class Connector(object):
 
     def __del__(self):
         self.close_db()
+        del self._cur_
+        del self._db_
 
     def __init__(self, **kwargs):
         self.set_connection(**kwargs)
@@ -158,34 +160,18 @@ class DataLoader(object):
 
     AND = 'and'
     OR = 'or'
+
     __instance = None
 
     def __init__(self, **kwargs):
         """ Constructor - Initialize class members and initialize the database connection  """
         self.__class__.__instance = self
-        self._conn_ = Connector(**kwargs)
 
     def __new__(cls, *args, **kwargs):
         """ This class is Singleton, return only one instance """
         if not cls.__instance:
             cls.__instance = super(DataLoader, cls).__new__(cls, *args, **kwargs)
-        else:
-            try:
-                cls.__instance.connection=kwargs['instance']
-            except KeyError:
-                pass
         return cls.__instance
-
-    @property
-    def connection(self):
-        return self._conn_
-
-    @connection.setter
-    def connection(self, value):
-        self._conn_.set_connection(**{'instance' : value})
-    @connection.getter
-    def connection(self):
-        return self._conn_
 
     def sort_results(self, results, key):
         """
@@ -211,11 +197,11 @@ class DataLoader(object):
                 - List(String), Dict(String), or Boolean.  Structure with string casted elements or boolean=False if the input was malformed.
         """
         if hasattr(input, '__iter__') and hasattr(input, 'keys'):
-            output = [str(elem) for elem in input]
-        elif hasattr(input, '__iter__'):
-            output = dict()
+            output = {}
             for elem in input.keys():
                 output[elem] = str(input[elem])
+        elif hasattr(input, '__iter__'):
+            output = [str(elem) for elem in input]
         else:
             return False
 
@@ -399,8 +385,8 @@ class DataLoader(object):
 
         file_obj.close()
 
-    def create_table_from_xsv(self, filename, create_sql, table_name, parse_function=None,
-                              max_records=10000, user_db=projSet.connections['slave']['db'],
+    def create_table_from_xsv(self, filename, create_sql, table_name, conn = Connector(instance='slave'),
+                              parse_function=None, max_records=10000, user_db=projSet.connections['slave']['db'],
                               regex_list=None, neg_regex_list=None, header=True, separator='\t'):
         """
             Populates or creates a table from a .xsv file.
@@ -433,16 +419,16 @@ class DataLoader(object):
         # Optionally create the table - if no create sql is specified create a generic tbale based on column names
         if create_sql:
             try:
-                self._conn_.execute_SQL("drop table if exists `%s`.`%s`" % (user_db, table_name))
-                self._conn_.execute_SQL(create_sql)
+                conn.execute_SQL("drop table if exists `%s`.`%s`" % (user_db, table_name))
+                conn.execute_SQL(create_sql)
 
             except Exception:
                 logging.error('Could not create table: %s' % create_sql)
                 return
 
         # Get column names - reset the values if header has already been set
-        self._conn_.execute_SQL('select * from `%s`.`%s` limit 1' % (user_db, table_name))
-        column_names = self._conn_.get_column_names()
+        conn.execute_SQL('select * from `%s`.`%s` limit 1' % (user_db, table_name))
+        column_names = conn.get_column_names()
         column_names_str = self.format_comma_separated_list(column_names, include_quotes=False)
 
         # Prepare SQL syntax
@@ -464,7 +450,7 @@ class DataLoader(object):
             # Perform batch insert if max is reached
             if count % max_records == 0 and count:
                 logging.info('Inserting %s records. Total = %s' % (str(max_records), str(count)))
-                self._conn_.execute_SQL(insert_sql[:-2])
+                conn.execute_SQL(insert_sql[:-2])
                 insert_sql = " ".join(sql.strip().split())
 
             # Determine whether the row qualifies for insertion based on regex patterns
@@ -505,7 +491,7 @@ class DataLoader(object):
         # Perform insert
         if count:
             logging.info('Inserting remaining records. Total = %s' % str(count))
-            self._conn_.execute_SQL(insert_sql[:-2])
+            conn.execute_SQL(insert_sql[:-2])
 
     def remove_duplicates_from_xsv(self, filename, separator='\t', index=None, header=True, opt_ext=".dup"):
         """
@@ -715,7 +701,8 @@ class DataLoader(object):
         file_obj_in.close()
         file_obj_out.close()
 
-    def create_xsv_from_SQL(self, sql, outfile = 'sql_to_xsv.out', separator = '\t'):
+    def create_xsv_from_SQL(self, sql, conn=Connector(instance='slave'),
+                            outfile = 'sql_to_xsv.out', separator = '\t'):
         """
             Generate an xsv file from SQL output.  The rows from the query resutls are written to a file using the specified field separator.
 
@@ -729,7 +716,7 @@ class DataLoader(object):
         """
 
         file_obj_out = open(projSet.__data_file_dir__ + outfile, 'w')
-        results = self._conn_.execute_SQL(sql)
+        results = conn.execute_SQL(sql)
 
         for row in results:
             line_str = ''
@@ -781,7 +768,7 @@ class DataLoader(object):
 
         file_obj_out.close()
 
-    def create_generic_table(self, table_name, column_names):
+    def create_generic_table(self, table_name, column_names, conn=Connector(instance='slave')):
         """
             Given a table name and a set of column names create a generic table
 
@@ -793,7 +780,7 @@ class DataLoader(object):
         for col in column_names:
             create_stmt += "`%s` varbinary(255) NOT NULL DEFAULT ''," % col
         create_stmt = create_stmt[:-1] + ") ENGINE=MyISAM DEFAULT CHARSET=binary"
-        self._conn_.execute_SQL(create_stmt)
+        conn.execute_SQL(create_stmt)
 
     class TransformMethods():
         """
