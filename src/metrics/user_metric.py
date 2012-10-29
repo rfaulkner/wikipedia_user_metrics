@@ -58,16 +58,11 @@ class UserMetric(object):
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
     def __init__(self,
-                 data_source=None,
                  project='enwiki',
                  namespace=0,
                  **kwargs):
 
-        if not(isinstance(data_source, dl.DataLoader)):
-            self._data_source_ = dl.Connector(instance='slave')
-        else:
-            self._data_source_ = data_source
-
+        self._data_source_ = dl.Connector(instance='slave')
         self._results = []
         self._namespace_ = namespace
         self._project_ = project
@@ -77,6 +72,8 @@ class UserMetric(object):
 
     def __iter__(self): return (r for r in self._results)
 
+    def __del__(self):
+        self._data_source_.close_db()
     @classmethod
     def _construct_data_point(cls): return namedtuple(cls.__name__, cls.header())
 

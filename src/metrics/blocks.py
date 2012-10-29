@@ -57,7 +57,7 @@ class Blocks(um.UserMetric):
                 user_handle[i] = user_handle[i].replace(" ", "_")
             rowValues[user_handle[i]] = {'block_count' : 0, 'block_first' : -1, 'block_last' : -1, 'ban' : -1}
 
-        user_handle_str = self._data_source_.format_comma_separated_list(user_handle)
+        user_handle_str = um.dl.DataLoader().format_comma_separated_list(user_handle)
 
         cursor = self._data_source_._cur_
         sql = """

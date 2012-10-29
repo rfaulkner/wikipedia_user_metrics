@@ -83,9 +83,9 @@ class BytesAdded(um.UserMetric):
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
         for u in user_handle: bytes_added[u] = [0] * 5
         if is_id:
-            user_set = self._data_source_.format_comma_separated_list(user_handle, include_quotes=False)
+            user_set = um.dl.DataLoader().format_comma_separated_list(user_handle, include_quotes=False)
         else:
-            user_set = self._data_source_.format_comma_separated_list(user_handle, include_quotes=True)
+            user_set = um.dl.DataLoader().format_comma_separated_list(user_handle, include_quotes=True)
 
         sql = """
                 select
