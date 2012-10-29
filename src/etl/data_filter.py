@@ -25,8 +25,10 @@ def filter_bots(eligible_users):
             - List(string).  Filtered results.
     """
     BOT_TABLE = 'halfak.bot'
-    d = dl.DataLoader(instance='slave-2')
-    results = [str(x[0]) for x in d.connection.execute_SQL('select user_id from %(table)s' % { 'table' : BOT_TABLE})]
+    conn = dl.Connector(instance='slave-2')
+    results = [str(x[0]) for x in conn.execute_SQL('select user_id from %(table)s' % { 'table' : BOT_TABLE})]
+    conn.close_db()
+
     return filter(lambda x: str(x) not in results, eligible_users)
 
 class DataFilter(object):
