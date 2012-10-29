@@ -64,11 +64,11 @@ class UserMetric(object):
                  **kwargs):
 
         if not(isinstance(data_source, dl.DataLoader)):
-            self._data_source_ = dl.Handle(db='slave')
+            self._data_source_ = dl.Connector(instance='slave')
         else:
             self._data_source_ = data_source
 
-        self._results = list()
+        self._results = []
         self._namespace_ = namespace
         self._project_ = project
 
