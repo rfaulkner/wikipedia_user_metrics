@@ -75,8 +75,6 @@ class Connector(object):
 
     def __del__(self):
         self.close_db()
-        del self._cur_
-        del self._db_
 
     def __init__(self, **kwargs):
         self.set_connection(**kwargs)
@@ -89,21 +87,26 @@ class Connector(object):
                 - **db**: string value used to determine the database connection
         """
         if 'instance' in kwargs:
-            logging.info(self.__str__() + '::Connecting data loader to "%s"' % kwargs['instance'])
-
+            # logging.info(self.__str__() + '::Connecting data loader to "%s"' % kwargs['instance'])
             mysql_kwargs = {}
             for key in projSet.connections[kwargs['instance']]:
                 mysql_kwargs[key] = projSet.connections[kwargs['instance']][key]
 
-            self.close_db()
             self._db_ = MySQLdb.connect(**mysql_kwargs)
             self._cur_ = self._db_.cursor()
 
     def close_db(self):
+        """ Close the conection if it remains open """
         if hasattr(self, '_cur_'):
-            self._cur_.close()
+            try:
+                self._cur_.close()
+            except MySQLdb.ProgrammingError:
+                pass
         if hasattr(self, '_db_'):
-            self._db_.close()
+            try:
+                self._db_.close()
+            except MySQLdb.ProgrammingError:
+                pass
 
     def get_column_names(self):
         """
