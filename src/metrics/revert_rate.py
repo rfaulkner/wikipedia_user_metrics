@@ -33,7 +33,7 @@ class RevertRate(um.UserMetric):
         um.UserMetric.__init__(self, **kwargs)
 
     @staticmethod
-    def header(): return ['user_id', 'revert_rate']
+    def header(): return ['user_id', 'revert_rate', 'total_revisions']
 
     def process(self, user_handle, is_id=True):
 
