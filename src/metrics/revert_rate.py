@@ -1,7 +1,7 @@
 
 
-__author__ = "Ryan Faulkner"
-__date__ = "July 27th, 2012"
+__author__ = "Ryan Faulkner (adapted from Aaron Halfaker's implementation)"
+__date__ = "October 29th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import sys
