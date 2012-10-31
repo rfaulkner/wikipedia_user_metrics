@@ -4,13 +4,8 @@ __author__ = "Ryan Faulkner (adapted from Aaron Halfaker's implementation)"
 __date__ = "October 29th, 2012"
 __license__ = "GPL (version 2 or later)"
 
-import sys
-import logging
 import user_metric as um
 import datetime
-
-# CONFIGURE THE LOGGER
-logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 class RevertRate(um.UserMetric):
     """ Skeleton class for "RevertRate" metric:  `https://meta.wikimedia.org/wiki/Research:Metrics/revert_rate` """

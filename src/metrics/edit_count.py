@@ -4,12 +4,7 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import datetime
-import sys
-import logging
 import user_metric as um
-
-# CONFIGURE THE LOGGER
-logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 class EditCount(um.UserMetric):
     """
@@ -88,7 +83,7 @@ class EditCount(um.UserMetric):
         try:
             self._data_source_._cur_.execute(sql)
         except um.MySQLdb.ProgrammingError:
-            logging.info('Could not get edit counts - Query failed.')
+            raise um.UserMetric.UserMetricError(message=str(self.__class__()) + 'Could not get edit counts - Query failed.')
 
         for row in self._data_source_._cur_.fetchall(): edit_count.append([row[0], int(row[1])])
         self._results = edit_count

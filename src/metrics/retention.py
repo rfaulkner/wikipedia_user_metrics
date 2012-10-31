@@ -4,13 +4,7 @@ __author__ = "Ryan Faulkner"
 __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
-import MySQLdb
-import sys
-import logging
 import user_metric as um
-
-# CONFIGURE THE LOGGER
-logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 class Retention(um.UserMetric):
     """

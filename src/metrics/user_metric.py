@@ -44,13 +44,8 @@ __license__ = "GPL (version 2 or later)"
 
 import src.etl.data_loader as dl
 import MySQLdb
-import sys
-import logging
 from collections import namedtuple
 from dateutil.parser import parse as date_parse
-
-# CONFIGURE THE LOGGER
-logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 class UserMetric(object):
 

@@ -3,12 +3,7 @@ __author__ = "Ryan Faulkner and Aaron Halfaker"
 __date__ = "October 3rd, 2012"
 __license__ = "GPL (version 2 or later)"
 
-import sys
-import logging
 import user_metric as um
-
-# CONFIGURE THE LOGGER
-logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 class Blocks(um.UserMetric):
     """

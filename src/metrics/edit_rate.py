@@ -4,15 +4,9 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import datetime
-import sys
-import logging
 from dateutil.parser import parse as date_parse
 import user_metric as um
 import edit_count as ec
-
-# CONFIGURE THE LOGGER
-logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
-
 
 class EditRate(um.UserMetric):
     """
@@ -71,7 +65,6 @@ class EditRate(um.UserMetric):
             start_ts_obj = date_parse(self._start_ts_)
             end_ts_obj = date_parse(self._end_ts_)
         except AttributeError:
-            logging.error('')
             raise um.UserMetric.UserMetricError()
         except ValueError:
             raise um.UserMetric.UserMetricError()

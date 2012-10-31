@@ -4,13 +4,8 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import datetime
-import sys
 import logging
-# from collections import namedtuple
 import user_metric as um
-
-# CONFIGURE THE LOGGER
-logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 class BytesAdded(um.UserMetric):
     """
@@ -104,8 +99,8 @@ class BytesAdded(um.UserMetric):
         try:
             self._data_source_._cur_.execute(sql)
         except um.MySQLdb.ProgrammingError:
-            logging.error('Could not get bytes added for specified users(s) - Query Failed.' )
-            raise self.UserMetricError()
+            raise self.UserMetricError(message=str(self.__class__()) +
+                                               '::Could not get bytes added for specified users(s) - Query Failed.')
 
         # Get the difference for each revision length from the parent to compute bytes added
         for row in self._data_source_._cur_.fetchall():
@@ -115,37 +110,31 @@ class BytesAdded(um.UserMetric):
                 parent_rev_id = row[2]
 
             except IndexError:
-                logging.error('Could not retrieve results from row: %s' % str(row))
                 continue
 
             # Produce the revision length of the parent
-            try:
-                if parent_rev_id == 0: # In case of a new article, parent_rev_id = 0, no record in the db
-                    parent_rev_len = 0
-                else:
-                    sql = 'select rev_len from enwiki.revision where rev_id = %(parent_rev_id)s' % \
-                          {'parent_rev_id' : parent_rev_id}
+            if parent_rev_id == 0: # In case of a new article, parent_rev_id = 0, no record in the db
+                parent_rev_len = 0
+            else:
+                sql = 'select rev_len from enwiki.revision where rev_id = %(parent_rev_id)s' % {
+                      'parent_rev_id' : parent_rev_id}
+                try:
                     parent_rev_len = int(self._data_source_.execute_SQL(sql)[0][0])
+                except um.MySQLdb.ProgrammingError:
+                    raise um.UserMetric.UserMetricError(message=str(self.__class__()) +
+                                '::Could not produce rev diff for %s on rev_id %s.' % (user, str(parent_rev_id)))
 
-            except Exception:
-                logging.error('Could not produce rev diff for %s on rev_id %s.' % (user, str(parent_rev_id)))
-                continue
+            # Update the bytes added hash
+            bytes_added_bit = rev_len_total - parent_rev_len
+            bytes_added[user][0] += bytes_added_bit
+            bytes_added[user][1] += abs(bytes_added_bit)
+            if bytes_added_bit > 0:
+                bytes_added[user][2] += bytes_added_bit
+            else:
+                bytes_added[user][3] += bytes_added_bit
 
-            try:
+            bytes_added[user][4] += 1
 
-                bytes_added_bit = rev_len_total - parent_rev_len
-
-                bytes_added[user][0] += bytes_added_bit
-                bytes_added[user][1] += abs(bytes_added_bit)
-                if bytes_added_bit > 0:
-                    bytes_added[user][2] += bytes_added_bit
-                else:
-                    bytes_added[user][3] += bytes_added_bit
-
-                bytes_added[user][4] += 1
-
-            except Exception:
-                logging.error('Could not perform bytes added calculation for user %s, rev_len_total: %s, parent_rev_len: %s' % (user, rev_len_total, parent_rev_len))
 
         self._results = [[user] + bytes_added[user] for user in bytes_added]
 
