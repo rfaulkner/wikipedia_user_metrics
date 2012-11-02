@@ -144,27 +144,12 @@ class Connector(object):
         return self._cur_.fetchall()
 
 class DataLoader(object):
-    """
-        Base class for loading data from a specified source.  This is a Singleton class.
-
-        The general functionality is as follows:
-
-            * Initializes remote database connections
-            * Provides entry-point for execution of generic queries
-            * Functionality for processing results from query execution
-            * Functionality for outputting results from query execution
-
-        Class members:
-
-            - **_results_**: stores the output from the latest SQL execution
-            - **_col_names_**: column names from the latest SQL execution
-            - **_valid_**: flag that indicates whether the current results are valid
-    """
+    """ Singleton class for performing operations on data sets.  ETL class for xsv and RDBMS data sources. """
 
     AND = 'and'
     OR = 'or'
 
-    __instance = None
+    __instance = None   # Singleton instance
 
     def __init__(self, **kwargs):
         """ Constructor - Initialize class members and initialize the database connection  """
@@ -240,7 +225,6 @@ class DataLoader(object):
                     output_file.write(str(row[index]) + '\n')
 
         output_file.close()
-
 
     def format_clause(self, elems, index, clause_type, field_name):
         """
