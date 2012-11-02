@@ -59,7 +59,11 @@ class RevertRate(um.UserMetric):
                 if self.__revert(rev[0], rev[1], rev[2], rev[3]):
                     total_reverts += 1.0
                 total_revisions += 1.0
-            self._results.append([user, total_reverts / total_revisions, total_revisions])
+
+            if not total_revisions:
+                self._results.append([user, 0.0, total_revisions])
+            else:
+                self._results.append([user, total_reverts / total_revisions, total_revisions])
 
         return self
 
