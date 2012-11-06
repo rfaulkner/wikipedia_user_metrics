@@ -4,7 +4,6 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import datetime
-import logging
 import user_metric as um
 
 class BytesAdded(um.UserMetric):
@@ -66,28 +65,24 @@ class BytesAdded(um.UserMetric):
         """
 
         bytes_added = dict()
-        ts_condition  = 'and rev_timestamp >= "%s" and rev_timestamp < "%s"' % (self._start_ts_, self._end_ts_)
-
-        # Escape user_handle for SQL injection
-        user_handle = self._escape_var(user_handle)
+        ts_condition  = 'rev_timestamp >= "%s" and rev_timestamp < "%s"' % (self._start_ts_, self._end_ts_)
 
         # determine the format field
         field_name = ['rev_user_text','rev_user'][is_id]
 
         # build the user set for inclusion into the query
-        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
-        for u in user_handle: bytes_added[u] = [0] * 5
-        if is_id:
-            user_set = um.dl.DataLoader().format_comma_separated_list(user_handle, include_quotes=False)
+        if not user_handle is None:
+            user_handle = self._escape_var(user_handle) # Escape user_handle for SQL injection
+            if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
+            if is_id:
+                user_set = um.dl.DataLoader().format_comma_separated_list(user_handle, include_quotes=False)
+            else:
+                user_set = um.dl.DataLoader().format_comma_separated_list(user_handle, include_quotes=True)
+            where_clause = '%(field_name)s in (%(user_set)s) and %(ts_condition)s' % {
+            'field_name' : field_name, 'user_set' : user_set, 'ts_condition' : ts_condition}
         else:
-            user_set = um.dl.DataLoader().format_comma_separated_list(user_handle, include_quotes=True)
+            where_clause = '%(ts_condition)s' % {'ts_condition' : ts_condition}
 
-        # If user_handle == None then
-        if user_handle is None:
-            where_clause = 'where %(ts_condition)s"' % {'ts_condition' : ts_condition}
-        else:
-            where_clause = 'where %(field_name)s in (%(user_set)s) %(ts_condition)s"' % {
-                'field_name' : field_name, 'user_set' : user_set, 'ts_condition' : ts_condition}
         sql = """
                 select
                     %(field_name)s,
@@ -102,13 +97,15 @@ class BytesAdded(um.UserMetric):
         sql = " ".join(sql.strip().split())
 
         try:
-            self._data_source_._cur_.execute(sql)
+            cur_1 = self._data_source_._db_.cursor()
+            cur_1.execute(sql)
         except um.MySQLdb.ProgrammingError:
             raise self.UserMetricError(message=str(self.__class__()) +
                                                '::Could not get bytes added for specified users(s) - Query Failed.')
 
         # Get the difference for each revision length from the parent to compute bytes added
-        for row in self._data_source_._cur_.fetchall():
+        cur_2 = self._data_source_._db_.cursor() # Get a new cursor for rev length queries
+        for row in cur_1.fetchall():
             try:
                 user = str(row[0])
                 rev_len_total = int(row[1])
@@ -124,14 +121,22 @@ class BytesAdded(um.UserMetric):
                 sql = 'select rev_len from enwiki.revision where rev_id = %(parent_rev_id)s' % {
                       'parent_rev_id' : parent_rev_id}
                 try:
-                    parent_rev_len = int(self._data_source_.execute_SQL(sql)[0][0])
+                    cur_2.execute(sql)
+                    parent_rev_len = int(cur_2.fetchall()[0][0])
                 except um.MySQLdb.ProgrammingError:
                     raise um.UserMetric.UserMetricError(message=str(self.__class__()) +
                                 '::Could not produce rev diff for %s on rev_id %s.' % (user, str(parent_rev_id)))
 
             # Update the bytes added hash
             bytes_added_bit = rev_len_total - parent_rev_len
-            bytes_added[user][0] += bytes_added_bit
+
+            try: # Exception where the user does not exist.  Handle this by creating the key
+                bytes_added[user][0] += bytes_added_bit
+            except KeyError:
+                bytes_added[user] = [0] * 5
+                bytes_added[user][0] += bytes_added_bit
+                pass
+
             bytes_added[user][1] += abs(bytes_added_bit)
             if bytes_added_bit > 0:
                 bytes_added[user][2] += bytes_added_bit
