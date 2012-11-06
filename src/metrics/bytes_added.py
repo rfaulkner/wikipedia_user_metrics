@@ -43,7 +43,7 @@ class BytesAdded(um.UserMetric):
     @staticmethod
     def header(): return ['user_id', 'bytes_added_net', 'bytes_added_absolute', 'bytes_added_pos', 'bytes_added_neg', 'edit_count']
 
-    def process(self, user_handle, is_id=True):
+    def process(self, user_handle=None, is_id=True):
 
         """
             Determine the bytes added over a number of revisions for user(s).  The parameter *user_handle* can be either a string or an integer or a
@@ -82,17 +82,22 @@ class BytesAdded(um.UserMetric):
         else:
             user_set = um.dl.DataLoader().format_comma_separated_list(user_handle, include_quotes=True)
 
+        # If user_handle == None then
+        if user_handle is None:
+            where_clause = 'where %(ts_condition)s"' % {'ts_condition' : ts_condition}
+        else:
+            where_clause = 'where %(field_name)s in (%(user_set)s) %(ts_condition)s"' % {
+                'field_name' : field_name, 'user_set' : user_set, 'ts_condition' : ts_condition}
         sql = """
                 select
                     %(field_name)s,
                     rev_len,
                     rev_parent_id
                 from %(project)s.revision
-                where %(field_name)s in (%(user_set)s) %(ts_condition)s
+                where %(where_clause)s
             """ % {
                 'field_name' : field_name,
-                'user_set' : user_set,
-                'ts_condition' : ts_condition,
+                'where_clause' : where_clause,
                 'project' : self._project_}
         sql = " ".join(sql.strip().split())
 
