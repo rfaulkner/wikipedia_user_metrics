@@ -24,10 +24,14 @@ EDIT_COUNT_IDX = 5
 
 def main(args):
 
+    logging.info(args)
+    logging.info('Processing contribution volume metrics for daily users from %s to %s ... ' %
+                 (args.date_start, args.date_end))
     file_obj = open(s.__data_home__ + 'dau_out.tsv','w')
     try:
         file_obj.write("\t".join(ba.BytesAdded.header()) + '\n')
-        for row in ba.BytesAdded(date_start=args.date_start, date_end=args.date_end).process().__iter__():
+        for row in ba.BytesAdded(date_start=args.date_start, date_end=args.date_end).process(
+            log_progress=True,log_frequency=args.log_frequency).__iter__():
             try:
                 if row[EDIT_COUNT_IDX] >= args.min_edit:
                     file_obj.write("\t".join([str(e) for e in row]) + '\n')
@@ -53,9 +57,10 @@ if __name__ == "__main__":
         usage = "user_ids | call_metric_on_users.py [-h] [-m METRIC] [-o OUTPUT] [-s DATE_START] [-e DATE_END] [-p PROJECT]"
     )
 
-    parser.add_argument('-m', '--min_edit',type=int, help='.',default=0)
-    parser.add_argument('-s', '--date_start',type=str, help='Start date of measurement. Default is 2008-01-01 00:00:00',
+    parser.add_argument('-m', '--min_edit',type=int, help='minimum amounts of edits.',default=0)
+    parser.add_argument('-s', '--date_start',type=str, help='Start date of measurement.',
         default=yesterday)
     parser.add_argument('-e', '--date_end',type=str, help='End date of measurement.', default=today)
+    parser.add_argument('-l', '--log_frequency',type=int,help='How often to log progress.',default=0)
     args = parser.parse_args()
     sys.exit(main(args))
