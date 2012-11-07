@@ -40,7 +40,7 @@ if __name__ == "__main__":
     yesterday = today - datetime.timedelta(days=1)
 
     today = "".join([today.strftime('%Y%m%d'), "000000"])
-    yesterday = "".join([yesterday.strftime('%Y%m%d'),"235500"])
+    yesterday = "".join([yesterday.strftime('%Y%m%d'),"000000"])
 
     parser = argparse.ArgumentParser(
         description="This script computes specified user metrics. It reads from stdin a list of user ids and produces "\
