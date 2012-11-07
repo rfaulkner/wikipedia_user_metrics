@@ -30,7 +30,7 @@ class RevertRate(um.UserMetric):
     @staticmethod
     def header(): return ['user_id', 'revert_rate', 'total_revisions']
 
-    def process(self, user_handle, is_id=True):
+    def process(self, user_handle, is_id=True, **kwargs):
 
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
 

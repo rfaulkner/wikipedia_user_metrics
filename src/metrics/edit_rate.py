@@ -40,7 +40,7 @@ class EditRate(um.UserMetric):
     @staticmethod
     def header(): return ['user_id', 'edit_rate', 'start_time', 'period_len']
 
-    def process(self, user_handle, is_id=True):
+    def process(self, user_handle, is_id=True, **kwargs):
         """
             Determine the edit rate of user(s).  The parameter *user_handle* can be either a string or an integer or a list of these types.  When the
             *user_handle* type is integer it is interpreted as a user id, and as a user_name for string input.  If a list of users is passed to the

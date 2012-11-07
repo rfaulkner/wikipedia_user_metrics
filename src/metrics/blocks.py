@@ -30,7 +30,7 @@ class Blocks(um.UserMetric):
     @staticmethod
     def header(): return ['user_id', 'block_count', 'block_first', 'block_last', 'ban']
 
-    def process(self, user_handle, is_id=False):
+    def process(self, user_handle, is_id=False, **kwargs):
         """
             Process method for the "blocks" metric.  Returns a hash containing
 

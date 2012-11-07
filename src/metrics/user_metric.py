@@ -123,7 +123,7 @@ class UserMetric(object):
     @staticmethod
     def header(): raise NotImplementedError
 
-    def process(self, user_handle, is_id=True): raise NotImplementedError
+    def process(self, user_handle, is_id=True, **kwargs): raise NotImplementedError
 
     class UserMetricError(Exception):
         """ Basic exception class for UserMetric types """

@@ -42,7 +42,7 @@ class BytesAdded(um.UserMetric):
     @staticmethod
     def header(): return ['user_id', 'bytes_added_net', 'bytes_added_absolute', 'bytes_added_pos', 'bytes_added_neg', 'edit_count']
 
-    def process(self, user_handle=None, is_id=True):
+    def process(self, user_handle=None, is_id=True, **kwargs):
 
         """
             Determine the bytes added over a number of revisions for user(s).  The parameter *user_handle* can be either a string or an integer or a

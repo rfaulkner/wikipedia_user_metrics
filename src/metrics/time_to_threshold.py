@@ -59,7 +59,7 @@ class TimeToThreshold(um.UserMetric):
             except Exception:
                 raise um.UserMetric.UserMetricError(str(self.__class__()) + ': Invalid init params.')
 
-        def process(self, user_handle, threshold_obj, is_id=True):
+        def process(self, user_handle, threshold_obj, is_id=True, **kwargs):
             """
                 First determine if the user has made an adequate number of edits.  If so, compute the number of minutes that passed
                 between the Nth and Mth edit.
