@@ -144,6 +144,9 @@ class BytesAdded(um.UserMetric):
                 try:
                     cur_2.execute(sql)
                     parent_rev_len = int(cur_2.fetchall()[0][0])
+                except TypeError:
+                    missed_records += 1
+                    continue
                 except um.MySQLdb.ProgrammingError:
                     raise um.UserMetric.UserMetricError(message=str(self.__class__()) +
                                 '::Could not produce rev diff for %s on rev_id %s.' % (user, str(parent_rev_id)))
