@@ -20,6 +20,11 @@ class BytesAdded(um.UserMetric):
                 1200
     """
 
+    @staticmethod
+    def __doc__():
+        return 'process-**kwargs:\n"log_frequency" frequency to log to stdout.' \
+               '\n"log_progress" log metrics gathering.'
+
     def __init__(self,
                  date_start='2001-01-01 00:00:00',
                  date_end=datetime.datetime.now(),
@@ -64,6 +69,11 @@ class BytesAdded(um.UserMetric):
                 - Dictionary. key(string): user handle, value(Float): edit counts
         """
 
+        freq = 0
+        is_log = False
+        if 'log_progress' in kwargs: is_log = bool(kwargs['log_progress'])
+        if 'log_frequency' in kwargs: freq = int(kwargs['log_frequency'])
+
         bytes_added = dict()
         ts_condition  = 'rev_timestamp >= "%s" and rev_timestamp < "%s"' % (self._start_ts_, self._end_ts_)
 
@@ -96,6 +106,8 @@ class BytesAdded(um.UserMetric):
                 'project' : self._project_}
         sql = " ".join(sql.strip().split())
 
+        if is_log:
+            print str(datetime.datetime.now()) + ' - Querying revisions...'
         try:
             cur_1 = self._data_source_._db_.cursor()
             cur_1.execute(sql)
@@ -105,6 +117,11 @@ class BytesAdded(um.UserMetric):
 
         # Get the difference for each revision length from the parent to compute bytes added
         cur_2 = self._data_source_._db_.cursor() # Get a new cursor for rev length queries
+        row_count = 1
+        missed_records = 0
+        total_rows = len(cur_1._rows)
+
+        print str(datetime.datetime.now()) + ' - Processing revision data by user...'
         for row in cur_1.fetchall():
             try:
                 user = str(row[0])
@@ -112,6 +129,10 @@ class BytesAdded(um.UserMetric):
                 parent_rev_id = row[2]
 
             except IndexError:
+                missed_records += 1
+                continue
+            except TypeError:
+                missed_records += 1
                 continue
 
             # Produce the revision length of the parent
@@ -142,10 +163,17 @@ class BytesAdded(um.UserMetric):
                 bytes_added[user][2] += bytes_added_bit
             else:
                 bytes_added[user][3] += bytes_added_bit
-
             bytes_added[user][4] += 1
 
 
-        self._results = [[user] + bytes_added[user] for user in bytes_added]
+            if freq and row_count % freq == 0 and is_log:
+                s = ' - Processed %s of %s records.' % (row_count,total_rows)
+                print str(datetime.datetime.now()) + s
 
+            row_count += 1
+
+        self._results = [[user] + bytes_added[user] for user in bytes_added]
+        if is_log:
+            print str(datetime.datetime.now()) + ' - processed %s out of %s records.' % (total_rows
+                                                                                     - missed_records,total_rows)
         return self
