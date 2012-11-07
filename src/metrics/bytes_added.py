@@ -35,7 +35,8 @@ class BytesAdded(um.UserMetric):
             - Parameters:
                 - **date_start**: string or datetime.datetime. start date of edit interval
                 - **date_end**: string or datetime.datetime. end date of edit interval
-                - **raw_count**: Boolean. Flag that when set to True returns one total count for all users.  Count by user otherwise.
+                - **raw_count**: Boolean. Flag that when set to True returns one total count for all users.
+                                            Count by user otherwise.
 
             - Return:
                 - Empty.
@@ -45,24 +46,28 @@ class BytesAdded(um.UserMetric):
         um.UserMetric.__init__(self, project=project, **kwargs)
 
     @staticmethod
-    def header(): return ['user_id', 'bytes_added_net', 'bytes_added_absolute', 'bytes_added_pos', 'bytes_added_neg', 'edit_count']
+    def header(): return ['user_id', 'bytes_added_net', 'bytes_added_absolute',
+                          'bytes_added_pos', 'bytes_added_neg', 'edit_count']
 
     def process(self, user_handle=None, is_id=True, **kwargs):
 
         """
-            Determine the bytes added over a number of revisions for user(s).  The parameter *user_handle* can be either a string or an integer or a
-            list of these types.  When the *user_handle* type is integer it is interpreted as a user id, and as a user_name for string input.  If a list
-            of users is passed to the *process* method then a dict object with edit rates keyed by user handles is returned.
+            Determine the bytes added over a number of revisions for user(s).  The parameter *user_handle* can
+            be either a string or an integer or a list of these types.  When the *user_handle* type is integer it is
+            interpreted as a user id, and as a user_name for string input.  If a list of users is passed to the
+            *process* method then a dict object with edit rates keyed by user handles is returned.
 
             The flow of the request is as follows:
 
                 #. Get all revisions for the specified users in the given timeframe
                 #. For each parent revision get its length
                 #. Compute the difference in length between each revision and its parent
-                #. Record edit count, raw bytes added (with sign and absolute), amount of positive bytes added, amount of negative bytes added
+                #. Record edit count, raw bytes added (with sign and absolute), amount of positive bytes added,
+                amount of negative bytes added
 
             - Parameters:
-                - **user_handle** - String or Integer (optionally lists).  Value or list of values representing user handle(s).
+                - **user_handle** - String or Integer (optionally lists).  Value or list of values representing
+                                    user handle(s).
                 - **is_id** - Boolean.  Flag indicating whether user_handle stores user names or user ids
 
             - Return:
