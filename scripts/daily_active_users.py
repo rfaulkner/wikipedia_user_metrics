@@ -61,6 +61,6 @@ if __name__ == "__main__":
         default=yesterday)
     parser.add_argument('-e', '--date_end',type=str, help='End date of measurement.', default=today)
     parser.add_argument('-l', '--log_frequency',type=int,help='How often to log progress.',default=0)
-    parser.add_argument('-o', '--output_file',type=int,help='File to store output.',default='dau_out.tsv')
+    parser.add_argument('-o', '--output_file',type=str,help='File to store output.',default='dau_out.tsv')
     args = parser.parse_args()
     sys.exit(main(args))
