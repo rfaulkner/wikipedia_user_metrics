@@ -27,7 +27,7 @@ def main(args):
     logging.info(args)
     logging.info('Processing contribution volume metrics for daily users from %s to %s ... ' %
                  (args.date_start, args.date_end))
-    file_obj = open(s.__data_home__ + 'dau_out.tsv','w')
+    file_obj = open(s.__data_home__ + args.output_file,'w')
     try:
         file_obj.write("\t".join(ba.BytesAdded.header()) + '\n')
         for row in ba.BytesAdded(date_start=args.date_start, date_end=args.date_end).process(
@@ -50,8 +50,7 @@ if __name__ == "__main__":
     yesterday = "".join([yesterday.strftime('%Y%m%d'),"000000"])
 
     parser = argparse.ArgumentParser(
-        description="This script computes specified user metrics. It reads from stdin a list of user ids and produces "\
-                    "a set of metrics written into ./output.tsv",
+        description="This script computes generates a tsv conataning rev counts for dailiy active users.",
         epilog="",
         conflict_handler="resolve",
         usage = "user_ids | call_metric_on_users.py [-h] [-m METRIC] [-o OUTPUT] [-s DATE_START] [-e DATE_END] [-p PROJECT]"
@@ -62,5 +61,6 @@ if __name__ == "__main__":
         default=yesterday)
     parser.add_argument('-e', '--date_end',type=str, help='End date of measurement.', default=today)
     parser.add_argument('-l', '--log_frequency',type=int,help='How often to log progress.',default=0)
+    parser.add_argument('-o', '--output_file',type=int,help='File to store output.',default='dau_out.tsv')
     args = parser.parse_args()
     sys.exit(main(args))
