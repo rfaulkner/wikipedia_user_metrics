@@ -49,8 +49,8 @@ from dateutil.parser import parse as date_parse
 
 class UserMetric(object):
 
-
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
+    _static_conn = None
 
     def __init__(self,
                  project='enwiki',
@@ -69,6 +69,13 @@ class UserMetric(object):
 
     def __del__(self):
         self._data_source_.close_db()
+
+    @classmethod
+    def get_static_connection(cls):
+        if cls._static_conn is None:
+            cls._static_conn = dl.Connector(instance='slave')
+        return cls._static_conn._db_
+
     @classmethod
     def _construct_data_point(cls): return namedtuple(cls.__name__, cls.header())
 
