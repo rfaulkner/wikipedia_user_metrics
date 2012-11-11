@@ -189,8 +189,7 @@ class DataLoader(object):
         elif hasattr(input, '__iter__'):
             output = [str(elem) for elem in input]
         else:
-            return False
-
+            output = str(input)
         return output
 
     def dump_to_csv(self, results, column_names):
@@ -346,27 +345,30 @@ class DataLoader(object):
 
         return elems
 
-    def list_to_xsv(self, nested_list, separator='\t'):
+    def list_to_xsv(self, nested_list, separator='\t', log=False):
         """
             Transforms a nested list or t
 
             Parameters:
                 - **nested_list** - List(List()).  Nested list to insert to xsv.
                 - **separator**: String.  The separating character in the file.  Default to tab.
-
-            Return:
-                - empty.
         """
+        try:
+            file_obj = open(projSet.__data_file_dir__ + 'list_to_xsv.out', 'w')
+        except IOError as e:
+            logging.info('Could not open xsv for writing: %s' % e.message)
+            return
 
-        file_obj = open(projSet.__data_file_dir__ + 'list_to_xsv.out', 'w')
-
-        for elem in nested_list:
-            try:
+        if hasattr(nested_list, '__iter__'):
+            for elem in nested_list:
                 new_elems = self.cast_elems_to_string(elem)
                 line_in = separator.join(new_elems) + '\n'
-                file_obj.write(line_in)
-            except:
-                logging.error('Could not parse: "%s"' % str(elem))
+                try:
+                    file_obj.write(line_in)
+                except IOError:
+                    if log: logging.error('Could not write: "%s"' % str(line_in.strip()))
+        else:
+            logging.error('Expected an iterable to write to file.')
 
         file_obj.close()
 
@@ -461,7 +463,7 @@ class DataLoader(object):
                 continue
 
             # Parse input line
-            if not parse_function:
+            if parse_function is None:
                 insert_field_str = self.format_comma_separated_list(line.split(separator))
             else:
                 insert_field_str = self.format_comma_separated_list(parse_function(line))
