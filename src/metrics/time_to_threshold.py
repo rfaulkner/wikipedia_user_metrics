@@ -34,6 +34,7 @@ class TimeToThreshold(um.UserMetric):
     def header(): return ['user_id', 'minutes_diff']
 
     def process(self, user_handle, is_id=True):
+        """ Wrapper for specific threshold objects """
         self._results =  self._threshold_obj_.process(user_handle, self, is_id=is_id)
         return self
 
