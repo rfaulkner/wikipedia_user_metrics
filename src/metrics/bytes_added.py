@@ -7,7 +7,6 @@ import multiprocessing as mp
 import datetime
 import user_metric as um
 import math
-import config.settings as projSet
 
 class BytesAdded(um.UserMetric):
     """
@@ -32,7 +31,6 @@ class BytesAdded(um.UserMetric):
                  date_start='2010-01-01 00:00:00',
                  date_end=datetime.datetime.now(),
                  project='enwiki',
-                 num_threads = 2,
                  **kwargs):
 
         """
@@ -47,7 +45,6 @@ class BytesAdded(um.UserMetric):
         """
         self._start_ts_ = self._get_timestamp(date_start)
         self._end_ts_ = self._get_timestamp(date_end)
-        self._k = num_threads
         um.UserMetric.__init__(self, project=project, **kwargs)
 
     @staticmethod
@@ -55,16 +52,25 @@ class BytesAdded(um.UserMetric):
                           'bytes_added_pos', 'bytes_added_neg', 'edit_count']
 
     def process(self, user_handle=None, is_id=True, **kwargs):
+        """ Setup metrics gathering using multiprocessing """
 
+        k = kwargs['num_threads'] if 'num_threads' in kwargs else 1
         kwargs['is_id'] = is_id
         kwargs['start_ts'] = self._start_ts_
         kwargs['end_ts'] = self._end_ts_
         kwargs['project'] = self._project_
 
-        pool = mp.Pool(processes=self._k)
-        n = int(math.ceil(float(len(user_handle)) / self._k))
-        arg_list = [[user_handle[i * n : (i + 1) * n], kwargs] for i in xrange(self._k)]
-        self._results = pool.map(_process_help, arg_list)
+        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
+
+        n = int(math.ceil(float(len(user_handle)) / k))
+
+        arg_list = [[user_handle[i * n : (i + 1) * n], kwargs] for i in xrange(k)]
+        arg_list = filter(lambda x: len(x[0]), arg_list) # remove any args with empty user handle lists
+
+        pool = mp.Pool(processes=len(arg_list))
+
+        self._results = list()
+        for elem in pool.map(_process_help, arg_list): self._results.extend(elem)
 
         return self
 
@@ -93,11 +99,7 @@ def _process_help(args):
             - Dictionary. key(string): user handle, value(Float): edit counts
     """
 
-    mysql_kwargs = {}
-    for key in projSet.connections['slave']:
-        mysql_kwargs[key] = projSet.connections['slave'][key]
-
-    conn = um.UserMetric.get_static_connection()
+    conn = um.dl.Connector(instance='slave')
     user_handle = args[0]
     key_word_args = args[1]
 
@@ -144,20 +146,18 @@ def _process_help(args):
     if is_log:
         print str(datetime.datetime.now()) + ' - Querying revisions...'
     try:
-        cur_1 = conn.cursor()
-        cur_1.execute(sql)
+        results = conn.execute_SQL(sql)
     except um.MySQLdb.ProgrammingError:
         raise um.UserMetric.UserMetricError(message=str(BytesAdded) +
                                            '::Could not get bytes added for specified users(s) - Query Failed.')
 
     # Get the difference for each revision length from the parent to compute bytes added
-    cur_2 = conn.cursor() # Get a new cursor for rev length queries
     row_count = 1
     missed_records = 0
-    total_rows = len(cur_1._rows)
+    total_rows = len(results)
 
-    print str(datetime.datetime.now()) + ' - Processing revision data by user...'
-    for row in cur_1.fetchall():
+    if is_log: print str(datetime.datetime.now()) + ' - Processing revision data by user...'
+    for row in results:
         try:
             user = str(row[0])
             rev_len_total = int(row[1])
@@ -177,8 +177,7 @@ def _process_help(args):
             sql = 'select rev_len from enwiki.revision where rev_id = %(parent_rev_id)s' % {
                   'parent_rev_id' : parent_rev_id}
             try:
-                cur_2.execute(sql)
-                parent_rev_len = int(cur_2.fetchall()[0][0])
+                parent_rev_len = conn.execute_SQL(sql)[0][0]
             except TypeError:
                 missed_records += 1
                 continue
