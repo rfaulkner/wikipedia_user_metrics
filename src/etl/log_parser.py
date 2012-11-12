@@ -17,7 +17,8 @@ logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s 
 
 class LineParseMethods():
     """
-        Helper Class - Defines methods for processing lines of text primarily from log files.  Each method in this class takes one argument:
+        Defines methods for processing lines of text primarily from log files.  Each method in this class takes one
+        argument:
 
             - **line** - String.  Line text to process.
 
@@ -87,48 +88,49 @@ class LineParseMethods():
 
         return l
 
-    def e3_acux_log_parse(self, line):
-        """
-            Process client and server side events.  Read to table, gather clean funnels.
+    @staticmethod
+    def e3_acux_log_parse_client_event(line, version=2):
+        line_bits = line.split('\t')
+        num_fields = len(line_bits)
 
-            Dario says:
+        regex_str = r'ext.accountCreationUX.*acux_%s' % version
 
-                enwiki ext.accountCreationUX@2-acux_1-assignment	20121005000446	0	hGba7rOPWNmpc9lA7EQLnB5Nvb7ziBqoT	-1	0	0	0	0	frGBqVHW1eAHGQwldL8dhFs3R8ocZ9TC|http://en.wikipedia.org/w/index.php?title=Special:UserLogin&returnto=Miguel_(singer)&returntoquery=action%3Dedit
-                enwiki ext.accountCreationUX@2-acux_1-impression	20121005000447	0	hGba7rOPWNmpc9lA7EQLnB5Nvb7ziBqoT	-1	0	0	0	0	frGBqVHW1eAHGQwldL8dhFs3R8ocZ9TC|http://en.wikipedia.org/w/index.php?title=Special:UserLogin&returnto=Miguel_(singer)&returntoquery=action%3Dedit
-                enwiki ext.accountCreationUX@2-acux_1-submit	20121005000508	0	hGba7rOPWNmpc9lA7EQLnB5Nvb7ziBqoT	-1	0	0	0	0	frGBqVHW1eAHGQwldL8dhFs3R8ocZ9TC|http://en.wikipedia.org/w/index.php?title=Special:UserLogin&returnto=Miguel_(singer)&returntoquery=action%3Dedit|Mariellaknaus
-                enwiki ?event_id=account_create&user_id=17637802&timestamp=1349395510&username=Mariellaknaus&self_made=1&creator_user_id=17637802&by_email=0&userbuckets=%7B%22ACUX%22%3A%5B%22acux_1%22%2C2%5D%7D&mw_user_token=frGBqVHW1eAHGQwldL8dhFs3R8ocZ9TC&version=2
+        if num_fields == 10 and re.search(regex_str, line):
+            # CLIENT EVENT - impression, assignment, and submit events
+            fields = line_bits[0].split()
+            fields.extend(line_bits[1:5])
+            additional_fields = ['','','']
+            last_field = line_bits[9].split('|')
 
-                The sequence of events in this "clean" funnel is the following:
+            if len(last_field) == 2:
+                additional_fields[0] = str(last_field[0]).strip()
+                additional_fields[1] = str(last_field[1]).strip()
+                additional_fields[2] = str(last_field[2]).strip()
 
-                acux_1-assignment 	(client event)
-                acux_1-impression 	(client event)
-                acux_1-submit 		(client event)
-                account_create 		(server event)
+            elif len(last_field) == 2:
+                additional_fields[0] = str(last_field[0]).strip()
+                additional_fields[1] = str(last_field[1]).strip()
 
-                The full specs of the events are here: https://meta.wikimedia.org/wiki/Research:Account_creation_UX/Logging
+            elif len(last_field) == 1:
+                # Check whether the additional fields contain only a url
+                if urlparse(last_field[0]).scheme:
+                    additional_fields[1] = str(last_field[0]).strip()
+                else:
+                    additional_fields[0] = str(last_field[0]).strip()
+            fields.extend(additional_fields)
+            return fields
+        return []
 
-                Duplicate events
-                Since users can go through complex funnels before submitting the account create form and generate errors after submitting, "clean"
-                funnels are going to be the exception, not the norm and we will need to collapse all funnels by token to extract meaningful metrics.
-                In other words, raw counts of -impression or -submit events will be meaningless and should not be used to calculate click through/conversion
-                rates prior to deduplication.
-
-                As a rule, there should only be one (server-side) account_create event associated with a token. The only exception is shared browsers
-                creating multiple accounts. In this case we will see multiple account_create events associated with the same token (which is persistent
-                 across sessions and logins) but different user_id's.
-
-                Early stats
-                In the first hour since activation (23.30-00.30 UTC), we had 87 successful account creations from the acux_1 bucket vs 74
-                accounts from the control. This doesn't include users who by-passed the experiment by having JS disabled. The total number of
-                accounts registered in this hour on enwiki, per the logging table, is 180, so users who didn't get bucketed are 19 (i.e.
-                about 10% of all account registrations). This figure is higher than I expected so there might be other causes on top of JS
-                disabled that cause users to register without a bucket and that we may want to investigate.
-        """
+    @staticmethod
+    def e3_acux_log_parse_server_event(line, version=2):
         line_bits = line.split('\t')
         num_fields = len(line_bits)
 
         # handle both events generated from the server and client side via ACUX.  Discriminate the two cases based
         # on the number of fields in the log
+
+        # ensure that event_id == `account_creation`
+        # ensure that event_id == `account_creation`
 
         if num_fields == 1:
             # SERVER EVENT - account creation
@@ -137,7 +139,7 @@ class LineParseMethods():
 
             try:
                 # Ensure that the user is self made
-                if query_vars['self_made'][0]:
+                if query_vars['self_made'][0] and query_vars['?event_id'][0] == 'account_create':
                     return [line_bits[0], query_vars['username'][0], query_vars['user_id'][0],
                             query_vars['timestamp'][0], query_vars['?event_id'][0], query_vars['self_made'][0],
                             query_vars['mw_user_token'][0], query_vars['version'][0], query_vars['by_email'][0],
@@ -145,28 +147,8 @@ class LineParseMethods():
                 else:
                     return []
 
-            except Exception:
-                return []
-
-        elif num_fields == 10:
-            # CLIENT EVENT - impression, assignment, and submit events
-            fields = line_bits[0].split()
-            fields.extend(line_bits[1:9])
-            additional_fields = ['','']
-            last_field = line_bits[9].split('|')
-
-            if len(last_field) >= 2:
-                additional_fields[0] = last_field[0]
-                additional_fields[1] = last_field[1]
-
-            elif len(last_field) == 1:
-                # Check whether the additional fields contain only a url
-                if urlparse(last_field[0]).scheme:
-                    additional_fields[1] = last_field[0]
-                else:
-                    additional_fields[0] = last_field[0]
-            fields.extend(additional_fields)
-            return fields
+            except KeyError: return []
+            except IndexError: return []
         return []
 
     @staticmethod
