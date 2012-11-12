@@ -8,7 +8,7 @@ import src.etl.log_parser as lp
 experiments = {
 
     'CTA4' : {
-                'log_files' : ['clicktracking.log-20121026.gz', 'clicktracking.log-20121027.gz'
+                'log_files' : ['clicktracking.log-20121026.gz', 'clicktracking.log-20121027.gz',
                                'clicktracking.log-20121028.gz', 'clicktracking.log-20121029.gz',
                                'clicktracking.log-20121030.gz', 'clicktracking.log-20121031.gz',
                                'clicktracking.log-20121101.gz', 'clicktracking.log-20121102.gz',
@@ -69,8 +69,8 @@ experiments = {
                                   'table_name' : 'e3_cta4_time_to_milestone'
                 },
 
-                'user_list_sql' : "select distinct rev_user, min(e.timestamp) from e3_cta4_users as e join "
-                                "enwiki.revision as r on e.add_field_3 = r.rev_id and rev_user > 0 group by 1"
+                'user_list_sql' : "select distinct r.user_id from e3_cta4_users as e join "
+                                "e3_acux2_server_events as r on e.add_field_1 = r.mw_user_token"
 
 
     },

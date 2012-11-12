@@ -95,8 +95,6 @@ def blocks(users):
 def edit_volume(users, period=1):
     """ Extracts bytes added and edit count "period" days after registration """
     global exp_meta_data
-
-    exp_start = date_parse(exp_meta_data['start_date'])
     logging.info("Processing bytes added for %s users." % str(len(users)))
     sql_reg_date = 'select user_registration from enwiki.user where user_id = %s;'
 
@@ -106,10 +104,11 @@ def edit_volume(users, period=1):
 
     for user in users:
         try:
-            reg_date = date_parse(conn.execute_SQL(sql_reg_date % user)[0][0])
-            if reg_date < exp_start: continue
-            end_date = reg_date + datetime.timedelta(days=period)
-            entry = ba.BytesAdded(date_start=reg_date, date_end=end_date).process(user, num_threads=2).__iter__().next()
+            # start_date = date_parse(user[1])
+            start_date = date_parse(date_parse(conn.execute_SQL(sql_reg_date % user)[0][0]))
+            end_date = start_date + datetime.timedelta(days=period)
+            entry = ba.BytesAdded(date_start=start_date, date_end=end_date).process(
+                user[0], num_threads=2).__iter__().next()
             bytes_added.append(entry)
 
         except Exception as e:
@@ -154,20 +153,22 @@ def main(args):
     # Process data
     if args.load_logs: load_logs()
     sql = exp_meta_data['user_list_sql']
-    users = [str(row[0]) for row in conn.execute_SQL(sql)]
+    data = [(str(row[0]), str(row[1])) for row in conn.execute_SQL(sql)]
 
-    if args.blocks: blocks(users)
-    if args.edit_volume: edit_volume(users, period=2)
-    if args.time_to_threshold: time_to_threshold(users)
+    user_ids = [user[0] for user in data]
+
+    if args.blocks: blocks(user_ids)
+    if args.edit_volume: edit_volume(data, period=2)
+    if args.time_to_threshold: time_to_threshold(user_ids)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="This script filters log data and build metrics from Wikimedia editor engagement experiments.",
         epilog="EXPERIMENT = %s" % str(e3_def.experiments.keys()),
         conflict_handler="resolve",
-        usage = "e3_data_wrangle.py [-e EXPERIMENT] [-l]"
+        usage = "e3_data_wrangle.py [-x EXPERIMENT] [-l] [-b] [-e] [-t] [-r]"
     )
-    parser.add_argument('-e', '--experiment',type=str, help='Experiment.',default='CTA4')
+    parser.add_argument('-x', '--experiment',type=str, help='Experiment handle.',default='ACUX_2_SERVER')
     parser.add_argument('-l', '--load_logs',action="store_true",help='Process log data.',default=False)
     parser.add_argument('-b', '--blocks',action="store_true",help='.',default=False)
     parser.add_argument('-e', '--edit_volume',action="store_true",help='.',default=False)
