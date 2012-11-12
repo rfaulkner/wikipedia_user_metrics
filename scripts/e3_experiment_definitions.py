@@ -8,7 +8,7 @@ import src.etl.log_parser as lp
 experiments = {
 
     'CTA4' : {
-                'log_files' : ['clicktracking.log-20121026.gz',
+                'log_files' : ['clicktracking.log-20121026.gz', 'clicktracking.log-20121027.gz'
                                'clicktracking.log-20121028.gz', 'clicktracking.log-20121029.gz',
                                'clicktracking.log-20121030.gz', 'clicktracking.log-20121031.gz',
                                'clicktracking.log-20121101.gz', 'clicktracking.log-20121102.gz',
@@ -73,5 +73,65 @@ experiments = {
                                 "enwiki.revision as r on e.add_field_3 = r.rev_id and rev_user > 0 group by 1"
 
 
+    },
+
+    'ACUX_2_SERVER' : {
+        'log_files' : ['clicktracking.log-20121026.gz', 'clicktracking.log-20121027.gz',
+                       'clicktracking.log-20121028.gz', 'clicktracking.log-20121029.gz',
+                       'clicktracking.log-20121030.gz', 'clicktracking.log-20121031.gz',
+                       'clicktracking.log-20121101.gz', 'clicktracking.log-20121102.gz',
+                       'clicktracking.log-20121103.gz', 'clicktracking.log-20121104.gz',
+                       'clicktracking.log-20121105.gz', 'clicktracking.log-20121106.gz',
+                       'clicktracking.log-20121107.gz'],
+
+        'start_date' : '20121026000000',
+        'end_date' : '20121107000000',
+        'log_parser_method' : lp.LineParseMethods.e3_acux_log_parse_server_event,
+
+        'user_bucket' : { 'definition' : """
+                                                    create table `e3_acux2_server_events` (
+                                                    `project` varbinary(255) NOT NULL DEFAULT '',
+                                                    `username` varbinary(255) NOT NULL DEFAULT '',
+                                                    `user_id` varbinary(255) NOT NULL DEFAULT '',
+                                                    `timestamp` varbinary(255) NOT NULL DEFAULT '',
+                                                    `event_id` varbinary(255) NOT NULL DEFAULT '',
+                                                    `self_made` varbinary(255) NOT NULL DEFAULT '',
+                                                    `mw_user_token` varbinary(255) NOT NULL DEFAULT '',
+                                                    `version` varbinary(255) NOT NULL DEFAULT '',
+                                                    `by_email` varbinary(255) NOT NULL DEFAULT '',
+                                                    `creator_user_id` varbinary(255) NOT NULL DEFAULT ''
+                                                    ) ENGINE=MyISAM DEFAULT CHARSET=binary
+                                                """,
+                          'table_name' : 'e3_acux2_server_events'
+        }
+    },
+
+    'ACUX_2_CLIENT' : {
+        'log_files' : ['clicktracking.log-20121026.gz', 'clicktracking.log-20121027.gz'
+                       'clicktracking.log-20121028.gz', 'clicktracking.log-20121029.gz',
+                       'clicktracking.log-20121030.gz', 'clicktracking.log-20121031.gz',
+                       'clicktracking.log-20121101.gz', 'clicktracking.log-20121102.gz',
+                       'clicktracking.log-20121103.gz', 'clicktracking.log-20121104.gz',
+                       'clicktracking.log-20121105.gz', 'clicktracking.log-20121106.gz',
+                       'clicktracking.log-20121107.gz'],
+
+        'start_date' : '20121026000000',
+        'end_date' : '20121107000000',
+        'log_parser_method' : lp.LineParseMethods.e3_acux_log_parse_client_event,
+
+        'user_bucket' : { 'definition' : """
+                                                    create table `e3_acux2_users` (
+                                                    `project` varbinary(255) NOT NULL DEFAULT '',
+                                                    `event_signature` varbinary(255) NOT NULL DEFAULT '',
+                                                    `timestamp` varbinary(255) NOT NULL DEFAULT '',
+                                                    `token` varbinary(255) NOT NULL DEFAULT '',
+                                                    `namespace` varbinary(255) NOT NULL DEFAULT '',
+                                                    `add_field_1` varbinary(255) NOT NULL DEFAULT '',
+                                                    `add_field_2` varbinary(255) NOT NULL DEFAULT '',
+                                                    `add_field_3` varbinary(255) NOT NULL DEFAULT ''
+                                                    ) ENGINE=MyISAM DEFAULT CHARSET=binary
+                                                """,
+                          'table_name' : 'e3_acux2_users'
+        }
     }
 }
