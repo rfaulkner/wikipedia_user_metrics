@@ -69,8 +69,9 @@ experiments = {
                                   'table_name' : 'e3_cta4_time_to_milestone'
                 },
 
-                'user_list_sql' : "select distinct rev_user from e3_cta4_users as e "
-                                  "join enwiki.revision as r on e.add_field_3 = r.rev_id and rev_user > 0"
+                'user_list_sql' : "select distinct rev_user, min(e.timestamp) from e3_cta4_users as e join "
+                                "enwiki.revision as r on e.add_field_3 = r.rev_id and rev_user > 0 group by 1"
+
 
     }
 }
