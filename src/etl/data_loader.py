@@ -431,7 +431,7 @@ class DataLoader(object):
 
         # Crawl the log line by line - insert the contents of each line into the table
         count = 0
-        line = file_obj.readline().strip(separator)
+        line = file_obj.readline().strip(separator).strip()
         while line != '':
 
             # Perform batch insert if max is reached
@@ -473,7 +473,7 @@ class DataLoader(object):
                 insert_sql += '(%s), ' % insert_field_str
                 count += 1
 
-            line = file_obj.readline().strip(separator)
+            line = file_obj.readline().strip(separator).strip()
 
         # Perform insert
         if count:
