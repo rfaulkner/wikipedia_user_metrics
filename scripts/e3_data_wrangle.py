@@ -37,19 +37,17 @@ conn = dl.Connector(instance='slave')
 def load_logs():
     global exp_meta_data
 
-    lpm = exp_meta_data['log_parser_method']
-
-    # drop the table if it already exists
-    conn._cur_.execute('drop table if exists %s' % exp_meta_data['user_bucket']['table_name'])
-
-    # create the new table
-    conn._cur_.execute(" ".join(exp_meta_data['user_bucket']['definition'].strip().split('\n')))
-
-    # load log data
-    for f in exp_meta_data['log_files']:
-        logging.info('Processing file %s ...' % f)
-        dl.DataLoader().create_table_from_xsv(f, '', exp_meta_data['user_bucket']['table_name'],
-            parse_function=lpm, header=False)
+    for key in exp_meta_data['log_data']:
+        logging.info('Loading log data for %s...' % key)
+        log_data_def = exp_meta_data['log_data'][key]
+        conn._cur_.execute('drop table if exists %s' % log_data_def['table_name'])
+        conn._cur_.execute(" ".join(log_data_def['definition'].strip().split('\n')))
+        for f in exp_meta_data['log_files']:
+            logging.info('Processing file %s ...' % f)
+            dl.DataLoader().create_table_from_xsv(f, '',
+                log_data_def['table_name'],
+                parse_function=log_data_def['log_parser_method'],
+                header=False)
 
 def blocks(users):
     global exp_meta_data
@@ -87,7 +85,6 @@ def blocks(users):
             pass
 
     dl.DataLoader().list_to_xsv(block_list)  # !! this is inefficient, refactor
-    conn.execute_SQL('drop table if exists %s' % exp_meta_data['blocks']['table_name'])
     create_sql = " ".join(exp_meta_data['blocks']['definition'].strip().split('\n'))
     dl.DataLoader().create_table_from_xsv('list_to_xsv.out',create_sql,
         exp_meta_data['blocks']['table_name'], header=False)
@@ -105,14 +102,14 @@ def edit_volume(users, period=1):
     for user in users:
         try:
             # start_date = date_parse(user[1])
-            start_date = date_parse(date_parse(conn.execute_SQL(sql_reg_date % user)[0][0]))
+            start_date = date_parse(conn.execute_SQL(sql_reg_date % user)[0][0])
             end_date = start_date + datetime.timedelta(days=period)
             entry = ba.BytesAdded(date_start=start_date, date_end=end_date).process(
-                user[0], num_threads=2).__iter__().next()
+                user, num_threads=1).__iter__().next()
             bytes_added.append(entry)
 
         except Exception as e:
-            logging.error('Could not get bytes added for user %s: %s' % (str(user), e.message))
+            # logging.error('Could not get bytes added for user %s: %s' % (str(user), e.message))
             bad_users += 1
 
     logging.info('Missed %s users out of %s.' % (str(bad_users), str(len(users))))
@@ -120,7 +117,6 @@ def edit_volume(users, period=1):
     dl.DataLoader().list_to_xsv(bytes_added)
 
     # Create table
-    conn.execute_SQL('drop table if exists %s' % exp_meta_data['edit_volume']['table_name'])
     sql = " ".join(exp_meta_data['edit_volume']['definition'].strip().split('\n'))
     dl.DataLoader().create_table_from_xsv('list_to_xsv.out', sql,
         exp_meta_data['edit_volume']['table_name'], header=False)
@@ -136,7 +132,6 @@ def time_to_threshold(users, first_edit=1, threshold_edit=2):
 
     sql = " ".join(exp_meta_data['time_to_milestone']['definition'].strip().split('\n'))
     dl.DataLoader().list_to_xsv(t)
-    conn.execute_SQL('drop table if exists %s' %  exp_meta_data['time_to_milestone']['table_name'])
     dl.DataLoader().create_table_from_xsv('list_to_xsv.out', sql,
         exp_meta_data['time_to_milestone']['table_name'], header=False)
 
@@ -153,12 +148,10 @@ def main(args):
     # Process data
     if args.load_logs: load_logs()
     sql = exp_meta_data['user_list_sql']
-    data = [(str(row[0]), str(row[1])) for row in conn.execute_SQL(sql)]
-
-    user_ids = [user[0] for user in data]
+    user_ids = [str(row[0]) for row in conn.execute_SQL(sql)]
 
     if args.blocks: blocks(user_ids)
-    if args.edit_volume: edit_volume(data, period=2)
+    if args.edit_volume: edit_volume(user_ids[:20], period=2)
     if args.time_to_threshold: time_to_threshold(user_ids)
 
 if __name__ == '__main__':
@@ -168,7 +161,7 @@ if __name__ == '__main__':
         conflict_handler="resolve",
         usage = "e3_data_wrangle.py [-x EXPERIMENT] [-l] [-b] [-e] [-t] [-r]"
     )
-    parser.add_argument('-x', '--experiment',type=str, help='Experiment handle.',default='ACUX_2_SERVER')
+    parser.add_argument('-x', '--experiment',type=str, help='Experiment handle.',default='CTA4')
     parser.add_argument('-l', '--load_logs',action="store_true",help='Process log data.',default=False)
     parser.add_argument('-b', '--blocks',action="store_true",help='.',default=False)
     parser.add_argument('-e', '--edit_volume',action="store_true",help='.',default=False)
