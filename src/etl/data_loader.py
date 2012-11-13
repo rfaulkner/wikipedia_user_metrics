@@ -47,13 +47,9 @@ __license__ = "GPL (version 2 or later)"
 
 import sys
 import MySQLdb
-import datetime
-import re
 import logging
 import operator
-from dateutil.parser import parse as date_parse
 import config.settings as projSet
-import timestamp_processor as tp
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
@@ -189,37 +185,6 @@ class DataLoader(object):
         else:
             output = str(input)
         return output
-
-    def dump_to_csv(self, results, column_names):
-        """
-            Data Processing - take **__results__** and dump into out.tsv in the data directory
-
-            Parameters (\*\*kwargs):
-                - **column_names** - list of strings storing the column names
-
-            Return:
-                - empty.
-        """
-
-        logging.info('Writing results to: ' + projSet.__data_file_dir__ + 'out.tsv')
-        output_file = open(projSet.__data_file_dir__ + 'out.tsv', 'wb')
-
-        # Write Column headers
-        for index in range(len(column_names)):
-            if index < (len(column_names) - 1):
-                output_file.write(column_names[index] + '\t')
-            else:
-                output_file.write(column_names[index] + '\n')
-
-        # Write Rows
-        for row in results:
-            for index in range(len(column_names)):
-                if index < (len(column_names) - 1):
-                    output_file.write(str(row[index]) + '\t')
-                else:
-                    output_file.write(str(row[index]) + '\n')
-
-        output_file.close()
 
     def format_clause(self, elems, index, clause_type, field_name):
         """
@@ -429,213 +394,31 @@ class DataLoader(object):
             conn.execute_SQL(insert_sql[:-2])
 
 
-    def remove_duplicates_from_xsv(self, filename, separator='\t', index=None, header=True, opt_ext=".dup"):
+    def remove_duplicates(self, l):
         """
             Removes duplicates from a separated value file and write the de-duped results to a new file.  The output file
             overwrites the input file unless a new extension is specified.
 
             Parameters:
-                - **filename** - String.  The .xsv filename, assumed to be located in the project data folder.
-                - **separator** - String.  The separating character in the file.  Default to tab.
-                - **index** - Integer.  Index of field in each line to evaluate on.
-                - **header** - Boolean.  Flag indicating whether the file has a header.
-                - **opt_ext** - String.  Determines the optional extension to the output file.
+                - **l** - String.  The .xsv filename, assumed to be located in the project data folder.
+                - **index** - list(int).  Indices of fields to compare.  Default is all.
 
             Return:
                 - empty.
         """
-
-        file_obj = open(projSet.__data_file_dir__ + filename, 'r')
-
         # Rather than a list use a hash to store each line
-        lines = dict()
+        duplicates = dict()
+        new_list= list()
 
-        if header:
-            header_str = file_obj.readline()
-
-        line = file_obj.readline()
-        while line != '':
-            if index == None:
-                lines[line] = 0
+        for e in l:
+            str_e = e.__str__()
+            if not duplicates.has_key(str_e):
+                duplicates[str_e] = 0
+                new_list.append(e)
             else:
-                try:
-                    elems = line.split(separator)
-                    lines[elems[index]] = line
-                except:
-                    logging.error('Could not parse line: "%s"' % line)
+                duplicates[str(e)] += 1
+        return new_list
 
-            line = file_obj.readline()
-
-        file_obj.close()
-
-        file_obj = open(projSet.__data_file_dir__ + filename + opt_ext, 'w')
-
-        if header:
-            file_obj.write(header_str)
-
-        # Write non-duplicates to the outfile
-        # If no index was specified the hash-key is the line itself
-        for key in lines.keys():
-            if index == None:
-                file_obj.write(key)
-            else:
-                file_obj.write(lines[key])
-
-    def remove_elems_from_xsv(self, filename, elems, index, separator='\t',
-                              header=True, inclusive=True, opt_ext='.rem', regex_pattern=None):
-        """
-            Evaluates each line of an .xsv on a condition.  The field is conditioned on being contained in a list or on matching a regex.  The results
-            overwrite the input unless an optional extension is specified.  To choose to condition on matching a list of strings the parameter
-            *regex_pattern* must not be set to *None*.
-
-            Parameters:
-                - **filename** - String.  The .xsv filename, assumed to be located in the project data folder.
-                - **elems** - List(string).  List of elements on which to condition the field to evaluate.
-                - **separator** - String.  The separating character in the file.  Default to tab.
-                - **index** - Integer.  Index of field in each line to evaluate on.
-                - **header** - Boolean.  Flag indicating whether the file has a header.
-                - **inclusive** - Boolean.  Flag determining whether the regex is inclusive or exclusive.
-                - **opt_ext** - String.  Determines the optional extension to the output file.
-                - **regex_pattern** - List(string).  List of regex patterns on which to match.
-
-            Return:
-                - empty.
-        """
-
-        file_obj = open(projSet.__data_file_dir__ + filename, 'r')
-        use_regex = regex_pattern != None and isinstance(regex_pattern, str)
-
-        # Rather than a list use a hash to store each line
-        lines = dict()
-
-        if header:
-            header_str = file_obj.readline()
-
-        # Select lines to be included in the output
-        line = file_obj.readline()
-        while line != '':
-            try:
-
-                tokens = line.split(separator)
-                if inclusive:
-                    if use_regex:
-                        if re.search(regex_pattern, tokens[index]):
-                            lines[tokens[index]] = line
-                    else:
-                        if tokens[index] in elems:
-                            lines[tokens[index]] = line
-                else:
-                    if use_regex:
-                        if not(re.search(regex_pattern, tokens[index])):
-                            lines[tokens[index]] = line
-                    else:
-                        if not(tokens[index] in elems):
-                            lines[tokens[index]] = line
-
-            except:
-                logging.error('Could not parse line: "%s"' % line)
-
-            line = file_obj.readline()
-
-        file_obj.close()
-
-        file_obj = open(projSet.__data_file_dir__ + filename + opt_ext, 'w')
-
-        if header:
-            file_obj.write(header_str)
-
-        # Write to the outfile
-        # If no index was specified the hash-key is the line itself
-        for key in lines.keys():
-            file_obj.write(lines[key])
-
-    def extract_pattern_from_text_file(self, filename, parse_method, header=True):
-        """
-            Extracts selected elements from a text file on a line by line basis by using a parsing method on each line.
-
-            Parameters:
-                - **filename** - String.  The .xsv filename, assumed to be located in the project data folder.
-                - **parse_method** - Method Pointer.  Method that handles extracting content from each line (see helper class XSVParseMethods).
-                - **header** - Boolean.  Flag indicating whether the file has a header.
-
-            Return:
-                - List.  List of elements parsed from each line of the input.
-        """
-
-        elements = list()
-        file_obj = open(projSet.__data_file_dir__ + filename, 'r')
-
-        if header:
-            file_obj.write(header_str)
-
-        line = file_obj.readline()
-        while line != '':
-            # logging.debug(line)
-
-            try:
-                element = parse_method(line)
-                # print line
-            except:
-                line = file_obj.readline()
-                continue
-
-            if element != '':
-                elements.append(element)
-
-            line = file_obj.readline()
-
-        file_obj.close()
-
-        return elements
-
-    def transform_xsv(self, filename, index_generator_methods=None, separator_from='\t',
-                      separator_to='\t', outfile = None, header=False, **kwargs):
-        """
-            Transform the fields of an xsv file using transform method pointers.  The outfile by default is named as the input file with the extension
-            '.trn' appended.  The field separator may also optionally be changed.
-
-            Parameters:
-                - **filename** - String.  The .xsv filename, assumed to be located in the project data folder.
-                - **index_generator_methods** - List(Method Pointer).  Methods used to transform input (see helper class TransformMethods).
-                - **separator_from** - String.  The separating character in the in file.  Default to tab.
-                - **separator_to** - String.  The separating character in the out file.  Default to tab.
-                - **outfile** - String.  Filename that allows overriding of the default outfile name.
-                - **header** - Boolean.  Flag indicating whether the file has a header.
-
-            Return:
-                - empty.
-        """
-
-        # Pre- process defaults
-        if index_generator_methods is None: index_generator_methods = []
-
-        # Begin function
-        if outfile == None:
-            file_obj_out = open(projSet.__data_file_dir__ + filename + '.trn', 'w')
-        else:
-            file_obj_out = open(projSet.__data_file_dir__ + outfile, 'w')
-
-        file_obj_in = open(projSet.__data_file_dir__ + filename, 'r')
-
-        if header:
-            file_obj_in.readline()
-
-        line = file_obj_in.readline()
-        # Read each line of the xsv
-        while line != '':
-
-            fields = list()
-            tokens = line.split(separator_from)
-
-            # apply the index generator
-            for index in range(len(index_generator_methods)):
-                fields.append(index_generator_methods[index](tokens, index, **kwargs))
-
-            file_obj_out.write(separator_to.join(fields) + '\n')
-            line = file_obj_in.readline()
-
-        file_obj_in.close()
-        file_obj_out.close()
 
     def create_xsv_from_SQL(self, sql, conn=Connector(instance='slave'),
                             outfile = 'sql_to_xsv.out', separator = '\t'):
@@ -718,89 +501,3 @@ class DataLoader(object):
         create_stmt = create_stmt[:-1] + ") ENGINE=MyISAM DEFAULT CHARSET=binary"
         conn.execute_SQL(create_stmt)
 
-    class TransformMethods():
-        """
-            Helper Class - Stores transformation methods to act on a set of tokens stored as strings.  Each method in this class takes two arguments:
-
-                - **tokens** - List(string).  The tokens on which the transformation is applied.
-                - **index** - List(Integer) or Integer.  The index or indices on which to operate to make the output.
-
-            The return value of the method is simply some function of the input defined by the transformation method.
-        """
-
-        def transform_echo(self, tokens, index, **kwargs):
-            """
-                A simple identity transform of tokens[index].
-            """
-            return tokens[index]
-
-        def transform_strip(self, tokens, index, **kwargs):
-            """
-                Strips the whitespace from tokens[index].
-            """
-            try:
-                return tokens[index].strip()
-            except:
-                logging.error('transform_strip failed. Executing transform_echo ... ')
-                return tokens[index]
-
-        def transform_timestamp(self, tokens, index, **kwargs):
-            """
-                Expects a timestamp of the form "month/day/year hour:minute:second at tokens[index].
-            """
-
-            if re.search(r'([1-9]|1[0-2])/([1-9]|[1-3][0-9])/20[0-9][0-9].([0-9]|[1-2][0-9]):[0-9][0-9]:[0-9][0-9]', tokens[index]):
-
-                try:
-
-                    ts = ''
-
-                    split_1 = tokens[index].split("/")
-                    split_2 = split_1[2].split()[1]
-                    split_2 = split_2.split(":")
-
-                    # year
-                    ts += split_1[2][0:4]
-
-                    # month
-                    if len(split_1[0]) == 1:
-                        ts += "".join(['0',split_1[0]])
-                    else:
-                        ts += split_1[0]
-                        # day
-                    if len(split_1[1]) == 1:
-                        ts += "".join(['0',split_1[1]])
-                    else:
-                        ts += split_1[1]
-
-                    # hour
-                    if len(split_2[0]) == 1:
-                        ts += "".join(['0',split_2[0]])
-                    else:
-                        ts += split_2[0]
-
-                    # minute
-                    ts += split_2[1]
-                    # second
-                    ts += split_2[2]
-
-                    # Shifts the timestamp according to hours_delta
-                    if 'hours_delta' in kwargs:
-                        ts_obj = tp.timestamp_to_obj(ts,1)
-                        ts_obj += datetime.timedelta(hours=kwargs['hours_delta'])
-                        ts = tp.timestamp_from_obj(ts_obj,1,3)
-
-                    return ts
-
-                except KeyError:
-                    # logging.debug('Bad parse')
-                    return tokens[index]
-
-            else:
-                return tokens[index]
-
-        def transform_timestamp_date_parse(self, tokens, index):
-            """
-                Uses the data_parse method to extract a date object from tokens[index].
-            """
-            return str(date_parse(tokens[index]))
