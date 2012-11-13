@@ -50,7 +50,6 @@ import MySQLdb
 import datetime
 import re
 import logging
-import gzip
 import operator
 from dateutil.parser import parse as date_parse
 import config.settings as projSet
@@ -66,7 +65,6 @@ def read_file(file_path_name):
     f.close()
     content = map(lambda s: s.strip(), content) # strip any leading/trailing whitespace
     return " ".join(content)
-
 
 class Connector(object):
     """ This class implements the connection logic to MySQL """
@@ -312,7 +310,7 @@ class DataLoader(object):
 
         return out_list
 
-    def get_elem_from_xsv(self, xsv_name, index, separator='\t', header=True):
+    def list_from_xsv(self, xsv_name, index, separator='\t', header=False):
         """
             Parse element from separated value file.  Return a list containing the values matched on each line of the file.
 
@@ -325,25 +323,21 @@ class DataLoader(object):
             Return:
                 - List(string).  List of elements parsed from xsv.
         """
+        out = list()
+        try:
+            xsv_file = open(projSet.__data_file_dir__ + xsv_name, 'r')
+        except IOError as e:
+            logging.info('Could not open xsv for writing: %s' % e.message)
+            return out
 
-        elems = list()
-        xsv_file = open(projSet.__data_file_dir__ + xsv_name, 'r')
-
-        if header:
-            xsv_file.readline()
-
-        line = xsv_file.readline()
-        while line != '':
+        # Process file line-by-line
+        if header: xsv_file.readline()
+        while 1:
+            line = xsv_file.readline().strip()
+            if line == '': break
             tokens = line.split(separator)
-
-            # If index is the last token remove the newline character
-            if index + 1 == len(tokens):
-                elems.append(str(tokens[index]).strip())
-            else:
-                elems.append(str(tokens[index]))
-            line = xsv_file.readline()
-
-        return elems
+            out.append([str(tokens[index]) for index in xrange(len(tokens))])
+        return out
 
     def list_to_xsv(self, nested_list, separator='\t', log=False):
         """
@@ -372,36 +366,21 @@ class DataLoader(object):
 
         file_obj.close()
 
-    def create_table_from_xsv(self, filename, create_sql, table_name, conn = Connector(instance='slave'),
-                              parse_function=None, max_records=10000, user_db=projSet.connections['slave']['db'],
-                              regex_list=None, neg_regex_list=None, header=True, separator='\t'):
+    def create_table_from_list(self, l, create_sql, table_name, conn = Connector(instance='slave'),
+                              max_records=10000, user_db=projSet.connections['slave']['db']):
         """
-            Populates or creates a table from a .xsv file.
+            Populates or creates a table from a .list.
 
             Parameters:
                 - **filename** - String.  The .xsv filename, assumed to be located in the project data folder.
                 - **create_sql** - String.  Contains the SQL create statement for the table (if necessary).
                 - **table_name** - String.  Name of table to populate.
-                - **parse_function** - Method Pointer.  Method that performs line parsing (see helper class TransformMethod)
-                - **create_table** - Boolean.  Flag that indicates whether table creation is to occur.
                 - **max_record** - Integer. Maximum number of records allowable in insert statement.
                 - **user_db** - String. Database instance.
-                - **regex_list** - List(string).  List of inclusive regex strings over which each line of input will be conditioned.
-                - **neg_regex_list** - List(string).  List of exclusive regex strings over which each line of input will be conditioned.
-                - **header**: Boolean.  Flag indicating whether the file has a header.
-                - **separator**: String.  The separating character in the file.  Default to tab.
 
             Return:
                 - empty.
         """
-
-        # Open the data file - Process the header
-        if re.search('\.gz', filename):
-            file_obj = gzip.open(projSet.__data_file_dir__ + filename, 'rb')
-        else:
-            file_obj = open(projSet.__data_file_dir__ + filename, 'r')
-        if header:
-            file_obj.readline()
 
         # Optionally create the table - if no create sql is specified create a generic tbale based on column names
         if create_sql:
@@ -409,7 +388,7 @@ class DataLoader(object):
                 conn.execute_SQL("drop table if exists `%s`.`%s`" % (user_db, table_name))
                 conn.execute_SQL(create_sql)
 
-            except Exception:
+            except MySQLdb.ProgrammingError:
                 logging.error('Could not create table: %s' % create_sql)
                 return
 
@@ -426,13 +405,11 @@ class DataLoader(object):
                 'table_name' : table_name,
                 'column_names' : column_names_str,
                 'user_db' : user_db}
-
         insert_sql = " ".join(sql.strip().split())
 
         # Crawl the log line by line - insert the contents of each line into the table
         count = 0
-        line = file_obj.readline().strip(separator).strip()
-        while line != '':
+        for e in l:
 
             # Perform batch insert if max is reached
             if count % max_records == 0 and count:
@@ -440,45 +417,17 @@ class DataLoader(object):
                 conn.execute_SQL(insert_sql[:-2])
                 insert_sql = " ".join(sql.strip().split())
 
-            # Determine whether the row qualifies for insertion based on regex patterns
-            include_line = True
+            if len(e) != len(column_names): continue # ensure the correct number of columns are present
 
-            # positive patterns
-            if isinstance(regex_list, list):
-                for r in regex_list:
-                    if not(re.search(r, line)):
-                        line = file_obj.readline().strip()
-                        include_line = False
-                        break
+            # Only add the record if the correct
+            insert_sql += '(%s), ' % self.format_comma_separated_list(self.cast_elems_to_string(e))
+            count += 1
 
-            # negative patterns
-            if isinstance(neg_regex_list, list):
-                for r in neg_regex_list:
-                    if re.search(r, line):
-                        line = file_obj.readline().strip()
-                        include_line = False
-                        break
-
-            if not include_line:
-                continue
-
-            # Parse input line
-            if parse_function is None:
-                insert_field_str = self.format_comma_separated_list(line.split(separator))
-            else:
-                insert_field_str = self.format_comma_separated_list(parse_function(line))
-
-            # Only add the record
-            if len(insert_field_str.split(',')) == len(column_names):
-                insert_sql += '(%s), ' % insert_field_str
-                count += 1
-
-            line = file_obj.readline().strip(separator).strip()
-
-        # Perform insert
+        # Perform final insert
         if count:
             logging.info('Inserting remaining records. Total = %s' % str(count))
             conn.execute_SQL(insert_sql[:-2])
+
 
     def remove_duplicates_from_xsv(self, filename, separator='\t', index=None, header=True, opt_ext=".dup"):
         """
