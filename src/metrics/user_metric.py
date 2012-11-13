@@ -68,7 +68,8 @@ class UserMetric(object):
     def __iter__(self): return (r for r in self._results)
 
     def __del__(self):
-        self._data_source_.close_db()
+        if hasattr(self, '_data_source_') and hasattr(self._data_source_, 'close_db'):
+            self._data_source_.close_db()
 
     @classmethod
     def get_static_connection(cls):
