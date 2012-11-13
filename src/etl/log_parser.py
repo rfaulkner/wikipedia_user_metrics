@@ -11,6 +11,7 @@ import cgi
 from urlparse import urlparse
 import re
 import logging
+import json
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
@@ -129,9 +130,6 @@ class LineParseMethods():
         # handle both events generated from the server and client side via ACUX.  Discriminate the two cases based
         # on the number of fields in the log
 
-        # ensure that event_id == `account_creation`
-        # ensure that event_id == `account_creation`
-
         if num_fields == 1:
             # SERVER EVENT - account creation
             line_bits = line.split()
@@ -152,7 +150,7 @@ class LineParseMethods():
         return []
 
     @staticmethod
-    def e3_cta4_log_parse(line):
+    def e3_cta4_log_parse_client(line):
         """ Parse logs for AFT5-CTA4 log requests """
 
         line_bits = line.split('\t')
@@ -177,4 +175,33 @@ class LineParseMethods():
             else:
                 return []
             return fields
+        return []
+
+    @staticmethod
+    def e3_cta4_log_parse_server(line):
+        """ Parse logs for AFT5-CTA4 log requests """
+
+        line_bits = line.split('\t')
+        num_fields = len(line_bits)
+
+        if num_fields == 1:
+            # SERVER EVENT - account creation
+            line_bits = line.split()
+            query_vars = cgi.parse_qs(line_bits[1])
+
+            try:
+                # Ensure that the user is self made
+                if query_vars['self_made'][0] and query_vars['?event_id'][0] == 'account_create' \
+                and re.search(r'userbuckets',line) and 'campaign' in json.loads(query_vars['userbuckets'][0]):
+
+                    return [line_bits[0], query_vars['username'][0], query_vars['user_id'][0],
+                            query_vars['timestamp'][0], query_vars['?event_id'][0], query_vars['self_made'][0],
+                            query_vars['version'][0], query_vars['by_email'][0], query_vars['creator_user_id'][0]]
+
+                else:
+                    return []
+
+            except TypeError: return []
+            except KeyError: return []
+            except IndexError: return []
         return []
