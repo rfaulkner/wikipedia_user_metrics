@@ -7,11 +7,12 @@ __date__ = "November 9th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import sys
-import cgi
-from urlparse import urlparse
+import urlparse
 import re
 import logging
 import json
+import gzip
+import config.settings as projSet
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
@@ -26,7 +27,28 @@ class LineParseMethods():
         The return value of the method is simply some function of the input defined by the transformation method.
     """
 
-    def e3lm_log_parse(self, line):
+    @classmethod
+    def parse(cls, log_file, parse_method, header=False):
+
+        # Open the data file - Process the header
+        if re.search('\.gz', log_file):
+            file_obj = gzip.open(projSet.__data_file_dir__ + log_file, 'rb')
+        else:
+            file_obj = open(projSet.__data_file_dir__ + log_file, 'r')
+
+        if header: file_obj.readline()
+
+        contents = list()
+        while 1:
+            line = file_obj.readline()
+            if not line: break
+            contents.append(parse_method(line))
+        return map(lambda x: x, contents)
+
+
+
+    @staticmethod
+    def e3_lm_log_parse(self, line):
         """
             Data Format:
 
@@ -45,6 +67,7 @@ class LineParseMethods():
             l.append("no data")
         return l
 
+    @staticmethod
     def e3_pef_log_parse(self, line):
         """
             Data Format:
@@ -74,7 +97,7 @@ class LineParseMethods():
                 rev_id = additional_data_fields[1]
                 user_hash = additional_data_fields[2]
 
-        except:
+        except IndexError:
             logging.info('No additional data for event %s at time %s.' % (elems[0], elems[1]))
 
         l = elems[0].split()
@@ -91,33 +114,28 @@ class LineParseMethods():
 
     @staticmethod
     def e3_acux_log_parse_client_event(line, version=2):
-        line_bits = line.split('\t')
+        line_bits = line.strip().split('\t')
         num_fields = len(line_bits)
 
-        regex_str = r'ext.accountCreationUX.*acux_%s' % version
+        regex_str = r'ext.accountCreationUX.*@.*_%s' % version
 
         if num_fields == 10 and re.search(regex_str, line):
             # CLIENT EVENT - impression, assignment, and submit events
             fields = line_bits[0].split()
+            project = fields[0]
+            event_desc = fields[1].split('@')[1].split('-')
+            bucket = event_desc[1]
+            event = event_desc[2]
+            fields = [project, bucket, event]
+
             fields.extend(line_bits[1:5])
-            additional_fields = ['','','']
-            last_field = line_bits[9].split('|')
 
-            if len(last_field) == 2:
-                additional_fields[0] = str(last_field[0]).strip()
-                additional_fields[1] = str(last_field[1]).strip()
-                additional_fields[2] = str(last_field[2]).strip()
+            additional_fields = ['None','None','None']
+            parsed_add_fields = line_bits[9].split('|')
 
-            elif len(last_field) == 2:
-                additional_fields[0] = str(last_field[0]).strip()
-                additional_fields[1] = str(last_field[1]).strip()
-
-            elif len(last_field) == 1:
-                # Check whether the additional fields contain only a url
-                if urlparse(last_field[0]).scheme:
-                    additional_fields[1] = str(last_field[0]).strip()
-                else:
-                    additional_fields[0] = str(last_field[0]).strip()
+            for i in xrange(len(parsed_add_fields)):
+                if i > 2: break
+                additional_fields[i] = parsed_add_fields[i]
             fields.extend(additional_fields)
             return fields
         return []
@@ -133,11 +151,14 @@ class LineParseMethods():
         if num_fields == 1:
             # SERVER EVENT - account creation
             line_bits = line.split()
-            query_vars = cgi.parse_qs(line_bits[1])
 
             try:
+                query_vars = urlparse.parse_qs(line_bits[1])
+
                 # Ensure that the user is self made
-                if query_vars['self_made'][0] and query_vars['?event_id'][0] == 'account_create':
+                if query_vars['self_made'][0] and query_vars['?event_id'][0] == 'account_create' \
+                and str(version) in json.loads(query_vars['userbuckets'][0])['ACUX']:
+
                     return [line_bits[0], query_vars['username'][0], query_vars['user_id'][0],
                             query_vars['timestamp'][0], query_vars['?event_id'][0], query_vars['self_made'][0],
                             query_vars['mw_user_token'][0], query_vars['version'][0], query_vars['by_email'][0],
@@ -187,7 +208,7 @@ class LineParseMethods():
         if num_fields == 1:
             # SERVER EVENT - account creation
             line_bits = line.split()
-            query_vars = cgi.parse_qs(line_bits[1])
+            query_vars = urlparse.parse_qs(line_bits[1])
 
             try:
                 # Ensure that the user is self made
