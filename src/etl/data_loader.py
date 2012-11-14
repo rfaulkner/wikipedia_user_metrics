@@ -381,6 +381,7 @@ class DataLoader(object):
                 logging.info('Inserting %s records. Total = %s' % (str(max_records), str(count)))
                 conn.execute_SQL(insert_sql[:-2])
                 insert_sql = " ".join(sql.strip().split())
+                count += 1
 
             if len(e) != len(column_names): continue # ensure the correct number of columns are present
 
