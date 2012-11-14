@@ -104,7 +104,11 @@ experiments = {
     },
 
     'ACUX_2' : {
-        'log_files' : ['clicktracking.log-20121026.gz', 'clicktracking.log-20121027.gz',
+        'log_files' : ['clicktracking.log-20121018.gz', 'clicktracking.log-20121019.gz',
+                       'clicktracking.log-20121020.gz', 'clicktracking.log-20121021.gz',
+                       'clicktracking.log-20121022.gz', 'clicktracking.log-20121023.gz',
+                       'clicktracking.log-20121024.gz', 'clicktracking.log-20121025.gz',
+                       'clicktracking.log-20121026.gz', 'clicktracking.log-20121027.gz',
                        'clicktracking.log-20121028.gz', 'clicktracking.log-20121029.gz',
                        'clicktracking.log-20121030.gz', 'clicktracking.log-20121031.gz',
                        'clicktracking.log-20121101.gz', 'clicktracking.log-20121102.gz',
@@ -137,12 +141,14 @@ experiments = {
             'client_logs' : { 'definition' : """
                                                     create table `e3_acux2_users` (
                                                     `project` varbinary(255) NOT NULL DEFAULT '',
-                                                    `event_signature` varbinary(255) NOT NULL DEFAULT '',
+                                                    `bucket` varbinary(255) NOT NULL DEFAULT '',
+                                                    `event` varbinary(255) NOT NULL DEFAULT '',
                                                     `timestamp` varbinary(255) NOT NULL DEFAULT '',
+                                                    `user_category` varbinary(255) NOT NULL DEFAULT '',
                                                     `token` varbinary(255) NOT NULL DEFAULT '',
                                                     `namespace` varbinary(255) NOT NULL DEFAULT '',
                                                     `add_field_1` varbinary(255) NOT NULL DEFAULT '',
-                                                    `add_field_2` varbinary(255) NOT NULL DEFAULT '',
+                                                    `add_field_2` varbinary(2000) NOT NULL DEFAULT '',
                                                     `add_field_3` varbinary(255) NOT NULL DEFAULT ''
                                                     ) ENGINE=MyISAM DEFAULT CHARSET=binary
                                                 """,
