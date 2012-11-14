@@ -8,7 +8,8 @@ from dateutil.parser import parse as date_parse
 import user_metric as um
 
 
-LAST_EDIT = 0
+LAST_EDIT = -1
+REGISTRATION = 0
 
 class TimeToThreshold(um.UserMetric):
     """
@@ -80,9 +81,11 @@ class TimeToThreshold(um.UserMetric):
 
             if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
 
+            # For each user gather their revisions
             for user in user_handle:
                 sql = user_revs_SQL % {'user_handle' : str(user), 'project' : threshold_obj._project_}
-                minutes_to_threshold.append([user, self._get_minute_diff_result(threshold_obj._data_source_.execute_SQL(sql))])
+                minutes_to_threshold.append([user, self._get_minute_diff_result(
+                    [rev[0] for rev in threshold_obj._data_source_.execute_SQL(sql)])])
 
             return minutes_to_threshold
 
@@ -91,16 +94,25 @@ class TimeToThreshold(um.UserMetric):
                 Private method for this class.  This computes the minutes to threshold for the timestamp results.
 
                     - Parameters:
-                        - **first_edit** - Integer.  The numeric value of the first edit from which to measure the threshold.
-                        - **threshold_edit** - Integer.  The numeric value of the threshold edit from which to measure the threshold
+                        - **results** - list.  list of revision records with timestamp for a given user.
             """
-            if len(results) < self._threshold_edit_ or len(results) == 0:
-                return -1
-            elif self._threshold_edit_ == LAST_EDIT and len(results) > 0:
-                time_diff = date_parse(results[len(results) - 1][0]) - date_parse(results[self._first_edit_ - 1][0])
-                minutes_to_threshold = int(time_diff.seconds / 60) + abs(time_diff.days) * 24
+            if self._threshold_edit_ == REGISTRATION and len(results):
+                dat_obj_end = date_parse(results[0])
+            elif self._threshold_edit_ == LAST_EDIT and len(results):
+                dat_obj_end = date_parse(results[len(results) - 1])
+            elif self._threshold_edit_ < len(results):
+                dat_obj_end = date_parse(results[self._threshold_edit_])
             else:
-                time_diff = date_parse(results[self._threshold_edit_ - 1][0]) - date_parse(results[self._first_edit_ - 1][0])
-                minutes_to_threshold = int(time_diff.seconds / 60) + abs(time_diff.days) * 24
+                return -1
 
-            return minutes_to_threshold
+            if self._first_edit_ == REGISTRATION and len(results) > 0:
+                dat_obj_start = date_parse(results[0])
+            elif self._first_edit_ == LAST_EDIT and len(results):
+                dat_obj_start = date_parse(results[len(results) - 1])
+            elif self._first_edit_ < len(results):
+                dat_obj_start = date_parse(results[self._first_edit_])
+            else:
+                return -1
+
+            time_diff = dat_obj_end - dat_obj_start
+            return int(time_diff.seconds / 60) + abs(time_diff.days) * 24
