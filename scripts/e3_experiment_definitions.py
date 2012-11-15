@@ -4,6 +4,7 @@ import settings as s
 path.append(s.__E3_Analysis_Home__)
 
 import src.etl.log_parser as lp
+import src.etl.data_loader as dl
 
 DEFINITION = "{<experiment_name> : { 'logfiles' : <list of files>, \n'start_date' : <start of experiment>, " \
              "\n'end_date' : <end of experiment>, \n'log_data' : { \n'server_logs' { \n'definition' : " \
@@ -139,7 +140,7 @@ experiments = {
             },
 
             'client_logs' : { 'definition' : """
-                                                    create table `e3_acux2_users` (
+                                                    create table `e3_acux2_client_events` (
                                                     `project` varbinary(255) NOT NULL DEFAULT '',
                                                     `bucket` varbinary(255) NOT NULL DEFAULT '',
                                                     `event` varbinary(255) NOT NULL DEFAULT '',
@@ -152,9 +153,50 @@ experiments = {
                                                     `add_field_3` varbinary(255) NOT NULL DEFAULT ''
                                                     ) ENGINE=MyISAM DEFAULT CHARSET=binary
                                                 """,
-                              'table_name' : 'e3_acux2_users',
+                              'table_name' : 'e3_acux2_client_events',
                               'log_parser_method' : lp.LineParseMethods.e3_acux_log_parse_client_event
                 }
+        },
+
+        'user_list' : lambda d: [d.__setitem__(row[0],row[1]) for row in dl.Connector(
+            instance = 'slave').execute_SQL('select user_id, origin '
+                                              'from e3_acux_cta_deduped_users where origin != "aftv5_cta4"')],
+
+        'blocks' : { 'definition' : """
+                                            create table `e3_acux2_blocks` (
+                                            `user_id` int(5) unsigned NOT NULL DEFAULT 0,
+                                              `bucket` varbinary(255) NOT NULL DEFAULT '',
+                                              `block_count` varbinary(255) NOT NULL DEFAULT '',
+                                              `first_block` varbinary(255) NOT NULL DEFAULT '',
+                                              `last_block` varbinary(255) NOT NULL DEFAULT '',
+                                              `ban` varbinary(255) NOT NULL DEFAULT ''
+                                            ) ENGINE=MyISAM DEFAULT CHARSET=binary
+                                                """,
+                     'table_name' : 'e3_acux2_blocks'
+        },
+
+        'edit_volume' : { 'definition' : """
+                                                CREATE TABLE `e3_acux2_edit_volume` (
+                                              `user_id` int(5) unsigned NOT NULL DEFAULT 0,
+                                              `bucket` varbinary(255) NOT NULL DEFAULT '',
+                                              `bytes_added_net` varbinary(255) NOT NULL DEFAULT '',
+                                              `bytes_added_abs` varbinary(255) NOT NULL DEFAULT '',
+                                              `bytes_added_pos` varbinary(255) NOT NULL DEFAULT '',
+                                              `bytes_added_neg` varbinary(255) NOT NULL DEFAULT '',
+                                              `edit_count` varbinary(255) NOT NULL DEFAULT ''
+                                            ) ENGINE=MyISAM DEFAULT CHARSET=binary
+                                                """,
+                          'table_name' : 'e3_acux2_edit_volume'
+        },
+
+        'time_to_milestone' : { 'definition' : """
+                                                        CREATE TABLE `e3_acux2_time_to_milestone` (
+                                                          `user_id` int(5) unsigned NOT NULL DEFAULT 0,
+                                                          `bucket` varbinary(255) NOT NULL DEFAULT '',
+                                                          `time_minutes` varbinary(255) NOT NULL DEFAULT ''
+                                                        ) ENGINE=MyISAM DEFAULT CHARSET=binary
+                                                """,
+                                'table_name' : 'e3_acux2_time_to_milestone'
         }
     }
 }
