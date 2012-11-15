@@ -62,16 +62,17 @@ class BytesAdded(um.UserMetric):
 
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
 
-        n = int(math.ceil(float(len(user_handle)) / k))
+        # Multiprocessing vs. single processing execution
+        if k:
+            n = int(math.ceil(float(len(user_handle)) / k))
+            arg_list = [[user_handle[i * n : (i + 1) * n], kwargs] for i in xrange(k)]
+            arg_list = filter(lambda x: len(x[0]), arg_list) # remove any args with empty user handle lists
 
-        arg_list = [[user_handle[i * n : (i + 1) * n], kwargs] for i in xrange(k)]
-        arg_list = filter(lambda x: len(x[0]), arg_list) # remove any args with empty user handle lists
-
-        pool = mp.Pool(processes=len(arg_list))
-
-        self._results = list()
-        for elem in pool.map(_process_help, arg_list): self._results.extend(elem)
-
+            pool = mp.Pool(processes=len(arg_list))
+            self._results = list()
+            for elem in pool.map(_process_help, arg_list): self._results.extend(elem)
+        else:
+            self._results = _process_help([user_handle, kwargs])
         return self
 
 def _process_help(args):
