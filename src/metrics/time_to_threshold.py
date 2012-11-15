@@ -84,8 +84,8 @@ class TimeToThreshold(um.UserMetric):
             # For each user gather their revisions
             for user in user_handle:
                 sql = user_revs_SQL % {'user_handle' : str(user), 'project' : threshold_obj._project_}
-                minutes_to_threshold.append([user, self._get_minute_diff_result(
-                    [rev[0] for rev in threshold_obj._data_source_.execute_SQL(sql)])])
+                revs = [rev[0] for rev in threshold_obj._data_source_.execute_SQL(sql)]
+                minutes_to_threshold.append([user, self._get_minute_diff_result(revs)])
 
             return minutes_to_threshold
 
