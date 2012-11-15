@@ -25,6 +25,7 @@ import e3_experiment_definitions as e3_def
 import src.metrics.bytes_added as ba
 import src.metrics.blocks as b
 import src.metrics.time_to_threshold as ttt
+import src.etl.log_parser as lp
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
@@ -34,22 +35,34 @@ global exp_meta_data
 global conn
 conn = dl.Connector(instance='slave')
 
+def insert_buckets(l,user_buckets,user_index=0,bucket_index=1):
+    """ Insert the user bucket into list of user metrics"""
+    for e in l:
+        try:
+            user = e[user_index]
+            e.insert(bucket_index, user_buckets[user])
+            yield e
+        except IndexError:
+            e.remove(b)
+        except KeyError:
+            e.remove(b)
+
 def load_logs():
     global exp_meta_data
 
     for key in exp_meta_data['log_data']:
         logging.info('Loading log data for %s...' % key)
         log_data_def = exp_meta_data['log_data'][key]
+
         conn._cur_.execute('drop table if exists %s' % log_data_def['table_name'])
         conn._cur_.execute(" ".join(log_data_def['definition'].strip().split('\n')))
+
         for f in exp_meta_data['log_files']:
             logging.info('Processing file %s ...' % f)
-            dl.DataLoader().create_table_from_xsv(f, '',
-                log_data_def['table_name'],
-                parse_function=log_data_def['log_parser_method'],
-                header=False)
+            contents = lp.LineParseMethods.parse(f, log_data_def['log_parser_method'])
+            dl.DataLoader().create_table_from_list(contents, '',log_data_def['table_name'])
 
-def blocks(users):
+def blocks(users, user_index = 0, bucket_index=1):
     global exp_meta_data
     global conn
 
@@ -60,7 +73,7 @@ def blocks(users):
                     user_name
                 from enwiki.user
                 where user_id in (%(users)s)
-              """ % {'users' : dl.DataLoader().format_comma_separated_list(users, include_quotes=False)}
+              """ % {'users' : dl.DataLoader().format_comma_separated_list(users.keys(), include_quotes=False)}
     results = conn.execute_SQL(" ".join(sql.strip().split('\n')))
 
     # dump results to hash
@@ -84,12 +97,11 @@ def blocks(users):
             logging.error('Cannot include %s in result.' % block_list[i][0])
             pass
 
-    dl.DataLoader().list_to_xsv(block_list)  # !! this is inefficient, refactor
+    insert_buckets(block_list,users)
     create_sql = " ".join(exp_meta_data['blocks']['definition'].strip().split('\n'))
-    dl.DataLoader().create_table_from_xsv('list_to_xsv.out',create_sql,
-        exp_meta_data['blocks']['table_name'], header=False)
+    dl.DataLoader().create_table_from_list(block_list,create_sql, exp_meta_data['blocks']['table_name'])
 
-def edit_volume(users, period=1):
+def edit_volume(users, period=1, log_frequency=500):
     """ Extracts bytes added and edit count "period" days after registration """
     global exp_meta_data
     logging.info("Processing bytes added for %s users." % str(len(users)))
@@ -97,11 +109,14 @@ def edit_volume(users, period=1):
 
     bytes_added = list()
     bad_users = 0
+    count = 0
     logging.info('Processing %s eligible users...' % str(len(users)))
 
-    for user in users:
+    for user in users.keys():
         try:
-            # start_date = date_parse(user[1])
+            count += 1
+            if not count % log_frequency: logging.info('Processed %s users, no revs for %s...' % (count, bad_users))
+
             start_date = date_parse(conn.execute_SQL(sql_reg_date % user)[0][0])
             end_date = start_date + datetime.timedelta(days=period)
             entry = ba.BytesAdded(date_start=start_date, date_end=end_date).process(
@@ -114,26 +129,24 @@ def edit_volume(users, period=1):
 
     logging.info('Missed %s users out of %s.' % (str(bad_users), str(len(users))))
     logging.info('Writing results to table.')
-    dl.DataLoader().list_to_xsv(bytes_added)
 
     # Create table
+    insert_buckets(bytes_added,users)
     sql = " ".join(exp_meta_data['edit_volume']['definition'].strip().split('\n'))
-    dl.DataLoader().create_table_from_xsv('list_to_xsv.out', sql,
-        exp_meta_data['edit_volume']['table_name'], header=False)
+    dl.DataLoader().create_table_from_list(bytes_added, sql, exp_meta_data['edit_volume']['table_name'])
 
-def time_to_threshold(users, first_edit=1, threshold_edit=2):
+def time_to_threshold(users, first_edit=0, threshold_edit=1):
     global exp_meta_data
 
     logging.info("Processing time to threshold for %s users." % str(len(users)))
 
     # create table
     t = ttt.TimeToThreshold(ttt.TimeToThreshold.EditCountThreshold,
-        first_edit=first_edit, threshold_edit=threshold_edit).process(users).__iter__()
+        first_edit=first_edit, threshold_edit=threshold_edit).process(users.keys()[:100]).__iter__()
 
+    m_generator = insert_buckets(t,users)
     sql = " ".join(exp_meta_data['time_to_milestone']['definition'].strip().split('\n'))
-    dl.DataLoader().list_to_xsv(t)
-    dl.DataLoader().create_table_from_xsv('list_to_xsv.out', sql,
-        exp_meta_data['time_to_milestone']['table_name'], header=False)
+    dl.DataLoader().create_table_from_list(m_generator, sql, exp_meta_data['time_to_milestone']['table_name'])
 
 def main(args):
     global exp_meta_data
@@ -147,12 +160,16 @@ def main(args):
 
     # Process data
     if args.load_logs: load_logs()
-    sql = exp_meta_data['user_list_sql']
-    user_ids = [str(row[0]) for row in conn.execute_SQL(sql)]
 
-    if args.blocks: blocks(user_ids)
-    if args.edit_volume: edit_volume(user_ids[:20], period=2)
-    if args.time_to_threshold: time_to_threshold(user_ids)
+    # experimental bucket value hashed on user id: {'12345' : 'acux_2', '98765' : 'control_2, ...'}
+    users = dict()
+    exp_meta_data['user_list'](users) # method that returns a list of user_ids and buckets
+    # sql = exp_meta_data['user_list_sql']
+    # user_ids = [str(row[0]) for row in conn.execute_SQL(sql)]
+
+    if args.blocks: blocks(users)
+    if args.edit_volume: edit_volume(users, period=5)
+    if args.time_to_threshold: time_to_threshold(users)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
