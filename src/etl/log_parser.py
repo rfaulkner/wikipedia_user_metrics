@@ -1,5 +1,5 @@
 """
-
+    Handles logic for parsing log requests into a readable format
 """
 
 __author__ = "Ryan Faulkner"
@@ -29,7 +29,10 @@ class LineParseMethods():
 
     @classmethod
     def parse(cls, log_file, parse_method, header=False):
-
+        """
+            Log processing wapper method.  This takes a log file as input and applies one of the parser methods to
+            the contents, storing the list results in a list.
+        """
         # Open the data file - Process the header
         if re.search('\.gz', log_file):
             file_obj = gzip.open(projSet.__data_file_dir__ + log_file, 'rb')
