@@ -14,7 +14,7 @@ __date__ = "October 10th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import sys
-import settings as s
+import e3_settings as s
 sys.path.append(s.__E3_Analysis_Home__)
 
 import logging

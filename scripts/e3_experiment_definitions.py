@@ -1,6 +1,6 @@
 
 from sys import path
-import settings as s
+import e3_settings as s
 path.append(s.__E3_Analysis_Home__)
 
 import src.etl.log_parser as lp
