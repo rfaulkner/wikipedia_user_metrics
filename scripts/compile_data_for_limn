@@ -1,0 +1,28 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+"""
+    transform data to limn parsable format
+"""
+
+__author__ = "ryan faulkner"
+__date__ = "11/06/2012"
+__license__ = "GPL (version 2 or later)"
+
+import sys
+import argparse
+
+def main(args): raise NotImplementedError
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="This script computes specified user metrics. It reads from stdin a list of user ids and produces "\
+                    "a set of metrics written into ./output.tsv",
+        epilog="",
+        conflict_handler="resolve",
+        usage = "user_ids | call_metric_on_users.py [-h] [-m METRIC] [-o OUTPUT] [-s DATE_START] [-e DATE_END] [-p PROJECT]"
+    )
+
+    # parser.add_argument('-d', '--min_edit',type=int, help='minimum amounts of edits.',default=0)
+    args = parser.parse_args()
+    sys.exit(main(args))

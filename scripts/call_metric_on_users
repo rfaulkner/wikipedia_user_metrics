@@ -1,0 +1,99 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+"""
+	call_metric_on_users.py - Write metrics to a user list
+
+	Example:
+
+	    RFaulkner-WMF:projects rfaulkner$  ./call_metrics_on_users.py -m "bytes_added" -s "2010-01-01 00:00:00" -e "2012-10-01 00:00:00"
+"""
+
+__author__ = "Ryan Faulkner <rfaulkner@wikimedia.org>"
+__date__ = "October 10th, 2012"
+__license__ = "GPL (version 2 or later)"
+
+import sys
+import settings as s
+sys.path.append(s.__E3_Analysis_Home__)
+
+import logging
+import datetime
+import argparse
+from src.metrics import bytes_added as ba
+from src.metrics import blocks as b
+
+global metric_types
+metric_types = ['bytes_added', 'blocks']
+
+global header
+header = []
+
+# CONFIGURE THE LOGGER
+logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
+
+def main(args):
+
+    global header
+
+    logging.info('Processing %(metric)s for user list from %(date_start)s to %(date_end)s.'
+    % {'metric' : args.metric, 'date_start' : args.date_start, 'date_end' : args.date_end})
+    metric = get_metric(args)
+
+    outfile = open(args.output, 'w')
+    l = [str(i) for i in header]
+    outfile.write('\t'.join(l))
+
+    line = sys.stdin.readline()
+    while line:
+        user_id = int(line)
+        logging.info('Processing %(metric)s for %(user)s ...' % {'metric' : repr(metric), 'user' : user_id})
+        l = [str(v) for v in metric.process(user_id).__iter__().next()] # Extract the list of metric values
+
+        if not l:
+            outfile.write('%(user_id)s\tNone\n' % {'user_id' : user_id})
+        else:
+            l.extend('\n')
+            outfile.write('\t'.join(l))
+
+        line = sys.stdin.readline()
+
+    outfile.close()
+    logging.info('Transform complete.')
+
+def get_metric(args):
+    """ Initializes the metric type based on input """
+
+    global header
+
+    m_index = [metric == args.metric for metric in metric_types].index(True)
+    metric_class = [ba.BytesAdded(date_start=args.date_start, date_end=args.date_end, project=args.project),
+                 b.Blocks(date_start=args.date_start, project=args.project)]
+    metric_headers = [o.header() for o in metric_class]
+    header = metric_headers[m_index]
+    header.extend('\n')
+
+    return metric_class[m_index]
+
+# Call Main
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(
+        description="This script computes specified user metrics. It reads from stdin a list of user ids and produces " \
+                    "a set of metrics written into ./output.tsv",
+        epilog="",
+        conflict_handler="resolve",
+        usage = "user_ids | call_metric_on_users.py [-h] [-m METRIC] [-o OUTPUT] [-s DATE_START] [-e DATE_END] [-p PROJECT]"
+    )
+    parser.add_argument('-m', '--metric',type=str, help='The metric to compute.',default="bytes_added")
+    parser.add_argument('-o', '--output',type=str, help='Output tsv filename.',default="./output.tsv")
+    parser.add_argument('-s', '--date_start',type=str, help='Start date of measurement. Default is 2008-01-01 00:00:00',
+        default="2008-01-01 00:00:00")
+    parser.add_argument('-e', '--date_end',type=str, help='End date of measurement. ' \
+                                                          'Default is the current time.',
+        default=str(datetime.datetime.now()))
+    parser.add_argument('-p', '--project',type=str, help='Project name. Defaul is "enwiki"',default='enwiki')
+
+    args = parser.parse_args()
+
+    sys.exit(main(args))
