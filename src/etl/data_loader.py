@@ -56,9 +56,7 @@ logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s 
 
 def read_file(file_path_name):
     """ reads a text file line by line """
-    with open(file_path_name) as f:
-        content = f.readlines()
-    f.close()
+    with open(file_path_name) as f: content = f.readlines()
     content = map(lambda s: s.strip(), content) # strip any leading/trailing whitespace
     return " ".join(content)
 
