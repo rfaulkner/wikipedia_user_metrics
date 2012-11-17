@@ -5,14 +5,12 @@ e3_analysis
 Introduction
 ------------
 
-This package implements log retirieval, metrics generation, and data analysis tools used by the E3 team at the Wikimedia Foundation.
-
-This repository is used to data analysis code by the Wikimedia Foundation's Editor Engagement Experiment (E3) team.  The modules herein will be used to perform the ETL and analysis operations necessary to process the experimental data generated from E3 projects.
+This package implements log retirieval, metrics generation, and data analysis tools used by the Editor Engagement Experiment (E3) team at the Wikimedia Foundation. The modules herein will be used to perform the ETL and analysis operations necessary to process the experimental data generated from E3 projects.
 
 Installation
 ------------
 
-`e3_analysis` is packaged with setuptools: ::
+`e3_analysis` is packaged with distutils: ::
 
     $ sudo pip install e3_analysis 
 
