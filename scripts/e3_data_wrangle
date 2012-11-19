@@ -98,8 +98,9 @@ def blocks(users, user_index = 0, bucket_index=1):
             pass
 
     insert_buckets(block_list,users)
-    create_sql = " ".join(exp_meta_data['blocks']['definition'].strip().split('\n'))
-    dl.DataLoader().create_table_from_list(block_list,create_sql, exp_meta_data['blocks']['table_name'])
+    create_sql = " ".join(exp_meta_data['metric_tables']['blocks']['definition'].strip().split('\n'))
+    dl.DataLoader().create_table_from_list(block_list,create_sql, exp_meta_data['metric_tables']
+                                                                  ['blocks']['table_name'])
 
 def edit_volume(users, period=1, log_frequency=500):
     """ Extracts bytes added and edit count "period" days after registration """
@@ -132,8 +133,9 @@ def edit_volume(users, period=1, log_frequency=500):
 
     # Create table
     insert_buckets(bytes_added,users)
-    sql = " ".join(exp_meta_data['edit_volume']['definition'].strip().split('\n'))
-    dl.DataLoader().create_table_from_list(bytes_added, sql, exp_meta_data['edit_volume']['table_name'])
+    sql = " ".join(exp_meta_data['metric_tables']['edit_volume']['definition'].strip().split('\n'))
+    dl.DataLoader().create_table_from_list(bytes_added, sql, exp_meta_data['metric_tables']
+                                                             ['edit_volume']['table_name'])
 
 def time_to_threshold(users, first_edit=0, threshold_edit=1):
     global exp_meta_data
@@ -145,8 +147,9 @@ def time_to_threshold(users, first_edit=0, threshold_edit=1):
         first_edit=first_edit, threshold_edit=threshold_edit).process(users.keys()).__iter__()
 
     m_generator = insert_buckets(t,users)
-    sql = " ".join(exp_meta_data['time_to_milestone']['definition'].strip().split('\n'))
-    dl.DataLoader().create_table_from_list(m_generator, sql, exp_meta_data['time_to_milestone']['table_name'])
+    sql = " ".join(exp_meta_data['metric_tables']['time_to_milestone']['definition'].strip().split('\n'))
+    dl.DataLoader().create_table_from_list(m_generator, sql, exp_meta_data['metric_tables']
+                                                             ['time_to_milestone']['table_name'])
 
 def main(args):
     global exp_meta_data
