@@ -147,7 +147,7 @@ class LineParseMethods():
     def e3_acux_log_parse_server_event(line, version=1):
         line_bits = line.split('\t')
         num_fields = len(line_bits)
-
+        server_event_regex = r'account_create.*userbuckets.*ACUX'
         # handle both events generated from the server and client side via ACUX.  Discriminate the two cases based
         # on the number of fields in the log
 
@@ -156,16 +156,18 @@ class LineParseMethods():
             line_bits = line.split()
 
             try:
-                query_vars = urlparse.parse_qs(line_bits[1])
+                if re.search(server_event_regex,line):
+                    query_vars = urlparse.parse_qs(line_bits[1])
+                    userbuckets = json.loads(query_vars['userbuckets'][0])
 
-                # Ensure that the user is self made
-                if query_vars['self_made'][0] and query_vars['?event_id'][0] == 'account_create' \
-                and str(version) in json.loads(query_vars['userbuckets'][0])['ACUX']:
+                    # Ensure that the user is self made, the event is account creation, and the version is correct
+                    if query_vars['self_made'][0] and query_vars['?event_id'][0] == 'account_create' \
+                    and str(version) in userbuckets['ACUX'][0]:
 
-                    return [line_bits[0], query_vars['username'][0], query_vars['user_id'][0],
-                            query_vars['timestamp'][0], query_vars['?event_id'][0], query_vars['self_made'][0],
-                            query_vars['mw_user_token'][0], query_vars['version'][0], query_vars['by_email'][0],
-                            query_vars['creator_user_id'][0]]
+                        return [line_bits[0], query_vars['username'][0], query_vars['user_id'][0],
+                                query_vars['timestamp'][0], query_vars['?event_id'][0], query_vars['self_made'][0],
+                                query_vars['mw_user_token'][0], query_vars['version'][0], query_vars['by_email'][0],
+                                query_vars['creator_user_id'][0]]
                 else:
                     return []
 
