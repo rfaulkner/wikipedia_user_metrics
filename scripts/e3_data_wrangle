@@ -59,7 +59,7 @@ def load_logs():
 
         for f in exp_meta_data['log_files']:
             logging.info('Processing file %s ...' % f)
-            contents = lp.LineParseMethods.parse(f, log_data_def['log_parser_method'])
+            contents = lp.LineParseMethods.parse(f, log_data_def['log_parser_method'], version=exp_meta_data['version'])
             dl.DataLoader().create_table_from_list(contents, '',log_data_def['table_name'])
 
 def blocks(users, user_index = 0, bucket_index=1):

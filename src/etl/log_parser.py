@@ -28,7 +28,7 @@ class LineParseMethods():
     """
 
     @classmethod
-    def parse(cls, log_file, parse_method, header=False):
+    def parse(cls, log_file, parse_method, header=False, version=1):
         """
             Log processing wapper method.  This takes a log file as input and applies one of the parser methods to
             the contents, storing the list results in a list.
@@ -45,13 +45,13 @@ class LineParseMethods():
         while 1:
             line = file_obj.readline()
             if not line: break
-            contents.append(parse_method(line))
+            contents.append(parse_method(line, version=version))
         return map(lambda x: x, contents)
 
 
 
     @staticmethod
-    def e3_lm_log_parse(self, line):
+    def e3_lm_log_parse(line, version=1):
         """
             Data Format:
 
@@ -71,7 +71,7 @@ class LineParseMethods():
         return l
 
     @staticmethod
-    def e3_pef_log_parse(self, line):
+    def e3_pef_log_parse(line, version=1):
         """
             Data Format:
 
@@ -116,7 +116,7 @@ class LineParseMethods():
         return l
 
     @staticmethod
-    def e3_acux_log_parse_client_event(line, version=2):
+    def e3_acux_log_parse_client_event(line, version=1):
         line_bits = line.strip().split('\t')
         num_fields = len(line_bits)
 
@@ -144,7 +144,7 @@ class LineParseMethods():
         return []
 
     @staticmethod
-    def e3_acux_log_parse_server_event(line, version=2):
+    def e3_acux_log_parse_server_event(line, version=1):
         line_bits = line.split('\t')
         num_fields = len(line_bits)
 
@@ -174,7 +174,7 @@ class LineParseMethods():
         return []
 
     @staticmethod
-    def e3_cta4_log_parse_client(line):
+    def e3_cta4_log_parse_client(line, version=1):
         """ Parse logs for AFT5-CTA4 log requests """
 
         line_bits = line.split('\t')
@@ -202,7 +202,7 @@ class LineParseMethods():
         return []
 
     @staticmethod
-    def e3_cta4_log_parse_server(line):
+    def e3_cta4_log_parse_server(line, version=1):
         """ Parse logs for AFT5-CTA4 log requests """
 
         line_bits = line.split('\t')

@@ -18,6 +18,7 @@ __doc__ = DEFINITION
 experiments = {
 
     'cta4' : {
+                'version' : 4,
                 'log_files' : ['clicktracking.log-20121026.gz', 'clicktracking.log-20121027.gz',
                                'clicktracking.log-20121028.gz', 'clicktracking.log-20121029.gz',
                                'clicktracking.log-20121030.gz', 'clicktracking.log-20121031.gz',
@@ -108,6 +109,7 @@ experiments = {
     },
 
     'acux2' : {
+        'version' : 4,
         'log_files' : ['clicktracking.log-20121018.gz', 'clicktracking.log-20121019.gz',
                        'clicktracking.log-20121020.gz', 'clicktracking.log-20121021.gz',
                        'clicktracking.log-20121022.gz', 'clicktracking.log-20121023.gz',
@@ -207,6 +209,7 @@ experiments = {
 }
 
 experiments['acux3'] = copy.deepcopy(experiments['acux2'])
+experiments['acux3']['version'] = 3
 experiments['acux3']['log_files'] = ['clicktracking.log-20121106.gz', 'clicktracking.log-20121107.gz',
                                       'clicktracking.log-20121108.gz', 'clicktracking.log-20121109.gz',
                                       'clicktracking.log-20121110.gz', 'clicktracking.log-20121111.gz',
