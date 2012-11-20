@@ -1,4 +1,18 @@
 
+"""
+    Used to store data definitions for E3 experiments and related tables and log files.
+
+    As new experiments are initiated the data definition over different storage mediums can be matained using
+    the `experiemnt`
+"""
+
+with open('e3_experiment_definitions.py','r') as f:
+    __doc__ =  " ".join(f.read().split("with open(")[0].strip().split('\n'))
+
+__author__ = "ryan faulkner"
+__date__ = "18/11/2012"
+__license__ = "GPL (version 2 or later)"
+
 from sys import path
 import e3_settings as s
 path.append(s.__E3_Analysis_Home__)
@@ -18,7 +32,7 @@ __doc__ = DEFINITION
 experiments = {
 
     'cta4' : {
-                'version' : 4,
+                'version' : 2,
                 'log_files' : ['clicktracking.log-20121026.gz', 'clicktracking.log-20121027.gz',
                                'clicktracking.log-20121028.gz', 'clicktracking.log-20121029.gz',
                                'clicktracking.log-20121030.gz', 'clicktracking.log-20121031.gz',
