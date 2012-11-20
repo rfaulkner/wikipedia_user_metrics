@@ -60,10 +60,19 @@ class BytesAdded(um.UserMetric):
         kwargs['end_ts'] = self._end_ts_
         kwargs['project'] = self._project_
 
-        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
+        if user_handle:
+            if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
 
         # Multiprocessing vs. single processing execution
         if k:
+            # build the argument lists for each thread
+            if not user_handle:
+                sql = 'select distinct rev_user from enwiki.revision where rev_timestamp >= "%s" and rev_timestamp < "%s"'
+                sql = sql % (self._start_ts_, self._end_ts_)
+                print str(datetime.datetime.now()) + ' - Getting all distinct users: " %s "' % sql
+                user_handle = [str(row[0]) for row in self._data_source_.execute_SQL(sql)]
+                print str(datetime.datetime.now()) + ' - Retrieved %s users.' % len(user_handle)
+
             n = int(math.ceil(float(len(user_handle)) / k))
             arg_list = [[user_handle[i * n : (i + 1) * n], kwargs] for i in xrange(k)]
             arg_list = filter(lambda x: len(x[0]), arg_list) # remove any args with empty user handle lists
@@ -118,8 +127,8 @@ def _process_help(args):
     # determine the format field
     field_name = ['rev_user_text','rev_user'][is_id]
 
-    # build the user set for inclusion into the query
-    if not user_handle is None:
+    # build the user set for inclusion into the query - if the user_handle is empty or None get all users for timeframe
+    if user_handle:
         user_handle = um.UserMetric._escape_var(user_handle) # Escape user_handle for SQL injection
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
         if is_id:
