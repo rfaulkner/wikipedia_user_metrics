@@ -3,7 +3,7 @@
     Used to store data definitions for E3 experiments and related tables and log files.
 
     As new experiments are initiated the data definition over different storage mediums can be matained using
-    the `experiemnt`
+    the `experiment` hash
 """
 
 with open('e3_experiment_definitions.py','r') as f:
