@@ -54,7 +54,8 @@ if __name__ == "__main__":
         description="This script computes generates a tsv conataning rev counts for dailiy active users.",
         epilog="",
         conflict_handler="resolve",
-        usage = "user_ids | call_metric_on_users.py [-h] [-m METRIC] [-o OUTPUT] [-s DATE_START] [-e DATE_END] [-p PROJECT]"
+        usage = "./daily_active_users [-n NUMTHREADS] [-m MINEDIT] [-l LOGFREQUENCY] [-s DATE_START] " \
+                "[-e DATE_END] [-o OUTFILE]"
     )
 
     parser.add_argument('-m', '--min_edit',type=int, help='minimum amounts of edits.',default=0)
