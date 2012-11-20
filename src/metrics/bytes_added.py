@@ -188,6 +188,9 @@ def _process_help(args):
                   'parent_rev_id' : parent_rev_id}
             try:
                 parent_rev_len = conn.execute_SQL(sql)[0][0]
+            except IndexError:
+                missed_records += 1
+                continue
             except TypeError:
                 missed_records += 1
                 continue
