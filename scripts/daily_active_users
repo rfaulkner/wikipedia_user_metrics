@@ -31,7 +31,7 @@ def main(args):
     try:
         file_obj.write("\t".join(ba.BytesAdded.header()) + '\n')
         for row in ba.BytesAdded(date_start=args.date_start, date_end=args.date_end).process(
-            log_progress=True,log_frequency=args.log_frequency).__iter__():
+            log_progress=True,log_frequency=args.log_frequency, num_threads=args.num_threads).__iter__():
             try:
                 if row[EDIT_COUNT_IDX] >= args.min_edit:
                     file_obj.write("\t".join([str(e) for e in row]) + '\n')
@@ -63,5 +63,6 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--date_end',type=str, help='End date of measurement.', default=today)
     parser.add_argument('-l', '--log_frequency',type=int,help='How often to log progress.',default=0)
     parser.add_argument('-o', '--output_file',type=str,help='File to store output.',default=out_filename)
+    parser.add_argument('-n', '--num_threads',type=int,help='Number of sub-processes.',default=1)
     args = parser.parse_args()
     sys.exit(main(args))
