@@ -48,6 +48,7 @@ if __name__ == "__main__":
 
     today = "".join([today.strftime('%Y%m%d'), "000000"])
     yesterday = "".join([yesterday.strftime('%Y%m%d'),"000000"])
+    out_filename = 'dau_out_' + yesterday[:8] + '-' + today[:8] + '.tsv'
 
     parser = argparse.ArgumentParser(
         description="This script computes generates a tsv conataning rev counts for dailiy active users.",
@@ -61,6 +62,6 @@ if __name__ == "__main__":
         default=yesterday)
     parser.add_argument('-e', '--date_end',type=str, help='End date of measurement.', default=today)
     parser.add_argument('-l', '--log_frequency',type=int,help='How often to log progress.',default=0)
-    parser.add_argument('-o', '--output_file',type=str,help='File to store output.',default='dau_out.tsv')
+    parser.add_argument('-o', '--output_file',type=str,help='File to store output.',default=out_filename)
     args = parser.parse_args()
     sys.exit(main(args))
