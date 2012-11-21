@@ -7,6 +7,7 @@ import multiprocessing as mp
 import datetime
 import user_metric as um
 import math
+import os
 
 class BytesAdded(um.UserMetric):
     """
@@ -154,7 +155,8 @@ def _process_help(args):
     sql = " ".join(sql.strip().split())
 
     if is_log:
-        print str(datetime.datetime.now()) + ' - Querying revisions...'
+        print str(datetime.datetime.now()) + \
+              ' - Querying revisions for %s users ... (PID = %s)' % (len(user_handle),os.getpid())
     try:
         results = conn.execute_SQL(sql)
     except um.MySQLdb.ProgrammingError:
@@ -166,7 +168,7 @@ def _process_help(args):
     missed_records = 0
     total_rows = len(results)
 
-    if is_log: print str(datetime.datetime.now()) + ' - Processing revision data by user...'
+    if is_log: print str(datetime.datetime.now()) + ' - Processing revision data by user... (PID = %s)' % os.getpid()
     for row in results:
         try:
             user = str(row[0])
@@ -217,15 +219,16 @@ def _process_help(args):
 
 
         if freq and row_count % freq == 0 and is_log:
-            s = ' - Processed %s of %s records.' % (row_count,total_rows)
+            s = ' - Processed %s of %s records. (PID = %s)' % (row_count, total_rows, os.getppid())
             print str(datetime.datetime.now()) + s
 
         row_count += 1
 
     results = [[user] + bytes_added[user] for user in bytes_added]
     if is_log:
-        print str(datetime.datetime.now()) + ' - processed %s out of %s records.' % (total_rows
-                                                                                 - missed_records,total_rows)
+        s = ' - processed %s out of %s records. (PID = %s)' % (total_rows - missed_records,total_rows, os.getppid())
+        print str(datetime.datetime.now()) + s
+
     return results
 
 # Used for testing
