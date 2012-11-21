@@ -56,34 +56,73 @@ class BytesAdded(um.UserMetric):
         """ Setup metrics gathering using multiprocessing """
 
         k = kwargs['num_threads'] if 'num_threads' in kwargs else 1
-        kwargs['is_id'] = is_id
-        kwargs['start_ts'] = self._start_ts_
-        kwargs['end_ts'] = self._end_ts_
-        kwargs['project'] = self._project_
+        log_progress = bool(kwargs['log_progress']) if 'log_progress' in kwargs else False
+        log_frequency = int(kwargs['log_frequency']) if 'log_frequency' in kwargs else 1000
 
         if user_handle:
             if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
 
         # Multiprocessing vs. single processing execution
-        if k:
-            # build the argument lists for each thread
-            if not user_handle:
-                sql = 'select distinct rev_user from enwiki.revision where rev_timestamp >= "%s" and rev_timestamp < "%s"'
-                sql = sql % (self._start_ts_, self._end_ts_)
-                print str(datetime.datetime.now()) + ' - Getting all distinct users: " %s "' % sql
-                user_handle = [str(row[0]) for row in self._data_source_.execute_SQL(sql)]
-                print str(datetime.datetime.now()) + ' - Retrieved %s users.' % len(user_handle)
+        revs = self._get_revisions(user_handle, is_id, self._start_ts_, self._end_ts_, self._project_)
 
-            n = int(math.ceil(float(len(user_handle)) / k))
-            arg_list = [[user_handle[i * n : (i + 1) * n], kwargs] for i in xrange(k)]
-            arg_list = filter(lambda x: len(x[0]), arg_list) # remove any args with empty user handle lists
+        if k:
+            n = int(math.ceil(float(len(revs)) / k))
+            arg_list = [[revs[i * n : (i + 1) * n], log_progress, log_frequency] for i in xrange(k)]
+            arg_list = filter(lambda x: len(x[0]), arg_list) # remove any args with empty revision lists
 
             pool = mp.Pool(processes=len(arg_list))
             self._results = list()
             for elem in pool.map(_process_help, arg_list): self._results.extend(elem)
         else:
-            self._results = _process_help([user_handle, kwargs])
+            self._results = _process_help([revs, log_progress, log_frequency])
         return self
+
+    def _get_revisions(self, user_handle, is_id, start_ts, end_ts, project):
+
+        # build the argument lists for each thread
+        if not user_handle:
+            sql = 'select distinct rev_user from enwiki.revision where rev_timestamp >= "%s" and rev_timestamp < "%s"'
+            sql = sql % (start_ts, end_ts)
+            print str(datetime.datetime.now()) + ' - Getting all distinct users: " %s "' % sql
+            user_handle = [str(row[0]) for row in self._data_source_.execute_SQL(sql)]
+            print str(datetime.datetime.now()) + ' - Retrieved %s users.' % len(user_handle)
+
+        ts_condition  = 'rev_timestamp >= "%s" and rev_timestamp < "%s"' % (start_ts, end_ts)
+
+        # determine the format field
+        field_name = ['rev_user_text','rev_user'][is_id]
+
+        # build the user set for inclusion into the query -
+        # if the user_handle is empty or None get all users for timeframe
+        user_handle = um.UserMetric._escape_var(user_handle) # Escape user_handle for SQL injection
+        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
+        if is_id:
+            user_set = um.dl.DataLoader().format_comma_separated_list(user_handle, include_quotes=False)
+        else:
+            user_set = um.dl.DataLoader().format_comma_separated_list(user_handle, include_quotes=True)
+        where_clause = '%(field_name)s in (%(user_set)s) and %(ts_condition)s' % {
+            'field_name' : field_name, 'user_set' : user_set, 'ts_condition' : ts_condition}
+
+        sql = """
+                select
+                    %(field_name)s,
+                    rev_len,
+                    rev_parent_id
+                from %(project)s.revision
+                where %(where_clause)s
+            """ % {
+            'field_name' : field_name,
+            'where_clause' : where_clause,
+            'project' : project}
+        sql = " ".join(sql.strip().split())
+
+        print str(datetime.datetime.now()) +\
+              ' - Querying revisions for %s users ... ' % (len(user_handle))
+        try:
+            return self._data_source_.execute_SQL(sql)
+        except um.MySQLdb.ProgrammingError:
+           raise um.UserMetric.UserMetricError(message=str(BytesAdded) +
+                                                    '::Could not get revisions for specified users(s) - Query Failed.')
 
 def _process_help(args):
 
@@ -110,66 +149,23 @@ def _process_help(args):
             - Dictionary. key(string): user handle, value(Float): edit counts
     """
 
+    revs = args[0]
+    is_log = args[1]
+    freq = args[2]
+
     conn = um.dl.Connector(instance='slave')
-    user_handle = args[0]
-    key_word_args = args[1]
-
-    # Extract kwargs
-    is_log = bool(key_word_args['log_progress']) if 'log_progress' in key_word_args else False
-    freq = int(key_word_args['log_frequency']) if 'log_frequency' in key_word_args else 0
-    is_id = bool(key_word_args['is_id']) if 'is_id' in key_word_args else True
-    start_ts = str(key_word_args['start_ts']) if 'start_ts' in key_word_args else '20120101000000'
-    end_ts = str(key_word_args['end_ts']) if 'end_ts' in key_word_args else str(datetime.datetime.now())
-    project = str(key_word_args['project']) if 'project' in key_word_args else 'enwiki'
-
     bytes_added = dict()
-    ts_condition  = 'rev_timestamp >= "%s" and rev_timestamp < "%s"' % (start_ts, end_ts)
-
-    # determine the format field
-    field_name = ['rev_user_text','rev_user'][is_id]
-
-    # build the user set for inclusion into the query - if the user_handle is empty or None get all users for timeframe
-    if user_handle:
-        user_handle = um.UserMetric._escape_var(user_handle) # Escape user_handle for SQL injection
-        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
-        if is_id:
-            user_set = um.dl.DataLoader().format_comma_separated_list(user_handle, include_quotes=False)
-        else:
-            user_set = um.dl.DataLoader().format_comma_separated_list(user_handle, include_quotes=True)
-        where_clause = '%(field_name)s in (%(user_set)s) and %(ts_condition)s' % {
-        'field_name' : field_name, 'user_set' : user_set, 'ts_condition' : ts_condition}
-    else:
-        where_clause = '%(ts_condition)s' % {'ts_condition' : ts_condition}
-
-    sql = """
-            select
-                %(field_name)s,
-                rev_len,
-                rev_parent_id
-            from %(project)s.revision
-            where %(where_clause)s
-        """ % {
-            'field_name' : field_name,
-            'where_clause' : where_clause,
-            'project' : project}
-    sql = " ".join(sql.strip().split())
-
-    if is_log:
-        print str(datetime.datetime.now()) + \
-              ' - Querying revisions for %s users ... (PID = %s)' % (len(user_handle),os.getpid())
-    try:
-        results = conn.execute_SQL(sql)
-    except um.MySQLdb.ProgrammingError:
-        raise um.UserMetric.UserMetricError(message=str(BytesAdded) +
-                                           '::Could not get bytes added for specified users(s) - Query Failed.')
 
     # Get the difference for each revision length from the parent to compute bytes added
     row_count = 1
     missed_records = 0
-    total_rows = len(results)
+    total_rows = len(revs)
 
-    if is_log: print str(datetime.datetime.now()) + ' - Processing revision data by user... (PID = %s)' % os.getpid()
-    for row in results:
+    if is_log:
+        s = ' - Processing revision data (%s rows) by user... (PID = %s)' % (total_rows, os.getpid())
+        print str(datetime.datetime.now()) + s
+
+    for row in revs:
         try:
             user = str(row[0])
             rev_len_total = int(row[1])
