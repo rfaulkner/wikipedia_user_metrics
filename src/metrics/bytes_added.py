@@ -223,14 +223,14 @@ def _process_help(args):
 
 
         if freq and row_count % freq == 0 and is_log:
-            s = ' - Processed %s of %s records. (PID = %s)' % (row_count, total_rows, os.getppid())
+            s = ' - Processed %s of %s records. (PID = %s)' % (row_count, total_rows, os.getpid())
             print str(datetime.datetime.now()) + s
 
         row_count += 1
 
     results = [[user] + bytes_added[user] for user in bytes_added]
     if is_log:
-        s = ' - processed %s out of %s records. (PID = %s)' % (total_rows - missed_records,total_rows, os.getppid())
+        s = ' - processed %s out of %s records. (PID = %s)' % (total_rows - missed_records,total_rows, os.getpid())
         print str(datetime.datetime.now()) + s
 
     return results
