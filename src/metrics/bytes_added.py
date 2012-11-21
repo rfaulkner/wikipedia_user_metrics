@@ -200,8 +200,12 @@ def _process_help(args):
                 raise um.UserMetric.UserMetricError(message=str(BytesAdded) +
                             '::Could not produce rev diff for %s on rev_id %s.' % (user, str(parent_rev_id)))
 
-        # Update the bytes added hash
-        bytes_added_bit = rev_len_total - parent_rev_len
+        # Update the bytes added hash - ignore revision if either rev length is undetermined
+        try:
+            bytes_added_bit = int(rev_len_total) - int(parent_rev_len)
+        except TypeError:
+            missed_records += 1
+            continue
 
         try: # Exception where the user does not exist.  Handle this by creating the key
             bytes_added[user][0] += bytes_added_bit
