@@ -2,11 +2,15 @@
 # -*- coding: utf-8 -*-
 
 """
-    transform data to limn parsable format
+    Transform data to limn parsable format.
+
+    This script reads data files from <data_home> (e.g. $PROJECT_HOME/E3_analysis/data/) that
+
+    Utilizes etl/metrics_data_parser.py to
 """
 
 __author__ = "ryan faulkner"
-__date__ = "11/06/2012"
+__date__ = "11/19/2012"
 __license__ = "GPL (version 2 or later)"
 
 import sys
@@ -14,18 +18,54 @@ import e3_settings as s
 sys.path.append(s.__E3_Analysis_Home__)
 
 import argparse
+import logging
+import limnpy
+import re
+import os
+from dateutil.parser import parse as date_parse
 
-def main(args): raise NotImplementedError
+# CONFIGURE THE LOGGER
+logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
+
+def main(args):
+
+    rows = list()
+
+    for filename in os.listdir(s.__data_home__):
+        if re.search(args.regex,filename):
+            row = dict()
+
+            try:
+                row['date'] = date_parse(re.search(r'20[0-9]{6}', filename).group())
+            except AttributeError:
+                logging.info('Could not process %s. No date info.' % filename)
+                continue
+
+            with open(s.__data_home__ + filename, 'r') as f:
+
+                # get header and initializee
+                header = f.readline().strip().split("\t")
+                for elem in header: row[elem] = 0
+
+                while 1:
+                    line = f.readline()
+                    if not line: break
+                    fields = line.strip().split('\t')
+                    for i in xrange(len(fields)):
+                        row[header[i]] += int(fields[i])
+            rows.append(row)
+
+    ds = limnpy.DataSource('metrics_source', 'Metrics Source', rows)
+    ds.write(basedir = s.__data_home__)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="This script computes specified user metrics. It reads from stdin a list of user ids and produces "\
-                    "a set of metrics written into ./output.tsv",
+        description="",
         epilog="",
         conflict_handler="resolve",
-        usage = "user_ids | call_metric_on_users.py [-h] [-m METRIC] [-o OUTPUT] [-s DATE_START] [-e DATE_END] [-p PROJECT]"
+        usage = "./compile_data_for_limn [-r file_regex]"
     )
+    parser.add_argument('-r', '--regex',type=str, help='Regular expression.',default=0)
 
-    # parser.add_argument('-d', '--min_edit',type=int, help='minimum amounts of edits.',default=0)
     args = parser.parse_args()
     sys.exit(main(args))
