@@ -229,7 +229,10 @@ experiments['acux3']['log_files'] = ['clicktracking.log-20121106.gz', 'clicktrac
                                       'clicktracking.log-20121110.gz', 'clicktracking.log-20121111.gz',
                                       'clicktracking.log-20121112.gz', 'clicktracking.log-20121113.gz',
                                       'clicktracking.log-20121114.gz', 'clicktracking.log-20121115.gz',
-                                      'clicktracking.log-20121116.gz']
+                                      'clicktracking.log-20121116.gz', 'clicktracking.log-20121117.gz',
+                                      'clicktracking.log-20121118.gz', 'clicktracking.log-20121119.gz',
+                                      'clicktracking.log-20121120.gz', 'clicktracking.log-20121121.gz',
+                                      'clicktracking.log-20121122.gz', 'clicktracking.log-20121123.gz']
 
 experiments['acux3']['start_date'] = '2012110600000'
 experiments['acux3']['start_date'] = '2012112000000'
