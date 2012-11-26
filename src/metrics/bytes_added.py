@@ -74,6 +74,7 @@ class BytesAdded(um.UserMetric):
             pool = mp.Pool(processes=len(arg_list))
             self._results = list()
             for elem in pool.map(_process_help, arg_list): self._results.extend(elem)
+            pool.close()
         else:
             self._results = _process_help([revs, log_progress, log_frequency])
         return self
