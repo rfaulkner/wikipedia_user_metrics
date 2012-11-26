@@ -32,6 +32,7 @@ class BytesAdded(um.UserMetric):
                  date_start='2010-01-01 00:00:00',
                  date_end=datetime.datetime.now(),
                  project='enwiki',
+                 namespace=0,
                  **kwargs):
 
         """
@@ -46,7 +47,7 @@ class BytesAdded(um.UserMetric):
         """
         self._start_ts_ = self._get_timestamp(date_start)
         self._end_ts_ = self._get_timestamp(date_end)
-        um.UserMetric.__init__(self, project=project, **kwargs)
+        um.UserMetric.__init__(self, project=project, namespace=namespace, **kwargs)
 
     @staticmethod
     def header(): return ['user_id', 'bytes_added_net', 'bytes_added_absolute',
@@ -63,7 +64,7 @@ class BytesAdded(um.UserMetric):
             if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
 
         # Multiprocessing vs. single processing execution
-        revs = self._get_revisions(user_handle, is_id, self._start_ts_, self._end_ts_, self._project_)
+        revs = self._get_revisions(user_handle, is_id)
 
         if k:
             n = int(math.ceil(float(len(revs)) / k))
@@ -77,17 +78,17 @@ class BytesAdded(um.UserMetric):
             self._results = _process_help([revs, log_progress, log_frequency])
         return self
 
-    def _get_revisions(self, user_handle, is_id, start_ts, end_ts, project):
+    def _get_revisions(self, user_handle, is_id):
 
         # build the argument lists for each thread
         if not user_handle:
             sql = 'select distinct rev_user from enwiki.revision where rev_timestamp >= "%s" and rev_timestamp < "%s"'
-            sql = sql % (start_ts, end_ts)
+            sql = sql % (self._start_ts_, self._end_ts_)
             print str(datetime.datetime.now()) + ' - Getting all distinct users: " %s "' % sql
             user_handle = [str(row[0]) for row in self._data_source_.execute_SQL(sql)]
             print str(datetime.datetime.now()) + ' - Retrieved %s users.' % len(user_handle)
 
-        ts_condition  = 'rev_timestamp >= "%s" and rev_timestamp < "%s"' % (start_ts, end_ts)
+        ts_condition  = 'rev_timestamp >= "%s" and rev_timestamp < "%s"' % (self._start_ts_, self._end_ts_)
 
         # determine the format field
         field_name = ['rev_user_text','rev_user'][is_id]
@@ -109,15 +110,19 @@ class BytesAdded(um.UserMetric):
                     rev_len,
                     rev_parent_id
                 from %(project)s.revision
-                where %(where_clause)s
+                    join %(project)s.page
+                    on page.page_id = revision.rev_page
+                where %(where_clause)s and page.page_namespace = %(namespace)s
             """ % {
             'field_name' : field_name,
             'where_clause' : where_clause,
-            'project' : project}
+            'project' : self._project_,
+            'namespace' : self._namespace_}
         sql = " ".join(sql.strip().split())
 
         print str(datetime.datetime.now()) +\
-              ' - Querying revisions for %s users ... ' % (len(user_handle))
+              ' - Querying revisions for %(count)s users (project = %(project)s, namespace = %(namespace)s)... ' % {
+                  'count' : len(user_handle), 'project' : self._project_, 'namespace' : self._namespace_}
         try:
             return self._data_source_.execute_SQL(sql)
         except um.MySQLdb.ProgrammingError:
