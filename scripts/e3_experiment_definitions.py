@@ -43,6 +43,7 @@ experiments = {
 
                 'start_date' : '20121026000000',
                 'end_date' : '20121107000000',
+                'edit_volume_period' : 3,
 
                 'log_data' : {
 
@@ -138,6 +139,7 @@ experiments = {
 
         'start_date' : '20121026000000',
         'end_date' : '20121107000000',
+        'edit_volume_period' : 5,
 
         'log_data' : {
             'server_logs' : { 'definition' : """
@@ -235,7 +237,7 @@ experiments['acux3']['log_files'] = ['clicktracking.log-20121106.gz', 'clicktrac
                                       'clicktracking.log-20121122.gz', 'clicktracking.log-20121123.gz']
 
 experiments['acux3']['start_date'] = '2012110600000'
-experiments['acux3']['start_date'] = '2012112000000'
+experiments['acux3']['end_date'] = '2012112300000'
 
 # Add experiment name to tables
 for exp in experiments.keys():
