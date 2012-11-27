@@ -19,6 +19,9 @@ sys.path.append(s.__E3_Analysis_Home__)
 import logging
 import argparse
 import datetime
+import multiprocessing as mp
+import os
+import math
 from dateutil.parser import parse as date_parse
 import src.etl.data_loader as dl
 import e3_experiment_definitions as e3_def
@@ -66,7 +69,7 @@ def blocks(users, user_index = 0, bucket_index=1):
     global exp_meta_data
     global conn
 
-    logging.info("Processing blocked users for %s" % str(exp_meta_data['start_date']))
+    logging.info('Processing blocked users for "%s"' % str(exp_meta_data['start_date']))
     sql = """
                 select
                     user_id,
@@ -102,40 +105,67 @@ def blocks(users, user_index = 0, bucket_index=1):
     dl.DataLoader().create_table_from_list(block_list,create_sql, exp_meta_data['metric_tables']
                                                                   ['blocks']['table_name'])
 
-def edit_volume(users, period=1, log_frequency=500):
+def edit_volume(users, num_threads=0):
     """ Extracts bytes added and edit count "period" days after registration """
     global exp_meta_data
-    logging.info("Processing bytes added for %s users." % str(len(users)))
-    sql_reg_date = 'select user_registration from enwiki.user where user_id = %s;'
+    logging.info("Processing bytes added for %s users. (%s threads)" % (str(len(users)), str(num_threads)))
+
+    user_ids = users.keys()
+    if num_threads:
+        n = int(math.ceil(float(len(user_ids)) / num_threads))
+        arg_list = [[user_ids[i * n : (i + 1) * n], exp_meta_data['edit_volume_period']] for i in xrange(num_threads)]
+        pool = mp.Pool(processes=len(arg_list))
+        results = list()
+
+        for elem in pool.map(edit_volume_proc, arg_list): results.extend(elem)
+
+        pool.close()
+        pool.join()
+    else:
+        results = edit_volume_proc([user_ids, exp_meta_data['edit_volume_period']])
+
+    # Create table
+    insert_buckets(results,users)
+    logging.info('Writing results to table.')
+    sql = " ".join(exp_meta_data['metric_tables']['edit_volume']['definition'].strip().split('\n'))
+    dl.DataLoader().create_table_from_list(results.__iter__(), sql, exp_meta_data['metric_tables']
+                                                             ['edit_volume']['table_name'])
+
+def edit_volume_proc(arg_list):
+    """ Generates productivity metrics - argument method for thread pool """
+    users = arg_list[0]     # user list
+    period = arg_list[1]    # Number of days over which to measure productivity
+
+    conn = dl.Connector(instance='slave')
 
     bytes_added = list()
     bad_users = 0
+    empty_users = 0
     count = 0
-    logging.info('Processing %s eligible users...' % str(len(users)))
+    sql_reg_date = 'select user_registration from enwiki.user where user_id = %s;'
 
-    for user in users.keys():
+    logging.info('Processing productivity for %s users. (PID = %s)' % (str(len(users)), str(os.getpid())))
+
+    for user in users:
         try:
             count += 1
-            if not count % log_frequency: logging.info('Processed %s users, no revs for %s...' % (count, bad_users))
 
             start_date = date_parse(conn.execute_SQL(sql_reg_date % user)[0][0])
             end_date = start_date + datetime.timedelta(days=period)
             entry = ba.BytesAdded(date_start=start_date, date_end=end_date).process(
-                user, num_threads=16).__iter__().next()
+                user, num_threads=0).__iter__().next()
             bytes_added.append(entry)
 
-        except Exception:
-            # logging.error('Could not get bytes added for user %s: %s' % (str(user), e.message))
+        except StopIteration:
+            empty_users += 1
+        except IndexError:
+            bad_users += 1
+        except TypeError:
             bad_users += 1
 
-    logging.info('Missed %s users out of %s.' % (str(bad_users), str(len(users))))
-    logging.info('Writing results to table.')
-
-    # Create table
-    insert_buckets(bytes_added,users)
-    sql = " ".join(exp_meta_data['metric_tables']['edit_volume']['definition'].strip().split('\n'))
-    dl.DataLoader().create_table_from_list(bytes_added, sql, exp_meta_data['metric_tables']
-                                                             ['edit_volume']['table_name'])
+    logging.info('Missed %s users out of %s. %s users with no revisions. (PID = %s)' % (
+        str(bad_users), str(len(users)), str(empty_users), str(os.getpid())))
+    return bytes_added
 
 def time_to_threshold(users, first_edit=0, threshold_edit=1):
     global exp_meta_data
@@ -171,7 +201,7 @@ def main(args):
     # user_ids = [str(row[0]) for row in conn.execute_SQL(sql)]
 
     if args.blocks: blocks(users)
-    if args.edit_volume: edit_volume(users, period=5)
+    if args.edit_volume: edit_volume(users, num_threads=8)
     if args.time_to_threshold: time_to_threshold(users)
 
 if __name__ == '__main__':
@@ -181,7 +211,7 @@ if __name__ == '__main__':
         conflict_handler="resolve",
         usage = "e3_data_wrangle.py [-x EXPERIMENT] [-l] [-b] [-e] [-t] [-r]"
     )
-    parser.add_argument('-x', '--experiment',type=str, help='Experiment handle.',default='CTA4')
+    parser.add_argument('-x', '--experiment',type=str, help='Experiment handle.',default='cta4')
     parser.add_argument('-l', '--load_logs',action="store_true",help='Process log data.',default=False)
     parser.add_argument('-b', '--blocks',action="store_true",help='.',default=False)
     parser.add_argument('-e', '--edit_volume',action="store_true",help='.',default=False)
