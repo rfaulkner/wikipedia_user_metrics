@@ -64,7 +64,7 @@ class BytesAdded(um.UserMetric):
             if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
 
         # Multiprocessing vs. single processing execution
-        revs = self._get_revisions(user_handle, is_id)
+        revs = self._get_revisions(user_handle, is_id, log_progress=log_progress)
 
         if k:
             n = int(math.ceil(float(len(revs)) / k))
@@ -79,7 +79,7 @@ class BytesAdded(um.UserMetric):
             self._results = _process_help([revs, log_progress, log_frequency])
         return self
 
-    def _get_revisions(self, user_handle, is_id):
+    def _get_revisions(self, user_handle, is_id, log_progress=True):
 
         # build the argument lists for each thread
         if not user_handle:
@@ -121,9 +121,10 @@ class BytesAdded(um.UserMetric):
             'namespace' : self._namespace_}
         sql = " ".join(sql.strip().split())
 
-        print str(datetime.datetime.now()) +\
-              ' - Querying revisions for %(count)s users (project = %(project)s, namespace = %(namespace)s)... ' % {
-                  'count' : len(user_handle), 'project' : self._project_, 'namespace' : self._namespace_}
+        if log_progress:
+            print str(datetime.datetime.now()) +\
+                  ' - Querying revisions for %(count)s users (project = %(project)s, namespace = %(namespace)s)... ' % {
+                      'count' : len(user_handle), 'project' : self._project_, 'namespace' : self._namespace_}
         try:
             return self._data_source_.execute_SQL(sql)
         except um.MySQLdb.ProgrammingError:
