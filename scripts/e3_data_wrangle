@@ -121,10 +121,10 @@ def edit_volume(users, period=1, log_frequency=500):
             start_date = date_parse(conn.execute_SQL(sql_reg_date % user)[0][0])
             end_date = start_date + datetime.timedelta(days=period)
             entry = ba.BytesAdded(date_start=start_date, date_end=end_date).process(
-                user, num_threads=1).__iter__().next()
+                user, num_threads=16).__iter__().next()
             bytes_added.append(entry)
 
-        except Exception as e:
+        except Exception:
             # logging.error('Could not get bytes added for user %s: %s' % (str(user), e.message))
             bad_users += 1
 
