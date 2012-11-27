@@ -176,6 +176,9 @@ class AFTFeedbackFactory(object):
 
     def __doc__(self): raise NotImplementedError
 
+    @property
+    def fields(self): return self.__feature_list
+
     def process_kwargs(self, **kwargs):
 
         td = datetime.timedelta(days=-1)
