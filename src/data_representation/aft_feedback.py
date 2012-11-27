@@ -171,6 +171,8 @@ class AFTFeedbackFactory(object):
                     yield self.__tuple_cls(r[0],r[1],r[2],r[3],r[4])
                 except IndexError:
                     continue
+                except TypeError:
+                    continue
 
     def __doc__(self): raise NotImplementedError
 
