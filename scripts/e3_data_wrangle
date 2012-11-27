@@ -170,7 +170,8 @@ def edit_volume_proc(arg_list):
 def time_to_threshold(users, first_edit=0, threshold_edit=1):
     global exp_meta_data
 
-    logging.info("Processing time to threshold for %s users." % str(len(users)))
+    logging.info("Processing time to threshold for %s users (start rev = %s, end edit = %s)." % (
+        str(len(users)),str(first_edit),str(threshold_edit)))
 
     # create table
     t = ttt.TimeToThreshold(ttt.TimeToThreshold.EditCountThreshold,
