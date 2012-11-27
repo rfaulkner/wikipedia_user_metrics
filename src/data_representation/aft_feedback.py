@@ -90,7 +90,6 @@
         >>> f = aft.AFTFeedbackFactory().__iter__()
         >>> d = f.next()
         2012-11-27 14:18:50.191411 - SFT Feedback - start = "2012-11-26 14:18:50.191386", end = "2012-11-27 14:18:50.191386"
-        >>>
         >>> d.feedback_length
         545L
         >>> d
@@ -103,7 +102,6 @@
         AFT_feedback(is_featured=0, is_hidden=0, is_unhidden=0, helpful_count=0L, feedback_length=344L)
         AFT_feedback(is_featured=0, is_hidden=0, is_unhidden=0, helpful_count=0L, feedback_length=328L)
         ...
-
 """
 
 __author__ = "Ryan Faulkner <rfaulkner@wikimedia.org>"
@@ -115,7 +113,8 @@ import datetime
 import src.etl.data_loader as dl
 import src.metrics.user_metric as um
 
-TBL_ANSWER_TEXT = "aft_article_feedback"
+TBL_AFT_FEEDBACK = "aft_article_feedback"
+TBL_ANSWER = "aft_article_answer"
 TBL_ANSWER_TEXT = "aft_article_answer_text"
 
 
@@ -149,15 +148,18 @@ class AFTFeedbackFactory(object):
                 af_is_unhidden,
                 af_helpful_count,
                 length(aat_response_text) as text_len
-            from enwiki.aft_article_feedback as af
-                join enwiki.aft_article_answer as aa
+            from enwiki.%(feedback_table)s as af
+                join enwiki.%(answer_table)s as aa
                 on af.af_id = aa.aa_feedback_id
-                join enwiki.aft_article_answer_text as aat
+                join enwiki.%(answer_text_table)s as aat
                 on aa.aat_id = aat.aat_id
             where af_created > "%(start)s" and af_created < "%(end)s"
         """ % {
             'start' : start_date,
-            'end' : end_date
+            'end' : end_date,
+            'feedback_table' : TBL_AFT_FEEDBACK,
+            'answer_table' : TBL_ANSWER,
+            'answer_text_table' : TBL_ANSWER_TEXT
         }
 
 
