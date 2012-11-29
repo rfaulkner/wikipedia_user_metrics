@@ -47,6 +47,19 @@
         | af_last_status_notes     | varbinary(255)   | YES  |     | NULL           |                |
         +--------------------------+------------------+------+-----+----------------+----------------+
 
+    s1-analytics-slave.eqiad.wmnet.enwiki.aft_article_answer: ::
+        +-----------------------+------------------+------+-----+---------+-------+
+        | Field                 | Type             | Null | Key | Default | Extra |
+        +-----------------------+------------------+------+-----+---------+-------+
+        | aa_feedback_id        | int(10) unsigned | NO   | PRI | NULL    |       |
+        | aa_field_id           | int(10) unsigned | NO   | PRI | NULL    |       |
+        | aa_response_rating    | int(11)          | YES  |     | NULL    |       |
+        | aa_response_text      | varbinary(255)   | YES  |     | NULL    |       |
+        | aat_id                | int(10) unsigned | YES  |     | NULL    |       |
+        | aa_response_boolean   | tinyint(1)       | YES  |     | NULL    |       |
+        | aa_response_option_id | int(10) unsigned | YES  |     | NULL    |       |
+        +-----------------------+------------------+------+-----+---------+-------+
+
     s1-analytics-slave.eqiad.wmnet.enwiki.aft_article_answer_text: ::
         +-------------------+------------------+------+-----+---------+----------------+
         | Field             | Type             | Null | Key | Default | Extra          |
@@ -124,7 +137,9 @@ class AFTFeedbackFactory(object):
 
     def __init__(self, *args, **kwargs):
 
-        self.__feature_list = ['is_featured', 'is_hidden', 'is_unhidden', 'helpful_count', 'feedback_length']
+        self.__feature_list = ['is_featured', 'is_hidden', 'is_unhidden', 'is_autohide', 'is_resolved',
+                               'helpful_count', 'response_boolean', 'abuse_count', 'feedback_length']
+        self.__feature_types = [bool, bool, bool, int, long]
         self.__tuple_cls = collections.namedtuple("AFT_feedback", " ".join(self.__feature_list))
 
         super(AFTFeedbackFactory, self).__init__()
@@ -146,7 +161,11 @@ class AFTFeedbackFactory(object):
                 af_is_featured,
                 af_is_hidden,
                 af_is_unhidden,
+                af_is_autohide,
+                af_is_resolved,
                 af_helpful_count,
+                aa_response_boolean,
+                af_abuse_count,
                 length(aat_response_text) as text_len
             from enwiki.%(feedback_table)s as af
                 join enwiki.%(answer_table)s as aa
@@ -168,7 +187,7 @@ class AFTFeedbackFactory(object):
         if is_gen:
             for r in conn._cur_:
                 try:
-                    yield self.__tuple_cls(r[0],r[1],r[2],r[3],r[4])
+                    yield self.__tuple_cls(r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7],r[8])
                 except IndexError:
                     continue
                 except TypeError:
@@ -178,6 +197,8 @@ class AFTFeedbackFactory(object):
 
     @property
     def fields(self): return self.__feature_list
+    @property
+    def field_types(self): return self.__feature_list
 
     def process_kwargs(self, **kwargs):
 
