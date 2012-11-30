@@ -27,18 +27,24 @@ def main(args):
     logging.info(args)
     logging.info('Processing contribution volume metrics for daily users from %s to %s ... ' %
                  (args.date_start, args.date_end))
-    file_obj = open(s.__data_home__ + args.output_file,'w')
-    try:
-        file_obj.write("\t".join(ba.BytesAdded.header()) + '\n')
+
+    with open(s.__data_home__ + args.output_file,'w') as file_obj:
+        try:
+            file_obj.write("\t".join(ba.BytesAdded.header()) + '\n')
+        except IOError:
+            logging.error('Could not write to file "%s":.' % args.output_file)
+            return
+
         for row in ba.BytesAdded(date_start=args.date_start, date_end=args.date_end).process(
             log_progress=True,log_frequency=args.log_frequency, num_threads=args.num_threads).__iter__():
             try:
                 if row[EDIT_COUNT_IDX] >= args.min_edit:
                     file_obj.write("\t".join([str(e) for e in row]) + '\n')
             except IndexError:
-                logging.info("Could not write row %s." % str(row))
-    finally:
-        file_obj.close()
+                logging.error("Could not write row %s." % str(row))
+            except IOError:
+                logging.error('Could not write to file "%s":.' % args.output_file)
+                return
 
 if __name__ == "__main__":
 
@@ -66,4 +72,5 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--output_file',type=str,help='File to store output.',default=out_filename)
     parser.add_argument('-n', '--num_threads',type=int,help='Number of sub-processes.',default=1)
     args = parser.parse_args()
+
     sys.exit(main(args))
