@@ -97,7 +97,6 @@
         * is unhidden (af_is_unhidden)
         * times tagged as helpful (af_helpful_count)
 
-
     EXAMPLES: ::
 
         >>> f = aft.AFTFeedbackFactory().__iter__()
@@ -139,7 +138,7 @@ class AFTFeedbackFactory(object):
     def __init__(self, *args, **kwargs):
 
         self.__feature_list = ['is_featured', 'is_hidden', 'is_unhidden', 'is_autohide', 'is_resolved',
-                               'helpful_count', 'response_boolean', 'abuse_count', 'feedback_length']
+                               'helpful_count', 'response_boolean', 'abuse_count', 'feedback_length', 'post_mod_count']
         self.__feature_types = [bool, bool, bool, int, long]
         self.__tuple_cls = collections.namedtuple("AFT_feedback", " ".join(self.__feature_list))
 
@@ -159,6 +158,7 @@ class AFTFeedbackFactory(object):
         sql =\
         """
             select
+                af_id,
                 af_is_featured,
                 af_is_hidden,
                 af_is_unhidden,
@@ -183,12 +183,19 @@ class AFTFeedbackFactory(object):
         }
 
 
+        moderator_dict = self._get_logging_events()
+
         # compose feature vectors
         conn._cur_.execute(" ".join(sql.strip().split('\n')))
         if is_gen:
             for r in conn._cur_:
                 try:
-                    yield self.__tuple_cls(r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7],r[8])
+                    if moderator_dict.has_key(long(r[0])):
+                        yield self.__tuple_cls(r[1],r[2],r[3],r[4],r[5],r[6],
+                            r[7],r[8],r[9],moderator_dict[long(r[0])])
+                    else:
+                        yield self.__tuple_cls(r[1],r[2],r[3],r[4],r[5],r[6],
+                            r[7],r[8],r[9],0)
                 except IndexError:
                     continue
                 except TypeError:
@@ -244,7 +251,7 @@ class AFTFeedbackFactory(object):
         moderator_dict = dict()
         for r in conn._cur_:
             try:
-                moderator_dict[long(r[0])] = r[1]
+                moderator_dict[long(r[0])] = int(r[1])
             except KeyError:
                 continue
             except IndexError:
@@ -254,5 +261,8 @@ class AFTFeedbackFactory(object):
 
 # Testing
 if __name__ == "__main__":
-    # f = AFTFeedbackFactory().__iter__()
-    AFTFeedbackFactory()._get_logging_events()
+    f = AFTFeedbackFactory().__iter__()
+    l=list()
+    for i in f: l.append(i)
+
+    # AFTFeedbackFactory()._get_logging_events()
