@@ -97,6 +97,19 @@
         * is unhidden (af_is_unhidden)
         * times tagged as helpful (af_helpful_count)
 
+    The data model definition of the samples is the following: ::
+
+        * is_featured       - is the feedback feature
+        * is_hidden         - is the feedback hidden
+        * is_unhidden       - is the feedback unhidden
+        * is_autohide       - has autohide been activiated?
+        * is_resolved       -
+        * helpful_count     - how many times has the feedback been flagged as helpful
+        * response_boolean  -
+        * abuse_count       - how many times has the feedback been flagged as helpful
+        * feedback_length   - length in bytes of the feedback comment
+        * post_mod_count    - number of moderations on the feedback
+
     EXAMPLES: ::
 
         >>> f = aft.AFTFeedbackFactory().__iter__()
