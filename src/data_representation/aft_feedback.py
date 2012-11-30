@@ -193,6 +193,8 @@ class AFTFeedbackFactory(object):
                 except TypeError:
                     continue
 
+        del conn
+        
     def __doc__(self): raise NotImplementedError
 
     @property
