@@ -16,6 +16,7 @@ import logging
 import datetime
 import argparse
 import src.metrics.bytes_added as ba
+from src.metrics.user_metric import UserMetric
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
@@ -28,7 +29,14 @@ def main(args):
     logging.info('Processing contribution volume metrics for daily users from %s to %s ... ' %
                  (args.date_start, args.date_end))
 
-    with open(s.__data_home__ + args.output_file,'w') as file_obj:
+    start_ts = UserMetric._get_timestamp(args.date_start)
+    end_ts = UserMetric._get_timestamp(args.date_end)
+    filename = 'dau_out_' + start_ts[:8] + '-' + end_ts[:8] + '.tsv'
+
+    with open(s.__data_home__ + filename,'w') as file_obj:
+
+        logging.info('Writing results to "%s"' % s.__data_home__ + filename)
+
         try:
             file_obj.write("\t".join(ba.BytesAdded.header()) + '\n')
         except IOError:
@@ -69,7 +77,6 @@ if __name__ == "__main__":
         default=yesterday)
     parser.add_argument('-e', '--date_end',type=str, help='End date of measurement.', default=today)
     parser.add_argument('-l', '--log_frequency',type=int,help='How often to log progress.',default=0)
-    parser.add_argument('-o', '--output_file',type=str,help='File to store output.',default=out_filename)
     parser.add_argument('-n', '--num_threads',type=int,help='Number of sub-processes.',default=1)
     args = parser.parse_args()
 
