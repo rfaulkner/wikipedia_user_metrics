@@ -129,6 +129,7 @@ import src.metrics.user_metric as um
 TBL_AFT_FEEDBACK = "aft_article_feedback"
 TBL_ANSWER = "aft_article_answer"
 TBL_ANSWER_TEXT = "aft_article_answer_text"
+TBL_logging = "logging"
 
 
 class AFTFeedbackFactory(object):
@@ -194,7 +195,7 @@ class AFTFeedbackFactory(object):
                     continue
 
         del conn
-        
+
     def __doc__(self): raise NotImplementedError
 
     @property
@@ -216,6 +217,42 @@ class AFTFeedbackFactory(object):
         return is_gen, um.UserMetric._get_timestamp(start_date), um.UserMetric._get_timestamp(end_date)
 
 
+    def _get_logging_events(self, **kwargs):
+        """ pull moderated feedback from the logging table separately """
+
+        conn = dl.Connector(instance='slave')
+        is_gen, start_date, end_date =  self.process_kwargs(**kwargs)
+
+        # Note for this query to function it is dependent on the form of `log_params` in the logging table
+        # e.g. a:3:{s:6:"source";s:7:"article";s:10:"feedbackId";i:684703;s:6:"pageId";i:17689593;}
+        sql = \
+        """
+            select
+                CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(log_params, ';', 4),':',-1) as UNSIGNED) as feedback_id,
+                count(*) as moderations
+             from enwiki.%(logging_table)s
+             where log_type = 'articlefeedbackv5' and log_timestamp > "%(start)s" and log_timestamp <= "%(end)s"
+             group by 1
+             having feedback_id != 0
+        """ % {
+            'start' : start_date,
+            'end' : end_date,
+            'logging_table' : TBL_logging
+        }
+
+        conn._cur_.execute(" ".join(sql.strip().split('\n')))
+        moderator_dict = dict()
+        for r in conn._cur_:
+            try:
+                moderator_dict[long(r[0])] = r[1]
+            except KeyError:
+                continue
+            except IndexError:
+                continue
+        del conn
+        return moderator_dict
+
 # Testing
 if __name__ == "__main__":
-    f = AFTFeedbackFactory().__iter__()
+    # f = AFTFeedbackFactory().__iter__()
+    AFTFeedbackFactory()._get_logging_events()
