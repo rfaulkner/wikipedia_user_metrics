@@ -65,7 +65,7 @@ if __name__ == "__main__":
         conflict_handler="resolve",
         usage = "./compile_data_for_limn [-r file_regex]"
     )
-    parser.add_argument('-r', '--regex',type=str, help='Regular expression.',default=0)
+    parser.add_argument('-r', '--regex',type=str, help='Regular expression.',default=r'')
 
     args = parser.parse_args()
     sys.exit(main(args))
