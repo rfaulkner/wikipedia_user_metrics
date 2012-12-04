@@ -112,20 +112,17 @@
 
     EXAMPLES: ::
 
+        >>> import src.data_modelling.aft_feedback as aft
         >>> f = aft.AFTFeedbackFactory().__iter__()
         >>> d = f.next()
         2012-11-27 14:18:50.191411 - SFT Feedback - start = "2012-11-26 14:18:50.191386", end = "2012-11-27 14:18:50.191386"
-        >>> d.feedback_length
-        545L
         >>> d
-        AFT_feedback(is_featured=0, is_hidden=0, is_unhidden=0, helpful_count=0L, feedback_length=545L)
+        (0, AFT_feedback(is_hidden=0, is_unhidden=0, is_autohide=0, is_resolved=0, helpful_count=1L, response_boolean=None, abuse_count=0L, feedback_length=308L, post_mod_count=1))
         >>> for d in f: print d
         ...
-        AFT_feedback(is_featured=0, is_hidden=0, is_unhidden=0, helpful_count=0L, feedback_length=327L)
-        AFT_feedback(is_featured=0, is_hidden=0, is_unhidden=0, helpful_count=0L, feedback_length=445L)
-        AFT_feedback(is_featured=0, is_hidden=0, is_unhidden=0, helpful_count=0L, feedback_length=278L)
-        AFT_feedback(is_featured=0, is_hidden=0, is_unhidden=0, helpful_count=0L, feedback_length=344L)
-        AFT_feedback(is_featured=0, is_hidden=0, is_unhidden=0, helpful_count=0L, feedback_length=328L)
+        (0, AFT_feedback(is_hidden=1, is_unhidden=0, is_autohide=0, is_resolved=0, helpful_count=0L, response_boolean=None, abuse_count=0L, feedback_length=379L, post_mod_count=1))
+        (0, AFT_feedback(is_hidden=0, is_unhidden=0, is_autohide=0, is_resolved=1, helpful_count=0L, response_boolean=None, abuse_count=0L, feedback_length=278L, post_mod_count=1))
+        (0, AFT_feedback(is_hidden=1, is_unhidden=0, is_autohide=0, is_resolved=0, helpful_count=0L, response_boolean=None, abuse_count=0L, feedback_length=1436L, post_mod_count=1))
         ...
 """
 
@@ -146,12 +143,12 @@ TBL_logging = "logging"
 
 class AFTFeedbackFactory(object):
 
-    target_feature = "is_featured" # Marks the feature which is the supervised learning signal
+    __target_feature_idx = 1 # Marks the feature which is the supervised learning signal
     __instance = None
 
     def __init__(self, *args, **kwargs):
 
-        self.__feature_list = ['is_featured', 'is_hidden', 'is_unhidden', 'is_autohide', 'is_resolved',
+        self.__feature_list = ['is_hidden', 'is_unhidden', 'is_autohide', 'is_resolved',
                                'helpful_count', 'response_boolean', 'abuse_count', 'feedback_length', 'post_mod_count']
         self.__feature_types = [bool, bool, bool, int, long]
         self.__tuple_cls = collections.namedtuple("AFT_feedback", " ".join(self.__feature_list))
@@ -205,11 +202,11 @@ class AFTFeedbackFactory(object):
             for r in conn._cur_:
                 try:
                     if moderator_dict.has_key(long(r[0])):
-                        yield self.__tuple_cls(r[1],r[2],r[3],r[4],r[5],r[6],
-                            r[7],r[8],r[9],moderator_dict[long(r[0])])
+                        yield (r[AFTFeedbackFactory.__target_feature_idx],
+                               self.__tuple_cls(r[2],r[3],r[4],r[5],r[6],r[7],r[8],r[9],moderator_dict[long(r[0])]))
                     else:
-                        yield self.__tuple_cls(r[1],r[2],r[3],r[4],r[5],r[6],
-                            r[7],r[8],r[9],0)
+                        yield (r[AFTFeedbackFactory.__target_feature_idx],
+                               self.__tuple_cls(r[1],r[2],r[3],r[4],r[5],r[6],r[7],r[8],r[9],0))
                 except IndexError:
                     continue
                 except TypeError:
