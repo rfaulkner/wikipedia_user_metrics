@@ -20,6 +20,7 @@ sys.path.append(s.__E3_Analysis_Home__)
 import argparse
 import logging
 import limnpy
+import datetime
 import re
 import os
 from dateutil.parser import parse as date_parse
@@ -41,24 +42,37 @@ def main(args):
                 logging.info('Could not process %s. No date info.' % filename)
                 continue
 
+            # only process the dates in range
+            if row['date'] < date_parse(args.date_start) or row['date'] > date_parse(args.date_end): continue
+
             with open(s.__data_home__ + filename, 'r') as f:
 
-                # get header and initializee
+                # get header and initialize
                 header = f.readline().strip().split("\t")
                 for elem in header: row[elem] = 0
 
+                # sum all of the elements of all of the lines
                 while 1:
                     line = f.readline()
                     if not line: break
                     fields = line.strip().split('\t')
                     for i in xrange(len(fields)):
                         row[header[i]] += int(fields[i])
+
             rows.append(row)
 
     ds = limnpy.DataSource('metrics_source', 'Metrics Source', rows)
     ds.write(basedir = s.__data_home__)
 
 if __name__ == "__main__":
+
+    # Initialize query date constraints
+    today = datetime.datetime.now()
+    yesterday = today - datetime.timedelta(days=7)
+
+    today = "".join([today.strftime('%Y%m%d'), "000000"])
+    yesterday = "".join([yesterday.strftime('%Y%m%d'),"000000"])
+
     parser = argparse.ArgumentParser(
         description="",
         epilog="",
@@ -66,6 +80,8 @@ if __name__ == "__main__":
         usage = "./compile_data_for_limn [-r file_regex]"
     )
     parser.add_argument('-r', '--regex',type=str, help='Regular expression.',default=r'')
+    parser.add_argument('-s', '--date_start',type=str, help='Start date of measurement.', default=yesterday)
+    parser.add_argument('-e', '--date_end',type=str, help='End date of measurement.', default=today)
 
     args = parser.parse_args()
     sys.exit(main(args))
