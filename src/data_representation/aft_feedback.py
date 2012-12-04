@@ -146,6 +146,7 @@ TBL_logging = "logging"
 
 class AFTFeedbackFactory(object):
 
+    target_feature = "is_featured" # Marks the feature which is the supervised learning signal
     __instance = None
 
     def __init__(self, *args, **kwargs):
