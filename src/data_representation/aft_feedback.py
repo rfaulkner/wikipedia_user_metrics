@@ -176,7 +176,7 @@ class AFTFeedbackFactory(object):
                 af_is_autohide,
                 af_is_resolved,
                 af_helpful_count,
-                aa_response_boolean,
+                ifnull(aa_response_boolean,0),
                 af_abuse_count,
                 length(aat_response_text) as text_len
             from enwiki.%(feedback_table)s as af
