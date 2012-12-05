@@ -28,6 +28,11 @@ from dateutil.parser import parse as date_parse
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
+def get_data_type(type_str):
+    """ based on a type identifier return a dict containing meta data about the aggregate data type """
+    if not cmp(type_str, 'dau'):
+        return {'indices' : [1,2,3,4,5]}
+
 def main(args):
 
     rows = list()
@@ -44,6 +49,7 @@ def main(args):
 
             # only process the dates in range
             if row['date'] < date_parse(args.date_start) or row['date'] > date_parse(args.date_end): continue
+            meta_data = get_data_type(args.data_type)
 
             with open(s.__data_home__ + filename, 'r') as f:
 
@@ -56,7 +62,7 @@ def main(args):
                     line = f.readline()
                     if not line: break
                     fields = line.strip().split('\t')
-                    for i in xrange(len(fields)):
+                    for i in meta_data['indices']:
                         row[header[i]] += int(fields[i])
 
             rows.append(row)
@@ -68,7 +74,7 @@ if __name__ == "__main__":
 
     # Initialize query date constraints
     today = datetime.datetime.now()
-    yesterday = today - datetime.timedelta(days=7)
+    yesterday = today - datetime.timedelta(days=14)
 
     today = "".join([today.strftime('%Y%m%d'), "000000"])
     yesterday = "".join([yesterday.strftime('%Y%m%d'),"000000"])
@@ -77,11 +83,12 @@ if __name__ == "__main__":
         description="",
         epilog="",
         conflict_handler="resolve",
-        usage = "./compile_data_for_limn [-r file_regex]"
+        usage = "./compile_data_for_limn [-r file_regex] [-s start_date] [-e end_date] [-t data_type]"
     )
     parser.add_argument('-r', '--regex',type=str, help='Regular expression.',default=r'')
     parser.add_argument('-s', '--date_start',type=str, help='Start date of measurement.', default=yesterday)
     parser.add_argument('-e', '--date_end',type=str, help='End date of measurement.', default=today)
+    parser.add_argument('-t', '--data_type',type=str, help='Type of data to aggregate.', default='dau')
 
     args = parser.parse_args()
     sys.exit(main(args))
