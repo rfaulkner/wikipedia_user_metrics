@@ -206,7 +206,7 @@ class AFTFeedbackFactory(object):
                                self.__tuple_cls(r[2],r[3],r[4],r[5],r[6],r[7],r[8],r[9],moderator_dict[long(r[0])]))
                     else:
                         yield (r[AFTFeedbackFactory.__target_feature_idx],
-                               self.__tuple_cls(r[1],r[2],r[3],r[4],r[5],r[6],r[7],r[8],r[9],0))
+                               self.__tuple_cls(r[2],r[3],r[4],r[5],r[6],r[7],r[8],r[9],0))
                 except IndexError:
                     continue
                 except TypeError:
