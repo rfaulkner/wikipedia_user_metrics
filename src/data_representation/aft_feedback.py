@@ -194,7 +194,7 @@ class AFTFeedbackFactory(object):
         }
 
 
-        moderator_dict = self._get_logging_events()
+        moderator_dict = self._get_logging_events(**kwargs)
 
         # compose feature vectors
         conn._cur_.execute(" ".join(sql.strip().split('\n')))
