@@ -17,11 +17,22 @@ class TimeToThreshold(um.UserMetric):
 
             `https://meta.wikimedia.org/wiki/Research:Metrics//time_to_threshold`
 
-        usage e.g.: ::
+        As a UserMetric type this class utilizes the process() function attribute to produce an internal list of metrics by
+        user handle (typically ID but user names may also be specified). The execution of process() produces a nested list that
+        stores in each element:
 
-            >>> import classes.Metrics as m
-            >>> m.TimeToThreshold(m.TimeToThreshold.EDIT_COUNT_THRESHOLD, first_edit=1, threshold_edit=2).process(123456)
-            500
+            * User ID
+            * Time difference in minutes between events
+
+        Below is an example of how we can generate the time taken to reach the first edit and the last edit from registration : ::
+
+            >>> import src.metrics.time_to_threshold as t
+            >>> t.TimeToThreshold(t.TimeToThreshold.EditCountThreshold, first_edit=0, threshold_edit=1).process([13234584]).__iter__().next()
+            [13234584, 3318]
+            >>> t.TimeToThreshold(t.TimeToThreshold.EditCountThreshold, first_edit=0, threshold_edit=-1).process([13234584]).__iter__().next()
+            [13234584, 18906]
+
+        If the termination event never occurs the number of minutes returned is -1.
     """
 
     def __init__(self,
@@ -67,6 +78,7 @@ class TimeToThreshold(um.UserMetric):
                 between the Nth and Mth edit.
 
                     - Parameters:
+                        - **user_handle** - List(int).  List of user ids.
                         - **first_edit** - Integer.  The numeric value of the first edit from which to measure the threshold.
                         - **threshold_edit** - Integer.  The numeric value of the threshold edit from which to measure the threshold
             """
