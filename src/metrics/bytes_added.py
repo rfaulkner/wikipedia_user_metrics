@@ -39,11 +39,6 @@ class BytesAdded(um.UserMetric):
         argument, `num_threads`, to the process() method.
     """
 
-    @staticmethod
-    def __doc__():
-        return 'process-**kwargs:\n"log_frequency" frequency to log to stdout.' \
-               '\n"log_progress" log metrics gathering.'
-
     def __init__(self,
                  date_start='2010-01-01 00:00:00',
                  date_end=datetime.datetime.now(),
