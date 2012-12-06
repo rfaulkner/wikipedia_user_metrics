@@ -11,16 +11,32 @@ import os
 
 class BytesAdded(um.UserMetric):
     """
-        Produces a float value that reflects the rate of edit behaviour
+        Produces a float value that reflects the rate of edit behaviour:
 
             `https://meta.wikimedia.org/wiki/Research:Metrics/edit_rate`
 
+        As a UserMetric type this class utilizes the process() function attribute to produce an internal list of metrics by
+        user handle (typically ID but user names may also be specified). The execution of process() produces a nested list that
+        stores in each element:
+
+            * User ID
+            * Net bytes contributed over the period of measurement
+            * Absolute bytes contributed over the period of measurement
+            * Bytes added over the period of measurement
+            * Bytes removed over the period of measurement
+            * Total edit count over the period of measurement
+
             usage e.g.: ::
 
-                >>> import classes.Metrics as M
-                >>> M.BytesAdded(date_start='2012-07-30 00:00:00', raw_count=False, mode=1).process(123456)
-                5
-                1200
+                >>> import src.,metrics.bytes_added as ba
+                >>> for r in ba.BytesAdded(date_start='2012-07-30 00:00:00').process([13234584], num_threads=0).__iter__(): r)
+                ['13234584', 2, 2, 2, 0, 1]
+                >>> ba.BytesAdded.header()
+                ['user_id', 'bytes_added_net', 'bytes_added_absolute', 'bytes_added_pos', 'bytes_added_neg', 'edit_count']
+
+        This metric forks a separate query on the revision table for each user specified in the call to process().  In order to
+        optimize the execution of this implementation the call allows the caller to specify the number of threads as a keyword
+        argument, `num_threads`, to the process() method.
     """
 
     @staticmethod
@@ -39,8 +55,8 @@ class BytesAdded(um.UserMetric):
             - Parameters:
                 - **date_start**: string or datetime.datetime. start date of edit interval
                 - **date_end**: string or datetime.datetime. end date of edit interval
-                - **raw_count**: Boolean. Flag that when set to True returns one total count for all users.
-                                            Count by user otherwise.
+                - **project**: str. Specifies the project to query.
+                - **namespace**: int. Namespace on which to query metrics.
 
             - Return:
                 - Empty.
