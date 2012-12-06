@@ -10,12 +10,27 @@ class Blocks(um.UserMetric):
         Adapted from Aaron Hafaker's implementation -- uses the logging table to count blocks.  This is a user quality
         metric used to assess whether a user went on to do damage.
 
+        As a UserMetric type this class utilizes the process() function attribute to produce an internal list of metrics by
+        user handle (typically ID but user names may also be specified). The execution of process() produces a nested list that
+        stores in each element:
+
+            * User ID
+            * Block count
+            * Date of first block
+            * Date of Last block
+            * Date of ban
+
+        The process method for this metric breaks conformity with other metrics in that it expects usernames, and not
+        user IDs, by default (see example below).
+
         Example: ::
 
-            >>> import libraries.metrics.Blocks as blocks
-            >>> b = B.Blocks(date_start='2011-01-01 00:00:00')
-            >>> p.process(['Wesley Mouse', 'Nickyp88'])
-            {'Nickyp88': {'ban': -1, 'block': [1L, '20110809143215', '20110809143215']}, 'Wesley_Mouse': {'ban': -1, 'block': [2L, '20110830010835', '20120526192657']}}
+            >>> import src.metrics.blocks as b
+            >>> block_obj = b.Blocks(date_start='2011-01-01 00:00:00')
+            >>> for r in block_obj.process(['Wesley Mouse', 'Nickyp88']).__iter__(): print r
+            ...
+            ['Nickyp88', 1L, '20110809143215', '20110809143215', -1]
+            ['Wesley_Mouse', 2L, '20110830010835', '20120526192657', -1]
     """
 
     def __init__(self,
@@ -32,14 +47,14 @@ class Blocks(um.UserMetric):
 
     def process(self, user_handle, is_id=False, **kwargs):
         """
-            Process method for the "blocks" metric.  Returns a hash containing
+            Process method for the "blocks" metric.  Computes a list of block and ban events for users.
 
             Parameters:
-                - **elems** - List.  Elements to format as csv string
-                - **include_quotes** - Boolean.  Determines whether the return string inserts quotes around the elements
+                - **user_handle** - List.  List of user names (or IDs).
+                - **is_id** - Boolean.  Defaults to False.
 
             Return:
-                - Dict().  {USER : {BLOCKS : [count, time of first, time of last]}, {BAN : time of ban}}
+                - UserMetric::Blocks (self).
 
         """
         rowValues = {}
