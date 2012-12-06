@@ -1,9 +1,12 @@
 """
 
-This module will be used to define WMF metrics.  The Strategy behavioural pattern
-(http://en.wikipedia.org/wiki/Template_method_pattern) will be used to implement the metrics generation.
+This module will be used to define Wikimedia Foundation user metrics.  The Strategy behavioural pattern
+(http://en.wikipedia.org/wiki/Strategy_pattern) will be used to implement the metrics generation.  In general
+the UserMetric type utilizes the process() function attribute to produce an internal list of metrics for a specified
+set of user handles (typically ID but user names may also be specified) passed to the method on call. The execution of
+process() produces a nested list that can be accessed via generator with an object call to __iter__().
 
-For example: ::
+The class structure is generally as follows: ::
 
     class Metric(object):
 
