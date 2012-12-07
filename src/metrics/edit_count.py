@@ -49,10 +49,6 @@ class EditCount(um.UserMetric):
             - Paramters:
                 - **user_handle** - String or Integer (optionally lists):  Value or list of values representing user handle(s).
                 - **is_id** - Boolean.  Flag indicating whether user_handle stores user names or user ids
-                - **raw_count** - Boolean.  Flag indicating whether to return simply an integer count or counts broken out by user handle
-
-            - Return:
-                - Dictionary. key(string): user handle, value(Integer): edit counts
         """
 
         edit_count = list()
