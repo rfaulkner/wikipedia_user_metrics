@@ -56,7 +56,7 @@ def main(args):
 
                 # get header and initialize
                 header = f.readline().strip().split("\t")
-                for elem in header: row[elem] = 0
+                for i in meta_data['indices']: row[header[i]] = 0
 
                 # sum all of the elements of all of the lines
                 while 1:
