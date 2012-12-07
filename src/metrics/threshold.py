@@ -22,8 +22,9 @@ class Threshold(um.UserMetric):
 
         usage e.g.: ::
 
-            >>> import classes.Metrics as M
-            >>> M.BytesAdded(date_start='2012-07-30 00:00:00', raw_count=False, mode=1).process(123456)
+            >>> import src.etl.threshold as t
+            >>> for r in t.Threshold().process([13234584]).__iter__(): print r
+            (13234584L, 1)
     """
 
     def __init__(self,
@@ -65,7 +66,8 @@ class Threshold(um.UserMetric):
         # Format condition on user ids.  if no user handle exists there is no condition.
         if user_handle:
             if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
-            user_id_str = um.dl.DataLoader().format_comma_separated_list(user_handle, include_quotes=False)
+            user_id_str = um.dl.DataLoader().format_comma_separated_list(
+                um.dl.DataLoader().cast_elems_to_string(user_handle), include_quotes=False)
             user_id_cond = "and user_id in (%s)" % user_id_str
         else:
             user_id_cond = ''
@@ -118,4 +120,4 @@ class Threshold(um.UserMetric):
 
 # testing
 if __name__ == "__main__":
-    Threshold(date_start='20121101000000').process([])
+    for r in Threshold().process([13234584]).__iter__(): print r
