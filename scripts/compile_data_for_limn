@@ -36,6 +36,7 @@ def get_data_type(type_str):
 def main(args):
 
     rows = list()
+    header = list()
 
     for filename in os.listdir(s.__data_home__):
         if re.search(args.regex,filename):
@@ -67,8 +68,19 @@ def main(args):
 
             rows.append(row)
 
+    # Build datafiles and datasorces
     ds = limnpy.DataSource(args.data_source, " ".join(args.data_source.split()), rows)
     ds.write(basedir = s.__data_home__)
+
+    # Build graph from datasources
+    g = limnpy.Graph(args.data_source, args.graph_handle, [ds] * (len(header) - 1),
+        [(args.data_source, i) for i in header[1:]])
+    g.write(basedir = s.__data_home__)
+
+    # build dashboard
+    dash = limnpy.Dashboard(args.data_source, args.dash_handle, 'Dashboard')
+    dash.add_tab('core', [g.__graph__['id']])
+    dash.write(basedir = s.__data_home__)
 
 if __name__ == "__main__":
 
@@ -90,6 +102,8 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--date_end',type=str, help='End date of measurement.', default=today)
     parser.add_argument('-t', '--data_type',type=str, help='Type of data to aggregate.', default='dau')
     parser.add_argument('-d', '--data_source',type=str, help='Data source name.', default='metric')
+    parser.add_argument('-l', '--dash_handle',type=str, help='Dashboard title.', default='metric_dashboard')
+    parser.add_argument('-g', '--graph_handle',type=str, help='Graph title.', default='metric_graph')
 
     args = parser.parse_args()
     sys.exit(main(args))
