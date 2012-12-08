@@ -90,7 +90,7 @@ class Threshold(um.UserMetric):
             from %(project)s.revision as r
                 join %(project)s.page as p
                 on r.rev_page = p.page_id
-            where p.page_namespace = %(ns)s and rev_timestamp <= %(ts)s and rev_id = %(id)s
+            where p.page_namespace = %(ns)s and rev_timestamp <= %(ts)s and rev_user = %(id)s
         """
         sql = " ".join(sql.strip().split('\n'))
 
