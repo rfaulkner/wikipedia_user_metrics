@@ -10,6 +10,9 @@ __date__ = "12/07/2012"
 __license__ = "GPL (version 2 or later)"
 
 import sys
+import e3_settings as s
+sys.path.append(s.__E3_Analysis_Home__)
+
 import datetime
 import logging
 import argparse
@@ -45,6 +48,7 @@ def main(args):
     for i in xrange(len(ts_list) - 1):
         total=0
         pos=0
+        logging.info('Processing time series data for %s...' % str(ts_list[i]))
         for r in th.Threshold(date_start=ts_list[i], date_end=ts_list[i+1],n=1,t=1440).process([]).__iter__():
             try:
                 if r[1]: pos+=1
