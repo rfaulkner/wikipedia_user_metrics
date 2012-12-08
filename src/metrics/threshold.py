@@ -51,18 +51,11 @@ class Threshold(um.UserMetric):
         return ['user_id', 'has_reached_threshold']
 
     def process(self, user_handle, is_id=True, **kwargs):
-
         """
-            Determine ...
-
             - Parameters:
                 - **user_handle** - String or Integer (optionally lists).  Value or list of values representing user handle(s).
                 - **is_id** - Boolean.  Flag indicating whether user_handle stores user names or user ids
-
         """
-
-        # get all registrations in the time period
-
         # Format condition on user ids.  if no user handle exists there is no condition.
         if user_handle:
             if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
@@ -72,6 +65,7 @@ class Threshold(um.UserMetric):
         else:
             user_id_cond = ''
 
+        # get all registrations in the time period
         sql = """
             select
                 user_id,
