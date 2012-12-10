@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-    Generate
+    Script for generating time series datasets.  Uses module 'src.etl.time_series_process_methods'.
 """
 
 __author__ = "ryan faulkner"
@@ -16,11 +16,8 @@ sys.path.append(s.__E3_Analysis_Home__)
 import datetime
 import logging
 import argparse
-# import multiprocessing
-from dateutil.parser import parse as date_parse
-
 import src.etl.data_loader as dl
-import src.metrics.threshold as th
+import src.etl.time_series_process_methods as tspm
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
@@ -34,32 +31,11 @@ def main(args):
         logging.error('Specify valid resolution int. 0=hour,1=day,2=week,3=month.')
         return
 
-    c = date_parse(args.date_start)
-    e = date_parse(args.date_end)
-    ts_list = list()
-
-    while c < e:
-        ts_list.append(c)
-        c += datetime.timedelta(hours=interval)
-
-    # Temporary: implement for threshold
-    # @TODO - abstract out of script
-    data=list()
-    for i in xrange(len(ts_list) - 1):
-        total=0
-        pos=0
-        logging.info('Processing time series data for %s...' % str(ts_list[i]))
-        for r in th.Threshold(date_start=ts_list[i], date_end=ts_list[i+1],n=1,t=1440).process([]).__iter__():
-            try:
-                if r[1]: pos+=1
-            except IndexError: continue
-            except TypeError: continue
-            total+=1
-        data.append((ts_list[i], float(pos) / total))
-
-    print data
     # Write to a tsv
-    dl.DataLoader().list_to_xsv(data)
+    try:
+        dl.DataLoader().list_to_xsv(tspm.DataTypeMethods.DATA_TYPE[args.data_type](args, interval))
+    except KeyError:
+        logging.info('Invalid data type.')
 
 if __name__ == "__main__":
 
@@ -82,6 +58,7 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--resolution',type=int, help='0=hour,1=day,2=week,3=month.',default=1)
     parser.add_argument('-s', '--date_start',type=str, help='Start date of measurement.', default=yesterday)
     parser.add_argument('-e', '--date_end',type=str, help='End date of measurement.', default=today)
+    parser.add_argument('-t', '--data_type',type=str, help='Type of data to gather.', default='prod')
     args = parser.parse_args()
 
     sys.exit(main(args))
