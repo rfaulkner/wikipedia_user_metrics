@@ -4,6 +4,11 @@ __date__ = "December 6th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import datetime
+import math
+import collections
+import os
+
+import multiprocessing as mp
 import user_metric as um
 
 class Threshold(um.UserMetric):
@@ -56,6 +61,10 @@ class Threshold(um.UserMetric):
                 - **user_handle** - String or Integer (optionally lists).  Value or list of values representing user handle(s).
                 - **is_id** - Boolean.  Flag indicating whether user_handle stores user names or user ids
         """
+
+        k = kwargs['num_threads'] if 'num_threads' in kwargs else 0
+        log_progress = bool(kwargs['log_progress']) if 'log_progress' in kwargs else False
+
         # Format condition on user ids.  if no user handle exists there is no condition.
         if user_handle:
             if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
@@ -82,9 +91,46 @@ class Threshold(um.UserMetric):
 
         self._data_source_._cur_.execute(" ".join(sql.strip().split('\n')))
 
-        # for each user get
+        # Multiprocessing vs. single processing execution
+        user_data = [r for r in self._data_source_._cur_]
 
-        sql = """
+        if k:
+            n = int(math.ceil(float(len(user_data)) / k))
+
+            arg_list = list()
+            for i in xrange(k):
+                arg_list.append([self._project_, self._namespace_, self._n_, self._t_, user_data[i * n : (i + 1) * n],
+                    log_progress])
+            pool = mp.Pool(processes=len(arg_list))
+
+            self._results = list()
+            for elem in pool.map(_process_help, arg_list): self._results.extend(elem)
+
+            try:
+                pool.close()
+            except RuntimeError:
+                pass
+
+        else:
+            self._results = _process_help([self._project_, self._namespace_,
+                self._n_, self._t_, user_data])
+
+        return self
+
+
+def _process_help(args):
+    """ Used by Threshold::process() for forking.  Should not be called externally. """
+
+    ThresholdArgsClass = collections.namedtuple('ThresholdArgs', 'project namespace n t user_data log_progress')
+    args = ThresholdArgsClass(args[0],args[1],args[2],args[3],args[4],args[5])
+
+    if args.log_progress: print str(datetime.datetime.now()) + ' - Processing revision data ' + \
+        '(%s users) by user... (PID = %s)' % (len(args.user_data), os.getpid())
+
+    # only proceed if there is user data
+    if not len(args.user_data): return []
+
+    sql = """
             select
                 count(*) as revs
             from %(project)s.revision as r
@@ -92,26 +138,30 @@ class Threshold(um.UserMetric):
                 on r.rev_page = p.page_id
             where p.page_namespace = %(ns)s and rev_timestamp <= %(ts)s and rev_user = %(id)s
         """
-        sql = " ".join(sql.strip().split('\n'))
+    sql = " ".join(sql.strip().split('\n'))
 
-        self._results = list()
-        for r in self._data_source_._cur_:
-            try:
-                ts = self._get_timestamp(um.date_parse(r[1]) + datetime.timedelta(minutes=self._t_))
-                id = long(r[0])
+    conn = um.dl.Connector(instance='slave')
+    results = list()
+    for r in args.user_data:
+        try:
+            ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) + datetime.timedelta(minutes=args.t))
+            id = long(r[0])
 
-                self._data_source_._cur_.execute(sql % {'project' : self._project_, 'ts' : ts,
-                                                        'ns' : self._namespace_, 'id' : id})
-                count = int(self._data_source_._cur_.fetchone()[0])
-            except IndexError: continue
-            except ValueError: continue
+            conn._cur_.execute(sql % {'project' : args.project, 'ts' : ts,
+                                      'ns' : args.namespace, 'id' : id})
+            count = int(conn._cur_.fetchone()[0])
+        except IndexError: continue
+        except ValueError: continue
 
-            if count < self._n_:
-                self._results.append((r[0],0))
-            else:
-                self._results.append((r[0],1))
-        return self
+        if count < args.n:
+            results.append((r[0],0))
+        else:
+            results.append((r[0],1))
+
+    if args.log_progress: print str(datetime.datetime.now()) + ' - Processed PID = %s.' % os.getpid()
+
+    return results
 
 # testing
 if __name__ == "__main__":
-    for r in Threshold().process([13234584]).__iter__(): print r
+    for r in Threshold().process([13234584, 156171], num_threads=2, log_progress=True).__iter__(): print r
