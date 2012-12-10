@@ -67,7 +67,7 @@ class BytesAdded(um.UserMetric):
     def process(self, user_handle=None, is_id=True, **kwargs):
         """ Setup metrics gathering using multiprocessing """
 
-        k = kwargs['num_threads'] if 'num_threads' in kwargs else 1
+        k = kwargs['num_threads'] if 'num_threads' in kwargs else 0
         log_progress = bool(kwargs['log_progress']) if 'log_progress' in kwargs else False
         log_frequency = int(kwargs['log_frequency']) if 'log_frequency' in kwargs else 1000
 
