@@ -57,13 +57,22 @@ class Threshold(um.UserMetric):
 
     def process(self, user_handle, is_id=True, **kwargs):
         """
+            This function gathers threahold (survival) metric data by: ::
+
+                1. selecting all new user registrations within the timeframe and in the user list (empty means select
+                all withing the timeframe.)
+                2. For each user id find the number of revisions before (after) the threshold (survival) cut-off time t
+
             - Parameters:
                 - **user_handle** - String or Integer (optionally lists).  Value or list of values representing user handle(s).
                 - **is_id** - Boolean.  Flag indicating whether user_handle stores user names or user ids
+
+            **NOTA BENE** - kwarg "survival" is used to execute has this determine survival rather than a threshold metric
         """
 
         k = kwargs['num_threads'] if 'num_threads' in kwargs else 0
         log_progress = bool(kwargs['log_progress']) if 'log_progress' in kwargs else False
+        survival = bool(kwargs['survival']) if 'survival' in kwargs else False
 
         # Format condition on user ids.  if no user handle exists there is no condition.
         if user_handle:
@@ -100,7 +109,7 @@ class Threshold(um.UserMetric):
             arg_list = list()
             for i in xrange(k):
                 arg_list.append([self._project_, self._namespace_, self._n_, self._t_, user_data[i * n : (i + 1) * n],
-                    log_progress])
+                    log_progress, survival])
             pool = mp.Pool(processes=len(arg_list))
 
             self._results = list()
@@ -113,7 +122,7 @@ class Threshold(um.UserMetric):
 
         else:
             self._results = _process_help([self._project_, self._namespace_,
-                self._n_, self._t_, user_data])
+                self._n_, self._t_, user_data, log_progress, survival])
 
         return self
 
@@ -121,14 +130,21 @@ class Threshold(um.UserMetric):
 def _process_help(args):
     """ Used by Threshold::process() for forking.  Should not be called externally. """
 
-    ThresholdArgsClass = collections.namedtuple('ThresholdArgs', 'project namespace n t user_data log_progress')
-    args = ThresholdArgsClass(args[0],args[1],args[2],args[3],args[4],args[5])
+    ThresholdArgsClass = collections.namedtuple('ThresholdArgs', 'project namespace n t user_data log_progress survival')
+    args = ThresholdArgsClass(args[0],args[1],args[2],args[3],args[4],args[5],args[6])
 
     if args.log_progress: print str(datetime.datetime.now()) + ' - Processing revision data ' + \
         '(%s users) by user... (PID = %s)' % (len(args.user_data), os.getpid())
 
     # only proceed if there is user data
     if not len(args.user_data): return []
+
+    # The key difference between survival and threshold is that threshold measures a level of activity before a point
+    # whereas survival (generally) measures any activity after a point
+    if args.survival:
+        timestamp_cond = ' and rev_timestamp > %(ts)s'
+    else:
+        timestamp_cond = ' and rev_timestamp <= %(ts)s'
 
     sql = """
             select
@@ -138,6 +154,7 @@ def _process_help(args):
                 on r.rev_page = p.page_id
             where p.page_namespace = %(ns)s and rev_timestamp <= %(ts)s and rev_user = %(id)s
         """
+    sql += timestamp_cond
     sql = " ".join(sql.strip().split('\n'))
 
     conn = um.dl.Connector(instance='slave')

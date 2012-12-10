@@ -5,6 +5,7 @@ __license__ = "GPL (version 2 or later)"
 
 import datetime
 import user_metric as um
+import threshold as th
 
 class Survival(um.UserMetric):
     """
@@ -18,16 +19,14 @@ class Survival(um.UserMetric):
         stores in each element:
 
             * User ID
-            * Net bytes contributed over the period of measurement
-            * Absolute bytes contributed over the period of measurement
-            * Bytes added over the period of measurement
+            * boolean flag to indicate whether the user met the survival criteria
 
         usage e.g.: ::
 
-            >>> import classes.Metrics as M
-            >>> M.BytesAdded(date_start='2012-07-30 00:00:00', raw_count=False, mode=1).process(123456)
-            5
-            1200
+            >>> import src.etl.threshold as t
+            >>> for r in t.Threshold().process([13234584]).__iter__(): print r
+            (13234584L, 1)
+
     """
 
     def __init__(self,
@@ -48,12 +47,12 @@ class Survival(um.UserMetric):
 
     @staticmethod
     def header():
-        return ['user_id', 'is_', ]
+        return ['user_id', 'is_alive']
 
     def process(self, user_handle, is_id=True, **kwargs):
 
         """
-            Determine ...
+            Wraps the functionality of UserMetric::Threshold by setting the `survival` flag in process().
 
             - Parameters:
                 - **user_handle** - String or Integer (optionally lists).  Value or list of values representing user handle(s).
@@ -61,4 +60,16 @@ class Survival(um.UserMetric):
 
         """
 
-        return self
+        k = kwargs['num_threads'] if 'num_threads' in kwargs else 0
+        log_progress = bool(kwargs['log_progress']) if 'log_progress' in kwargs else False
+
+        return th.Threshold(
+            date_start=self._start_ts_,
+            date_end=self._end_ts_,
+            n=0,
+            t=self._t_).process(user_handle, survival=True, num_threads=k, log_progress=log_progress)
+
+# testing
+if __name__ == "__main__":
+    # did these users survive after a day?
+    for r in Survival().process([13234584, 156171], num_threads=2, log_progress=True).__iter__(): print r
