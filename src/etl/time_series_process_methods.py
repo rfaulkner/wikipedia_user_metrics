@@ -32,7 +32,8 @@ def productive_editors_by_day(args, interval):
             except IndexError: continue
             except TypeError: continue
             total+=1
-        yield (ts_list[i], float(pos) / total)
+        yield (ts_list[i], total, float(pos) / total)
+        # yields: (timestamp, total registrations, fraction of productive)
 
 class DataTypeMethods(object):
     DATA_TYPE = {'prod' : productive_editors_by_day}
