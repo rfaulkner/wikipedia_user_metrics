@@ -36,7 +36,7 @@ def main(args):
     if args.user_sql:
         conn = dl.Connector(instance='slave')
         conn._cur_.execute(args.user_sql)
-        uids = [r[0] for r in conn._cur_][:10]
+        uids = [r[0] for r in conn._cur_]
 
     # Write to a tsv
     try:
