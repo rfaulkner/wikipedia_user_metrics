@@ -273,7 +273,7 @@ class DataLoader(object):
 
         return out_list
 
-    def list_from_xsv(self, xsv_name, index, separator='\t', header=False):
+    def list_from_xsv(self, xsv_name, separator='\t', header=False):
         """
             Parse element from separated value file.  Return a list containing the values matched on each line of the file.
 
@@ -302,7 +302,7 @@ class DataLoader(object):
             out.append([str(tokens[index]) for index in xrange(len(tokens))])
         return out
 
-    def list_to_xsv(self, nested_list, separator='\t', log=False):
+    def list_to_xsv(self, nested_list, separator='\t', log=False, outfile='list_to_xsv.out'):
         """
             Transforms a nested list or t
 
@@ -311,7 +311,7 @@ class DataLoader(object):
                 - **separator**: String.  The separating character in the file.  Default to tab.
         """
         try:
-            file_obj = open(projSet.__data_file_dir__ + 'list_to_xsv.out', 'w')
+            file_obj = open(projSet.__data_file_dir__ + outfile, 'w')
         except IOError as e:
             logging.info('Could not open xsv for writing: %s' % e.message)
             return
