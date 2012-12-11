@@ -23,6 +23,7 @@ def productive_editors_by_day(args, interval,log=True, user_ids=None):
     while c < e:
         ts_list.append(c)
         c += datetime.timedelta(hours=interval)
+    ts_list.append(e)
 
     for i in xrange(len(ts_list) - 1):
         total=0
