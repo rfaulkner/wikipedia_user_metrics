@@ -121,6 +121,10 @@ class BytesAdded(um.UserMetric):
         where_clause = '%(field_name)s in (%(user_set)s) and %(ts_condition)s' % {
             'field_name' : field_name, 'user_set' : user_set, 'ts_condition' : ts_condition}
 
+        # format the namespace condition
+        ns_cond = um.UserMetric._format_namespace(self._namespace_)
+        if ns_cond: ns_cond += ' and'
+
         sql = """
                 select
                     %(field_name)s,
@@ -129,12 +133,12 @@ class BytesAdded(um.UserMetric):
                 from %(project)s.revision
                     join %(project)s.page
                     on page.page_id = revision.rev_page
-                where %(where_clause)s and page.page_namespace = %(namespace)s
+                where %(namespace)s %(where_clause)s
             """ % {
             'field_name' : field_name,
             'where_clause' : where_clause,
             'project' : self._project_,
-            'namespace' : self._namespace_}
+            'namespace' : ns_cond}
         sql = " ".join(sql.strip().split())
 
         if log_progress:
@@ -256,5 +260,5 @@ def _process_help(args):
 
 # Used for testing
 if __name__ == "__main__":
-    BytesAdded(date_start='20120101000000',date_end='20121101000000').process(user_handle=['156171','13234584'],
-        log_progress=True, log_frequency=10)
+    BytesAdded(date_start='20120101000000',date_end='20121101000000', namespace=[0,1]).process(user_handle=['156171','13234584'],
+        log_progress=True)

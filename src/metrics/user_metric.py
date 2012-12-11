@@ -52,18 +52,24 @@ from dateutil.parser import parse as date_parse
 
 class UserMetric(object):
 
+    ALL_NAMESPACES = 'all_namespaces'
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
     _static_conn = None
 
     def __init__(self,
                  project='enwiki',
-                 namespace=0,
+                 namespace=ALL_NAMESPACES,
                  **kwargs):
 
         self._data_source_ = dl.Connector(instance='slave')
         self._results = []
-        self._namespace_ = namespace
         self._project_ = project
+
+        if not namespace == self.ALL_NAMESPACES:
+            if not hasattr(namespace, '__iter__'): namespace = [namespace]
+            self._namespace_ = set(namespace)
+        else:
+            self._namespace_ = namespace
 
     def __str__(self): return "\n".join([str(self._data_source_._db_), str(self.__class__),
                                          str(self._namespace_), self._project_])
@@ -130,6 +136,17 @@ class UserMetric(object):
             return escaped_var
         else:
             return MySQLdb.escape_string(str(var))
+
+    @classmethod
+    def _format_namespace(cls, namespace):
+        # format the namespace condition
+        ns_cond = ''
+        if hasattr(namespace, '__iter'):
+            if len(namespace) == 1:
+                ns_cond = 'page_namespace = ' + str(namespace.pop())
+            else:
+                ns_cond = 'page_namespace in (' + ",".join(namespace) + ')'
+        return ns_cond
 
     @staticmethod
     def header(): raise NotImplementedError

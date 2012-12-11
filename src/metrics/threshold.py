@@ -147,13 +147,17 @@ def _process_help(args):
     else:
         timestamp_cond = ' and rev_timestamp <= %(ts)s'
 
+    # format the namespace condition
+    ns_cond = um.UserMetric._format_namespace(args.namespace)
+    if ns_cond: ns_cond += ' and'
+
     sql = """
             select
                 count(*) as revs
             from %(project)s.revision as r
                 join %(project)s.page as p
                 on r.rev_page = p.page_id
-            where p.page_namespace = %(ns)s and rev_timestamp <= %(ts)s and rev_user = %(id)s
+            where %(ns)s rev_timestamp <= %(ts)s and rev_user = %(id)s
         """
     sql += timestamp_cond
     sql = " ".join(sql.strip().split('\n'))
@@ -166,7 +170,7 @@ def _process_help(args):
             id = long(r[0])
 
             conn._cur_.execute(sql % {'project' : args.project, 'ts' : ts,
-                                      'ns' : args.namespace, 'id' : id})
+                                      'ns' : ns_cond, 'id' : id})
             count = int(conn._cur_.fetchone()[0])
         except IndexError: continue
         except ValueError: continue
@@ -182,4 +186,5 @@ def _process_help(args):
 
 # testing
 if __name__ == "__main__":
-    for r in Threshold().process([13234584, 156171], num_threads=2, log_progress=True).__iter__(): print r
+    for r in Threshold(namespace=[0,4]).process([13234584, 156171], num_threads=0,
+        log_progress=True).__iter__(): print r
