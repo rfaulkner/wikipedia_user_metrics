@@ -79,17 +79,18 @@ class Threshold(um.UserMetric):
             if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
             user_id_str = um.dl.DataLoader().format_comma_separated_list(
                 um.dl.DataLoader().cast_elems_to_string(user_handle), include_quotes=False)
-            user_id_cond = "and user_id in (%s)" % user_id_str
+            user_id_cond = "and log_user in (%s)" % user_id_str
         else:
             user_id_cond = ''
 
         # get all registrations in the time period
         sql = """
             select
-                user_id,
-                user_registration
-            from %(project)s.user
-            where user.user_registration >= %(date_start)s and user.user_registration <= %(date_end)s
+                log_user,
+                log_timestamp
+            from %(project)s.logging
+            where log_timestamp >= %(date_start)s and log_timestamp <= %(date_end)s and
+                log_action = 'create' AND log_type='newusers'
                 %(uid_str)s
         """ % {
             'project' : self._project_,
