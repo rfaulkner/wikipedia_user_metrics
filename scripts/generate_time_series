@@ -40,7 +40,8 @@ def main(args):
 
     # Write to a tsv
     try:
-        dl.DataLoader().list_to_xsv(tspm.DataTypeMethods.DATA_TYPE[args.data_type](args, interval, user_ids=uids))
+        dl.DataLoader().list_to_xsv(tspm.DataTypeMethods.DATA_TYPE[args.data_type](args, interval, user_ids=uids),
+        outfile=args.outfile)
     except KeyError:
         logging.info('Invalid data type.')
 
@@ -66,6 +67,7 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--date_end',type=str, help='End date of measurement.', default=today)
     parser.add_argument('-t', '--data_type',type=str, help='Type of data to gather.', default='prod')
     parser.add_argument('-u', '--user_sql',type=str, help='Specify user SQL query to get IDs.', default='')
+    parser.add_argument('-o', '--outfile',type=str, help='Specify output filename.', default='time_series.tsv')
     args = parser.parse_args()
 
     sys.exit(main(args))
