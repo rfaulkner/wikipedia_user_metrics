@@ -124,7 +124,7 @@ experiments = {
     },
 
     'acux2' : {
-        'version' : 4,
+        'version' : 2,
         'log_files' : ['clicktracking.log-20121018.gz', 'clicktracking.log-20121019.gz',
                        'clicktracking.log-20121020.gz', 'clicktracking.log-20121021.gz',
                        'clicktracking.log-20121022.gz', 'clicktracking.log-20121023.gz',
