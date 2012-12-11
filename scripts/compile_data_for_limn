@@ -2,11 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-    Transform data to limn parsable format.
-
-    This script reads data files from <data_home> (e.g. $PROJECT_HOME/E3_analysis/data/) that
-
-    Utilizes etl/metrics_data_parser.py to
+    Transform data to limn parsable format using limnpy.  This script reads data files from <data_home> (e.g.
+    $PROJECT_HOME/E3_analysis/data/) and generates .json dashboard and graph files, .yaml datasource file, and
+    .csv datasource.
 """
 
 __author__ = "ryan faulkner"
