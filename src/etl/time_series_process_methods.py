@@ -11,28 +11,37 @@ import datetime
 from dateutil.parser import parse as date_parse
 import src.metrics.threshold as th
 
-def productive_editors_by_day(args, interval,log=True, user_ids=None):
+def _get_timeseries(date_start, date_end, interval):
+    """ Generates a series of timestamps given a start date, end date, and interval"""
+    c = date_parse(date_start) + datetime.timedelta(hours=-interval)
+    e = date_parse(date_end)
+
+    while c < e:
+        c += datetime.timedelta(hours=interval)
+        yield c
+
+
+def productive_editors(args,interval,log=True,user_ids=None):
     """ Computes a list of threshold metrics """
 
     if user_ids is None: user_ids = list() # assign an empty list in case default arg is used
+    time_series = _get_timeseries(args.date_start, args.date_end, interval)
 
-    c = date_parse(args.date_start)
-    e = date_parse(args.date_end)
-    ts_list = list()
+    ts_s = time_series.next()
+    while 1:
+        try:
+            ts_e = time_series.next()
+        except StopIteration:
+            break
 
-    while c < e:
-        ts_list.append(c)
-        c += datetime.timedelta(hours=interval)
-    ts_list.append(e)
-
-    for i in xrange(len(ts_list) - 1):
         total=0
         pos=0
 
         if log:
-            print str(datetime.datetime.now()) + ' - Processing time series data for %s...' % str(ts_list[i])
+            print str(datetime.datetime.now()) + ' - Processing time series data for %s...' % str(ts_s)
 
-        for r in th.Threshold(date_start=ts_list[i], date_end=ts_list[i+1],n=1,t=1440).process(user_ids).__iter__():
+        for r in th.Threshold(date_start=ts_s, date_end=ts_e,n=10,t=1440).process(user_ids,
+            log_progress=True, num_threads=0).__iter__():
             try:
                 if r[1]: pos+=1
             except IndexError: continue
@@ -40,14 +49,14 @@ def productive_editors_by_day(args, interval,log=True, user_ids=None):
             total+=1
 
         if log:
-            print " ".join(['timestamp = ', str(ts_list[i]), ', total registrations = ',
+            print " ".join(['timestamp = ', str(ts_s), ', total registrations = ',
                             str(total), ', % prod editors = ',str(float(pos) / total)])
 
-        yield (ts_list[i], total, float(pos) / total)
-        # yields: (timestamp, total registrations, fraction of productive)
+        yield (ts_s, total, float(pos) / total) # yields: (timestamp, total registrations, fraction of productive)
+        ts_s = ts_e
 
 class DataTypeMethods(object):
-    DATA_TYPE = {'prod' : productive_editors_by_day}
+    DATA_TYPE = {'prod' : productive_editors}
 
 
 
