@@ -75,13 +75,11 @@ class Threshold(um.UserMetric):
         survival = bool(kwargs['survival']) if 'survival' in kwargs else False
 
         # Format condition on user ids.  if no user handle exists there is no condition.
-        if user_handle:
-            if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
-            user_id_str = um.dl.DataLoader().format_comma_separated_list(
-                um.dl.DataLoader().cast_elems_to_string(user_handle), include_quotes=False)
-            user_id_cond = "and log_user in (%s)" % user_id_str
-        else:
-            user_id_cond = ''
+        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
+        if not user_handle: user_handle.append(-1)
+        user_id_str = um.dl.DataLoader().format_comma_separated_list(
+            um.dl.DataLoader().cast_elems_to_string(user_handle), include_quotes=False)
+        user_id_cond = "and log_user in (%s)" % user_id_str
 
         # get all registrations in the time period
         sql = """
