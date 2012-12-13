@@ -143,7 +143,8 @@ def _process_help(args):
     user_data = args[0]
     conn = dl.Connector(instance='slave')
 
-    if thread_args.log_progress: print 'Computing reverts on %s users in thread %s.' % (len(user_data),
+    if thread_args.log_progress:
+        print str(datetime.datetime.now()) + ' - Computing reverts on %s users in thread %s.' % (len(user_data),
                                                                                             str(os.getpid()))
     results_agg = list()
     for user in user_data:
@@ -179,6 +180,7 @@ def _process_help(args):
         else:
             results_agg.append([user, total_reverts / total_revisions, total_revisions])
 
+    if thread_args.log_progress: print str(datetime.datetime.now()) +  'PID %s complete.' % (str(os.getpid()))
     return results_agg
 
 def _revision_proc(args):
@@ -189,8 +191,7 @@ def _revision_proc(args):
     rev_data = args[0]
     conn = dl.Connector(instance='slave')
 
-    if thread_args.log_progress: print 'Computing reverts on %s revisions in thread %s.' % (len(rev_data),
-                                                                                            str(os.getpid()))
+    # if thread_args.log_progress: print 'Computing reverts on %s revisions in thread %s.' % (len(rev_data), str(os.getpid()))
     revision_count = 0.0
     revert_count = 0.0
     for rev in rev_data:
@@ -201,5 +202,8 @@ def _revision_proc(args):
 
 # testing
 if __name__ == "__main__":
-    r = RevertRate(date_start='2008-01-01 00:00:00', date_end='2008-05-01 00:00:00')
-    for r in r.process('156171',num_threads=0,rev_threads=10, log_progress=True): print r
+    r = RevertRate()
+    users = ['17792132', '17797320', '17792130', '17792131', '17792136',
+             '17792137', '17792134', '17797328', '17797329', '17792138']
+    for r in r.process(users,num_threads=2,rev_threads=10, log_progress=True): print r
+    # for r in r.process('156171',num_threads=2,rev_threads=10, log_progress=True): print r
