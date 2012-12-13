@@ -34,7 +34,10 @@ def threshold_editors_agg(metric):
             total+=1
         except IndexError: continue
         except TypeError: continue
-    return total, pos
+    if total:
+        return total, pos, float(pos) / total
+    else:
+        return total, pos, 0.0
 
 @decorator_builder(rr.RevertRate.header())
 def reverted_revs_agg(metric):

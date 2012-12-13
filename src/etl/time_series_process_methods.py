@@ -56,12 +56,12 @@ def threshold_editors(args,interval,log=True,project='enwiki',k=1,n=1,t=1440):
         # Build an iterator across users for a given threshold
         threshold_obj = th.Threshold(date_start=ts_s, date_end=ts_e,n=n,t=t).process(user_ids,
             log_progress=True, num_threads=k)
-        total, pos = agg.threshold_editors_agg(threshold_obj)
+        total, pos, rate = agg.threshold_editors_agg(threshold_obj)
 
         if log: print " ".join(['timestamp = ', str(ts_s), ', total registrations = ',
-                            str(total), ', % prod editors = ',str(float(pos) / total)])
+                            str(total), ', % prod editors = ',str(rate)])
 
-        yield (ts_s, total, float(pos) / total) # yields: (timestamp, total registrations, fraction of productive)
+        yield (ts_s, total, rate) # yields: (timestamp, total registrations, fraction of productive)
         ts_s = ts_e
 
 
