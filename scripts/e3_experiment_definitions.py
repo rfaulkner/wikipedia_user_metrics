@@ -116,7 +116,7 @@ experiments = {
                 },
 
                 'user_list' : lambda d: [d.__setitem__(row[0],row[1]) for row in dl.Connector(
-                    instance = 'slave').execute_SQL('select user_id, timestamp from e3_cta4_server_logs')]
+                    instance = 'slave').execute_SQL('select user_id, timestamp from e3_cta4_server_logs where self_made=1')]
     },
 
     'acux2' : {
@@ -176,7 +176,7 @@ experiments = {
         },
 
         'user_list' : lambda d: [d.__setitem__(row[0],row[1]) for row in dl.Connector(
-            instance = 'slave').execute_SQL('select user_id, timestamp from e3_acux2_server_events')],
+            instance = 'slave').execute_SQL('select user_id, timestamp from e3_acux2_server_events where self_made=1')],
 
         'metric_tables' : {
             'blocks' : { 'definition' : """
@@ -234,7 +234,7 @@ experiments['acux3']['log_files'] = ['clicktracking.log-20121106.gz', 'clicktrac
 experiments['acux3']['start_date'] = '2012110600000'
 experiments['acux3']['end_date'] = '2012112300000'
 experiments['acux3']['user_list'] = lambda d: [d.__setitem__(row[0],row[1]) for row in dl.Connector(
-    instance = 'slave').execute_SQL('select user_id, timestamp from e3_acux3_server_events')]
+    instance = 'slave').execute_SQL('select user_id, timestamp from e3_acux3_server_events where self_made=1')]
 
 # Add experiment name to tables
 for exp in experiments.keys():
