@@ -145,7 +145,7 @@ def _process_help(args):
 
     if thread_args.log_progress: print 'Computing reverts on %s users in thread %s.' % (len(user_data),
                                                                                             str(os.getpid()))
-    results = list()
+    results_agg = list()
     for user in user_data:
         conn._cur_.execute(
             """
@@ -168,18 +168,18 @@ def _process_help(args):
         total_reverts = 0.0
 
         revisions = [rev for rev in conn._cur_]
-        results = mpw.build_thread_pool(revisions,_revision_proc,thread_args.rev_threads,state)
+        results_thread = mpw.build_thread_pool(revisions,_revision_proc,thread_args.rev_threads,state)
 
-        for r in results:
+        for r in results_thread:
             total_revisions += r[0]
             total_reverts += r[1]
 
         if not total_revisions:
-            results.append([user, 0.0, total_revisions])
+            results_agg.append([user, 0.0, total_revisions])
         else:
-            results.append([user, total_reverts / total_revisions, total_revisions])
+            results_agg.append([user, total_reverts / total_revisions, total_revisions])
 
-    return results
+    return results_agg
 
 def _revision_proc(args):
     """ helper method for computing reverts """
