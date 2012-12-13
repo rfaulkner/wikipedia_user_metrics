@@ -5,8 +5,15 @@ __date__ = "October 29th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import user_metric as um
+import src.etl.data_loader as dl
 import datetime
+import collections
+import os
+import src.utils.multiprocessing_wrapper as mpw
 
+# Definition of persistent state for RevertRate objects
+RevertRateArgsClass = collections.namedtuple('RevertRateArgs', 'project log_progress '
+                                                               'look_ahead look_back date_start date_end rev_threads')
 class RevertRate(um.UserMetric):
     """
         Skeleton class for "RevertRate" metric:
@@ -26,8 +33,9 @@ class RevertRate(um.UserMetric):
         For example to produce the above datapoint for a user id one could call: ::
 
             >>> import src.metrics.revert_rate as rr
-            >>> rr.RevertRate(date_start='2012-07-30 00:00:00',look_back=10,look_ahead=10).process([13234584]).__iter__().next()
-            [13234584, 0.0, 2.0]
+            >>>     r = RevertRate(date_start='2008-01-01 00:00:00', date_end='2008-05-01 00:00:00')
+            >>> for r in r.process('156171',num_threads=0,rev_threads=10, log_progress=True): print r
+            ['156171', 0.0, 210.0]
 
         In this call `look_ahead` and `look_back` indicate how many revisions in the past and in the future for a given
         article we are willing to look for a revert.  The identification of reverts is done by matching sha1 checksum values
@@ -40,7 +48,7 @@ class RevertRate(um.UserMetric):
     def __init__(self,
                  look_back=15,
                  look_ahead=15,
-                 date_start='2008-01-01 00:00:00',
+                 date_start='2010-01-01 00:00:00',
                  date_end=datetime.datetime.now(),
                  **kwargs):
 
@@ -57,105 +65,141 @@ class RevertRate(um.UserMetric):
     def process(self, user_handle, is_id=True, **kwargs):
 
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
+        k = kwargs['num_threads'] if 'num_threads' in kwargs else 0
+        k_r = kwargs['rev_threads'] if 'rev_threads' in kwargs else 1
+        log_progress = bool(kwargs['log_progress']) if 'log_progress' in kwargs else False
 
-        # Get user revisions
-        for user in user_handle:
-            self._data_source_._cur_.execute(
-                """
-                    select
-                        rev_user,
-                        rev_page,
-                        rev_sha1,
-                        rev_user_text
-                    from %(project)s.revision
-                    where rev_user = %(user)s and
-                    rev_timestamp > "%(start_ts)s" and rev_timestamp <= "%(end_ts)s"
-                     """ % {
-                'project' : self._project_,
-                'user' : user,
-                'start_ts' : self._start_ts_,
-                'end_ts' : self._end_ts_
-                })
-
-            total_revisions = 0.0
-            total_reverts = 0.0
-            for rev in self._data_source_._cur_:
-                if self.__revert(rev[0], rev[1], rev[2], rev[3]):
-                    total_reverts += 1.0
-                total_revisions += 1.0
-
-            if not total_revisions:
-                self._results.append([user, 0.0, total_revisions])
-            else:
-                self._results.append([user, total_reverts / total_revisions, total_revisions])
+        # Multiprocessing vs. single processing execution
+        args = [self._project_, log_progress, self.look_ahead, self.look_back, self._start_ts_, self._end_ts_, k_r]
+        if k:
+            self._results = mpw.build_thread_pool(user_handle,_process_help,k,args)
+        else:
+            self._results = _process_help([user_handle, args])
 
         return self
 
-    def __revert(self, rev_id, page_id, sha1, user_text):
-        """ Returns the revision corresponding to a revision if it exists. """
-        history = {}
-        for rev in self.__history(self._data_source_._db_, rev_id, page_id, self.look_back, project=self._project_):
-            history[rev[self.REV_SHA1_IDX]] = rev
+def __revert(conn, rev_id, page_id, sha1, user_text, metric_args):
+    """ Returns the revision corresponding to a revision if it exists. """
+    history = {}
+    for rev in __history(conn._db_, rev_id, page_id, metric_args.look_back, project=metric_args.project):
+        history[rev[RevertRate.REV_SHA1_IDX]] = rev
 
-        for rev in self.__future(self._data_source_._db_, rev_id, page_id, self.look_ahead, project=self._project_):
-            if rev[self.REV_SHA1_IDX] in history and rev[self.REV_SHA1_IDX] != sha1:
-                if user_text == rev[self.REV_USER_TEXT_IDX]:
-                    return None
-                else:
-                    return rev
+    for rev in __future(conn._db_, rev_id, page_id, metric_args.look_ahead, project=metric_args.project):
+        if rev[RevertRate.REV_SHA1_IDX] in history and rev[RevertRate.REV_SHA1_IDX] != sha1:
+            if user_text == rev[RevertRate.REV_USER_TEXT_IDX]:
+                return None
+            else:
+                return rev
 
-    @staticmethod
-    def __history(conn, rev_id, page_id, n, project='enwiki'):
-        """ Produce the n revisions on a page before a given revision """
-        cursor = conn.cursor()
-        cursor.execute(
+def __history(conn, rev_id, page_id, n, project='enwiki'):
+    """ Produce the n revisions on a page before a given revision """
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+            SELECT rev_id, rev_user_text, rev_sha1
+            FROM %(project)s.revision
+            WHERE rev_page = %(page_id)s
+                AND rev_id < %(rev_id)s
+            ORDER BY rev_id DESC
+            LIMIT %(n)s
+        """ % {
+            'rev_id':  rev_id,
+            'page_id': page_id,
+            'n':       n,
+            'project': project
+        }
+    )
+
+    for row in cursor:
+        yield row
+
+def __future(conn, rev_id, page_id, n, project='enwiki'):
+    """ Produce the n revisions on a page after a given revision """
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+            SELECT rev_id, rev_user_text, rev_sha1
+            FROM %(project)s.revision
+            WHERE rev_page = %(page_id)s
+                AND rev_id > %(rev_id)s
+            ORDER BY rev_id ASC
+            LIMIT %(n)s
+        """ % {
+            'rev_id':  rev_id,
+            'page_id': page_id,
+            'n':       n,
+            'project': project
+        }
+    )
+
+    for row in cursor:
+        yield row
+
+def _process_help(args):
+    """ Used by Threshold::process() for forking.  Should not be called externally. """
+
+    state = args[1]
+    thread_args = RevertRateArgsClass(state[0],state[1],state[2],state[3],state[4],state[5],state[6])
+    user_data = args[0]
+    conn = dl.Connector(instance='slave')
+
+    if thread_args.log_progress: print 'Computing reverts on %s users in thread %s.' % (len(user_data),
+                                                                                            str(os.getpid()))
+    results = list()
+    for user in user_data:
+        conn._cur_.execute(
             """
-                SELECT rev_id, rev_user_text, rev_sha1
-                FROM %(project)s.revision
-                WHERE rev_page = %(page_id)s
-                    AND rev_id < %(rev_id)s
-                ORDER BY rev_id DESC
-                LIMIT %(n)s
+           select
+               rev_user,
+               rev_page,
+               rev_sha1,
+               rev_user_text
+           from %(project)s.revision
+           where rev_user = %(user)s and
+           rev_timestamp > "%(start_ts)s" and rev_timestamp <= "%(end_ts)s"
             """ % {
-                'rev_id':  rev_id,
-                'page_id': page_id,
-                'n':       n,
-                'project': project
-            }
-        )
+                'project' : thread_args.project,
+                'user' : user,
+                'start_ts' : thread_args.date_start,
+                'end_ts' : thread_args.date_end
+            })
 
-        for row in cursor:
-            yield row
+        total_revisions = 0.0
+        total_reverts = 0.0
 
-    @staticmethod
-    def __future(conn, rev_id, page_id, n, project='enwiki'):
-        """ Produce the n revisions on a page after a given revision """
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-                SELECT rev_id, rev_user_text, rev_sha1
-                FROM %(project)s.revision
-                WHERE rev_page = %(page_id)s
-                    AND rev_id > %(rev_id)s
-                ORDER BY rev_id ASC
-                LIMIT %(n)s
-            """ % {
-                'rev_id':  rev_id,
-                'page_id': page_id,
-                'n':       n,
-                'project': project
-            }
-        )
+        revisions = [rev for rev in conn._cur_]
+        results = mpw.build_thread_pool(revisions,_revision_proc,thread_args.rev_threads,state)
 
-        for row in cursor:
-            yield row
+        for r in results:
+            total_revisions += r[0]
+            total_reverts += r[1]
 
-#   for testing
-#
-#def main(args):
-#    r = RevertRate(date_start='2008-01-01 00:00:00', date_end='2008-05-01 00:00:00')
-#    r.process('156171')
-#
-## Call Main
-#if __name__ == "__main__":
-#    sys.exit(main([]))
+        if not total_revisions:
+            results.append([user, 0.0, total_revisions])
+        else:
+            results.append([user, total_reverts / total_revisions, total_revisions])
+
+    return results
+
+def _revision_proc(args):
+    """ helper method for computing reverts """
+
+    state = args[1]
+    thread_args = RevertRateArgsClass(state[0],state[1],state[2],state[3],state[4],state[5],state[6])
+    rev_data = args[0]
+    conn = dl.Connector(instance='slave')
+
+    if thread_args.log_progress: print 'Computing reverts on %s revisions in thread %s.' % (len(rev_data),
+                                                                                            str(os.getpid()))
+    revision_count = 0.0
+    revert_count = 0.0
+    for rev in rev_data:
+        if __revert(conn, rev[0], rev[1], rev[2], rev[3], thread_args):
+            revert_count += 1.0
+        revision_count += 1.0
+    return [(revision_count, revert_count)]
+
+# testing
+if __name__ == "__main__":
+    r = RevertRate(date_start='2008-01-01 00:00:00', date_end='2008-05-01 00:00:00')
+    for r in r.process('156171',num_threads=0,rev_threads=10, log_progress=True): print r
