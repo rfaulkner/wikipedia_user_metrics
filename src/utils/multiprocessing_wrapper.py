@@ -22,6 +22,8 @@ def build_thread_pool(data, callback, k, args):
     # partition data
     n = int(math.ceil(float(len(data)) / k))
     arg_list = list()
+    arg_list = filter(lambda x: len(x[0]), arg_list) # remove any args with empty revision lists
+
     for i in xrange(k):
         arg_list.append([data[i * n : (i + 1) * n], args])
     pool = mp.Pool(processes=len(arg_list))
