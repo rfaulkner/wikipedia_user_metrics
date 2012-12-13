@@ -30,18 +30,15 @@ def build_thread_pool(data, callback, k, args):
     if not arg_list: return []
 
     pool = NonDaemonicPool(processes=len(arg_list))
-
-    # Call worker threads and aggregate results
     results = list()
-    for elem in pool.map(callback, arg_list):
-        if hasattr(elem, '__iter__'):
-            results.extend(elem)
-        else:
-            results.extend([elem])
-    try:
-        pool.close()
-    except RuntimeError:
-        pass
+    # Call worker threads and aggregate results
+    if arg_list:
+        for elem in pool.map(callback, arg_list):
+            if hasattr(elem, '__iter__'):
+                results.extend(elem)
+            else:
+                results.extend([elem])
+    pool.terminate()
     return results
 
 # From http://stackoverflow.com/questions/6974695/python-process-pool-non-daemonic
