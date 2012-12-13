@@ -141,7 +141,7 @@ class UserMetric(object):
     def _format_namespace(cls, namespace):
         # format the namespace condition
         ns_cond = ''
-        if hasattr(namespace, '__iter'):
+        if hasattr(namespace, '__iter__'):
             if len(namespace) == 1:
                 ns_cond = 'page_namespace = ' + str(namespace.pop())
             else:
