@@ -4,11 +4,9 @@ __date__ = "December 6th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import datetime
-import math
 import collections
 import os
-
-import multiprocessing as mp
+import src.utils.multiprocessing_wrapper as mpw
 import user_metric as um
 
 class Threshold(um.UserMetric):
@@ -101,27 +99,11 @@ class Threshold(um.UserMetric):
 
         # Multiprocessing vs. single processing execution
         user_data = [r for r in self._data_source_._cur_]
-
+        args = [self._project_, self._namespace_, self._n_, self._t_, log_progress, survival]
         if k:
-            n = int(math.ceil(float(len(user_data)) / k))
-
-            arg_list = list()
-            for i in xrange(k):
-                arg_list.append([self._project_, self._namespace_, self._n_, self._t_, user_data[i * n : (i + 1) * n],
-                    log_progress, survival])
-            pool = mp.Pool(processes=len(arg_list))
-
-            self._results = list()
-            for elem in pool.map(_process_help, arg_list): self._results.extend(elem)
-
-            try:
-                pool.close()
-            except RuntimeError:
-                pass
-
+            self._results = mpw.build_thread_pool(user_data,_process_help,k,args)
         else:
-            self._results = _process_help([self._project_, self._namespace_,
-                self._n_, self._t_, user_data, log_progress, survival])
+            self._results = _process_help([user_data, args])
 
         return self
 
@@ -129,24 +111,26 @@ class Threshold(um.UserMetric):
 def _process_help(args):
     """ Used by Threshold::process() for forking.  Should not be called externally. """
 
-    ThresholdArgsClass = collections.namedtuple('ThresholdArgs', 'project namespace n t user_data log_progress survival')
-    args = ThresholdArgsClass(args[0],args[1],args[2],args[3],args[4],args[5],args[6])
+    ThresholdArgsClass = collections.namedtuple('ThresholdArgs', 'project namespace n t log_progress survival')
+    user_data = args[0]
+    state = args[1]
+    thread_args = ThresholdArgsClass(state[0],state[1],state[2],state[3],state[4],state[5])
 
-    if args.log_progress: print str(datetime.datetime.now()) + ' - Processing revision data ' + \
-        '(%s users) by user... (PID = %s)' % (len(args.user_data), os.getpid())
+    if thread_args.log_progress: print str(datetime.datetime.now()) + ' - Processing revision data ' + \
+        '(%s users) by user... (PID = %s)' % (len(user_data), os.getpid())
 
     # only proceed if there is user data
-    if not len(args.user_data): return []
+    if not len(user_data): return []
 
     # The key difference between survival and threshold is that threshold measures a level of activity before a point
     # whereas survival (generally) measures any activity after a point
-    if args.survival:
+    if thread_args.survival:
         timestamp_cond = ' and rev_timestamp > %(ts)s'
     else:
         timestamp_cond = ' and rev_timestamp <= %(ts)s'
 
     # format the namespace condition
-    ns_cond = um.UserMetric._format_namespace(args.namespace)
+    ns_cond = um.UserMetric._format_namespace(thread_args.namespace)
     if ns_cond: ns_cond += ' and'
 
     sql = """
@@ -162,23 +146,23 @@ def _process_help(args):
 
     conn = um.dl.Connector(instance='slave')
     results = list()
-    for r in args.user_data:
+    for r in user_data:
         try:
-            ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) + datetime.timedelta(minutes=args.t))
+            ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) + datetime.timedelta(minutes=thread_args.t))
             id = long(r[0])
 
-            conn._cur_.execute(sql % {'project' : args.project, 'ts' : ts,
+            conn._cur_.execute(sql % {'project' : thread_args.project, 'ts' : ts,
                                       'ns' : ns_cond, 'id' : id})
             count = int(conn._cur_.fetchone()[0])
         except IndexError: continue
         except ValueError: continue
 
-        if count < args.n:
+        if count < thread_args.n:
             results.append((r[0],0))
         else:
             results.append((r[0],1))
 
-    if args.log_progress: print str(datetime.datetime.now()) + ' - Processed PID = %s.' % os.getpid()
+    if thread_args.log_progress: print str(datetime.datetime.now()) + ' - Processed PID = %s.' % os.getpid()
 
     return results
 
