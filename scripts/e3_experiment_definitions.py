@@ -6,9 +6,6 @@
     the `experiment` hash
 """
 
-with open('e3_experiment_definitions.py','r') as f:
-    __doc__ =  " ".join(f.read().split("with open(")[0].strip().split('\n'))
-
 __author__ = "ryan faulkner"
 __date__ = "18/11/2012"
 __license__ = "GPL (version 2 or later)"
