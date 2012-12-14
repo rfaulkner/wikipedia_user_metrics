@@ -1,0 +1,9 @@
+{% extends "layout.html" %}
+{% block body %}
+    <h2>Cohorts</h2>
+    {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+    {% for cohort in data %}
+        <a href="{{ url_for('metrics') + '/' + cohort }}">{{ cohort }}</a>
+        <br>
+    {% endfor %}
+{% endblock %}

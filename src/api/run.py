@@ -27,10 +27,13 @@ def tag_definitions():
 
 @app.route('/cohorts')
 def api_cohorts():
-    return 'Please choose a cohort: '
+    conn = dl.Connector(instance='slave')
+    conn._cur_.execute('select distinct utm_name from usertags_meta')
+    return render_template('cohorts.html', data=[r[0] for r in conn._cur_])
 
 @app.route('/metrics')
-def api_article():
+@app.route('/metrics/<cohort>')
+def metrics(cohort):
     return 'Choose some metrics '
 
 
