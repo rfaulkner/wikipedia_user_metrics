@@ -1,32 +1,28 @@
 #!/usr/bin/python
 
-from flask import Flask, url_for, jsonify, Response
+from flask import Flask, render_template # url_for, jsonify, 
+
 app = Flask(__name__)
 
 @app.route('/')
 def api_root():
     return 'Welcome to the user metrics API'
 
-@app.route('/articles')
-def api_articles():
-    return 'List of ' + url_for('api_articles')
+@app.route('/login')
+def login():
+    return render_template('login.html')
 
-@app.route('/articles/<articleid>')
-def api_article(articleid):
-    return 'You are reading ' + articleid
+@app.route('/tag_definitions')
+def tag_definitions(): pass
 
-@app.route('/users')
-def api_users():
-    return 'List of ' + url_for('api_users')
+@app.route('/cohorts')
+def api_cohorts():
+    return 'Please choose a cohort: '
 
-@app.route('/users/<userid>', methods = ['GET'])
-def api_user(userid):
-    users = {'1':'John', '2':'Steve', '3':'Bill'}
-    
-    if userid in users:
-        return jsonify({userid:users[userid]})
-    else:
-        return jsonify('{}')
+@app.route('/metrics')
+def api_article():
+    return 'Choose some metrics '
+
 
 if __name__ == '__main__':
     app.run()
