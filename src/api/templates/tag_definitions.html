@@ -1,0 +1,6 @@
+{% extends "layout.html" %}
+{% block body %}
+    <h2>Tag definitions</h2>
+    {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+    {{ data }}
+{% endblock %}
