@@ -44,8 +44,14 @@ class Threshold(um.UserMetric):
         """
         self._start_ts_ = self._get_timestamp(date_start)
         self._end_ts_ = self._get_timestamp(date_end)
-        self._t_ = t
-        self._n_ = n
+
+        try:
+            self._t_ = int(t)
+            self._n_ = int(n)
+        except ValueError:
+            print str(datetime.datetime.now()) + ' - parameters `t` and `n` not integers.  Setting to defaults.'
+            self._t_ = 1440
+            self._t_ = 1
 
         um.UserMetric.__init__(self, **kwargs)
 
