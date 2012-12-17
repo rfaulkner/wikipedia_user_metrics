@@ -1,4 +1,4 @@
-# Project settings - aluminium$/srv/org.wikimedia.community-analytics/community-analytics
+# Project settings
 # ================
 __home__ = '/Users/rfaulkner/'
 __project_home__ = ''.join([__home__, 'projects/E3_analysis/'])
