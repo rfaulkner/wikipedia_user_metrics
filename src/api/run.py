@@ -9,14 +9,16 @@ from flask import Flask, render_template, Markup, jsonify, redirect, url_for
 import src.etl.data_loader as dl
 import cPickle
 import logging
-import  sys
+import sys
+import re
 import config.settings as settings
 
 import src.metrics.threshold as th
-# import src.metrics.blocks as b
-# import src.metrics.bytes_added as ba
-# import src.metrics.survival as sv
-# import src.metrics.time_to_threshold
+import src.metrics.blocks as b
+import src.metrics.bytes_added as ba
+import src.metrics.survival as sv
+import src.metrics.revert_rate as rr
+import src.metrics.time_to_threshold as ttt
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
@@ -28,10 +30,15 @@ pkl_data = None
 
 app = Flask(__name__)
 
-def get_metric(handle):
-    if handle == 'threshold':
-        return th.Threshold()
-    return ''
+metric_dict = {
+    'threshold' : th.Threshold,
+    'survival' : sv.Survival,
+    'revert' : rr.RevertRate,
+    'bytes_added' : ba.BytesAdded,
+    'blocks' : b.Blocks,
+    'time_to_threshold' : ttt.TimeToThreshold
+}
+
 
 @app.route('/')
 def api_root():
@@ -69,7 +76,7 @@ def metrics(cohort=''):
     if not cohort:
         return redirect(url_for('cohorts'))
     else:
-        return render_template('metrics.html', c_str=cohort, m_list=['threshold'])
+        return render_template('metrics.html', c_str=cohort, m_list=metric_dict.keys())
 
 @app.route('/metrics/<cohort>/<metric>')
 def output(cohort, metric):
@@ -88,11 +95,20 @@ def output(cohort, metric):
             redirect(url_for('cohorts'))
 
         # Get metric
-        metric_obj = get_metric(metric)
+        metric_obj = None
+        try:
+            metric_obj = metric_dict[metric]()
+        except KeyError:
+            logging.error('Bad metric handle: %s' % url)
+            redirect(url_for('cohorts'))
+
         if not metric_obj: return redirect(url_for('cohorts'))
 
         results = dict()
         results['header'] = " ".join(metric_obj.header())
+        for key in metric_obj.__dict__:
+            if re.search(r'_.*_', key):
+                results[str(key[1:-1])] = str(metric_obj.__dict__[key])
         results['metric'] = dict()
 
         users = [r[0] for r in conn._cur_]
