@@ -145,7 +145,7 @@ class UserMetric(object):
             if len(namespace) == 1:
                 ns_cond = 'page_namespace = ' + str(namespace.pop())
             else:
-                ns_cond = 'page_namespace in (' + ",".join(namespace) + ')'
+                ns_cond = 'page_namespace in (' + ",".join(dl.DataLoader().cast_elems_to_string(list(namespace))) + ')'
         return ns_cond
 
     @staticmethod
