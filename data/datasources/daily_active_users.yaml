@@ -1,0 +1,50 @@
+---
+!!map {
+  ? !!str "chart"
+  : !!map {
+    ? !!str "chartType"
+    : !!str "dygraphs",
+  },
+  ? !!str "columns"
+  : !!map {
+    ? !!str "labels"
+    : !!seq [
+      !!str "date",
+      !!str "bytes_added_absolute",
+      !!str "bytes_added_neg",
+      !!str "bytes_added_net",
+      !!str "bytes_added_pos",
+      !!str "edit_count",
+      !!str "user_id",
+    ],
+    ? !!str "types"
+    : !!seq [
+      !!str "date",
+      !!str "int",
+      !!str "int",
+      !!str "int",
+      !!str "int",
+      !!str "int",
+      !!str "int",
+    ],
+  },
+  ? !!str "format"
+  : !!str "csv",
+  ? !!str "id"
+  : !!str "daily_active_users",
+  ? !!str "name"
+  : !!str "daily_active_users",
+  ? !!str "shortName"
+  : !!str "daily_active_users",
+  ? !!str "timespan"
+  : !!map {
+    ? !!str "end"
+    : !!str "2012/12/05",
+    ? !!str "start"
+    : !!str "2012/11/22",
+    ? !!str "step"
+    : !!str "1d",
+  },
+  ? !!str "url"
+  : !!str "/data/datafiles/daily_active_users.csv",
+}

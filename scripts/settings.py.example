@@ -1,0 +1,10 @@
+
+__home__ = '/Users/rfaulkner/'
+__project_home__ = ''.join([__home__, 'projects/E3_analysis/'])
+__web_home__ = ''.join([__project_home__, 'web_interface/'])
+__sql_home__ = ''.join([__project_home__, 'SQL/'])
+__data_home__ = ''.join([__home__, 'projects/data/'])
+__E3_Analysis_Home__ = __project_home__
+
+_db_instance_ = 'staging'
+_db_user_ = 'research'
