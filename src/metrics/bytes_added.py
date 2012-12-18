@@ -3,11 +3,11 @@ __author__ = "Ryan Faulkner"
 __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
-import multiprocessing as mp
+import collections
 import datetime
 import user_metric as um
-import math
 import os
+import src.utils.multiprocessing_wrapper as mpw
 
 class BytesAdded(um.UserMetric):
     """
@@ -76,23 +76,12 @@ class BytesAdded(um.UserMetric):
 
         # Multiprocessing vs. single processing execution
         revs = self._get_revisions(user_handle, is_id, log_progress=log_progress)
-
+        args = [log_progress, log_frequency]
         if k:
-            n = int(math.ceil(float(len(revs)) / k))
-            arg_list = [[revs[i * n : (i + 1) * n], log_progress, log_frequency] for i in xrange(k)]
-            arg_list = filter(lambda x: len(x[0]), arg_list) # remove any args with empty revision lists
-
-            pool = mp.Pool(processes=len(arg_list))
-            self._results = list()
-            for elem in pool.map(_process_help, arg_list): self._results.extend(elem)
-
-            try:
-                pool.close()
-            except RuntimeError:
-                pass
-
+            self._results = mpw.build_thread_pool(revs,_process_help,k,args)
         else:
-            self._results = _process_help([revs, log_progress, log_frequency])
+            self._results = _process_help([revs, args])
+
         return self
 
     def _get_revisions(self, user_handle, is_id, log_progress=True):
@@ -176,9 +165,10 @@ def _process_help(args):
             - Dictionary. key(string): user handle, value(Float): edit counts
     """
 
+    BytesAddedArgsClass = collections.namedtuple('ThresholdArgs', 'is_log freq')
     revs = args[0]
-    is_log = args[1]
-    freq = args[2]
+    state = args[1]
+    thread_args = BytesAddedArgsClass(state[0],state[1])
 
     conn = um.dl.Connector(instance='slave')
     bytes_added = dict()
@@ -188,7 +178,7 @@ def _process_help(args):
     missed_records = 0
     total_rows = len(revs)
 
-    if is_log:
+    if thread_args.is_log:
         s = ' - Processing revision data (%s rows) by user... (PID = %s)' % (total_rows, os.getpid())
         print str(datetime.datetime.now()) + s
 
@@ -245,14 +235,14 @@ def _process_help(args):
         bytes_added[user][4] += 1
 
 
-        if freq and row_count % freq == 0 and is_log:
+        if thread_args.freq and row_count % thread_args.freq == 0 and thread_args.is_log:
             s = ' - Processed %s of %s records. (PID = %s)' % (row_count, total_rows, os.getpid())
             print str(datetime.datetime.now()) + s
 
         row_count += 1
 
     results = [[user] + bytes_added[user] for user in bytes_added]
-    if is_log:
+    if thread_args.is_log:
         s = ' - processed %s out of %s records. (PID = %s)' % (total_rows - missed_records,total_rows, os.getpid())
         print str(datetime.datetime.now()) + s
 
@@ -261,4 +251,4 @@ def _process_help(args):
 # Used for testing
 if __name__ == "__main__":
     BytesAdded(date_start='20120101000000',date_end='20121101000000', namespace=[0,1]).process(user_handle=['156171','13234584'],
-        log_progress=True)
+        log_progress=True, num_threads=10)
