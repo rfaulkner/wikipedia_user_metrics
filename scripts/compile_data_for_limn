@@ -1,0 +1,107 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+"""
+    Transform data to limn parsable format using limnpy.  This script reads data files from <data_home> (e.g.
+    $PROJECT_HOME/E3_analysis/data/) and generates .json dashboard and graph files, .yaml datasource file, and
+    .csv datasource.
+"""
+
+__author__ = "ryan faulkner"
+__date__ = "11/19/2012"
+__license__ = "GPL (version 2 or later)"
+
+import sys
+import e3_settings as s
+sys.path.append(s.__E3_Analysis_Home__)
+
+import argparse
+import logging
+import limnpy
+import datetime
+import re
+import os
+from dateutil.parser import parse as date_parse
+
+# CONFIGURE THE LOGGER
+logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
+
+def get_data_type(type_str):
+    """ based on a type identifier return a dict containing meta data about the aggregate data type """
+    if not cmp(type_str, 'dau'):
+        return {'indices' : [1,2,3,4,5]}
+
+def main(args):
+
+    rows = list()
+    header = list()
+
+    for filename in os.listdir(s.__data_home__):
+        if re.search(args.regex,filename):
+            row = dict()
+
+            try:
+                row['date'] = date_parse(re.search(r'20[0-9]{6}', filename).group())
+            except AttributeError:
+                logging.info('Could not process %s. No date info.' % filename)
+                continue
+
+            # only process the dates in range
+            if row['date'] < date_parse(args.date_start) or row['date'] > date_parse(args.date_end): continue
+            meta_data = get_data_type(args.data_type)
+
+            with open(s.__data_home__ + filename, 'r') as f:
+
+                # get header and initialize
+                header = f.readline().strip().split("\t")
+                for i in meta_data['indices']: row[header[i]] = 0
+
+                # sum all of the elements of all of the lines
+                while 1:
+                    line = f.readline()
+                    if not line: break
+                    fields = line.strip().split('\t')
+                    for i in meta_data['indices']:
+                        row[header[i]] += int(fields[i])
+
+            rows.append(row)
+
+    # Build datafiles and datasorces
+    ds = limnpy.DataSource(args.data_source, " ".join(args.data_source.split()), rows)
+    ds.write(basedir = s.__data_home__)
+
+    # Build graph from datasources
+    g = limnpy.Graph(args.data_source, args.graph_handle, [ds] * (len(header) - 1),
+        [(args.data_source, i) for i in header[1:]])
+    g.write(basedir = s.__data_home__)
+
+    # build dashboard
+    dash = limnpy.Dashboard(args.data_source, args.dash_handle, 'Dashboard')
+    dash.add_tab('core', [g.__graph__['id']])
+    dash.write(basedir = s.__data_home__)
+
+if __name__ == "__main__":
+
+    # Initialize query date constraints
+    today = datetime.datetime.now()
+    yesterday = today - datetime.timedelta(days=14)
+
+    today = "".join([today.strftime('%Y%m%d'), "000000"])
+    yesterday = "".join([yesterday.strftime('%Y%m%d'),"000000"])
+
+    parser = argparse.ArgumentParser(
+        description="",
+        epilog="",
+        conflict_handler="resolve",
+        usage = "./compile_data_for_limn [-r file_regex] [-s start_date] [-e end_date] [-t data_type]"
+    )
+    parser.add_argument('-r', '--regex',type=str, help='Regular expression.',default=r'')
+    parser.add_argument('-s', '--date_start',type=str, help='Start date of measurement.', default=yesterday)
+    parser.add_argument('-e', '--date_end',type=str, help='End date of measurement.', default=today)
+    parser.add_argument('-t', '--data_type',type=str, help='Type of data to aggregate.', default='dau')
+    parser.add_argument('-d', '--data_source',type=str, help='Data source name.', default='metric')
+    parser.add_argument('-l', '--dash_handle',type=str, help='Dashboard title.', default='metric_dashboard')
+    parser.add_argument('-g', '--graph_handle',type=str, help='Graph title.', default='metric_graph')
+
+    args = parser.parse_args()
+    sys.exit(main(args))

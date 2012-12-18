@@ -1,0 +1,82 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+"""
+    Script for generating time series datasets.  Uses module 'src.etl.time_series_process_methods'.
+"""
+
+__author__ = "ryan faulkner"
+__date__ = "12/13/2012"
+__license__ = "GPL (version 2 or later)"
+
+import sys
+import e3_settings as s
+sys.path.append(s.__E3_Analysis_Home__)
+
+import scripts.e3_experiment_definitions as e_def
+import src.etl.aggregator as agg
+import src.metrics.revert_rate as rr
+import src.metrics.threshold as th
+
+def main(args):
+
+    # Construct Metrics objects
+
+    r = rr.RevertRate() # Computes revert rates, look ahead & behind 15 revisions
+
+    t_n1_d1 =th.Threshold(t=1440,n=1,namespace=0)
+    t_n1_d1_all =th.Threshold(t=1440,n=1)
+    t_n10_d1 =th.Threshold(t=1440,n=10,namespace=0)
+
+    t_n1_d7 =th.Threshold(t=1440*7,n=1,namespace=0)
+    t_n1_d7_all =th.Threshold(t=1440*7,n=1)
+    t_n10_d7 =th.Threshold(t=1440*7,n=10,namespace=0)
+
+    # Get user lists for each experiment
+    user_list_cta4 = dict()
+    user_list_acux2 = dict()
+    user_list_acux3 = dict()
+
+    e_def.experiments['cta4']['user_list'](user_list_cta4)
+    e_def.experiments['acux2']['user_list'](user_list_acux2)
+    e_def.experiments['acux3']['user_list'](user_list_acux3)
+
+    print 'Revert rates - cta4, acux2, acux3'
+    print agg.reverted_revs_agg(r.process(user_list_cta4.keys(),num_threads=20,rev_threads=40, log_progress=False))
+    print agg.reverted_revs_agg(r.process(user_list_acux2.keys(),num_threads=20,rev_threads=40, log_progress=False))
+    print agg.reverted_revs_agg(r.process(user_list_acux3.keys(),num_threads=20,rev_threads=40, log_progress=False))
+
+    print 'Threshold (n1 d1 ns0) - cta4, acux2, acux3'
+    print agg.threshold_editors_agg(t_n1_d1.process(user_list_cta4.keys(), num_threads=40, log_progress=False))
+    print agg.threshold_editors_agg(t_n1_d1.process(user_list_acux2.keys(), num_threads=40, log_progress=False))
+    print agg.threshold_editors_agg(t_n1_d1.process(user_list_acux3.keys(), num_threads=40, log_progress=False))
+
+    print 'Threshold (n1 d1 nsall) - cta4, acux2, acux3'
+    print agg.threshold_editors_agg(t_n1_d1_all.process(user_list_cta4.keys(), num_threads=40, log_progress=False))
+    print agg.threshold_editors_agg(t_n1_d1_all.process(user_list_acux2.keys(), num_threads=40, log_progress=False))
+    print agg.threshold_editors_agg(t_n1_d1_all.process(user_list_acux3.keys(), num_threads=40, log_progress=False))
+
+    print 'Threshold (n10 d1 ns0) - cta4, acux2, acux3'
+    print agg.threshold_editors_agg(t_n10_d1.process(user_list_cta4.keys(), num_threads=40, log_progress=False))
+    print agg.threshold_editors_agg(t_n10_d1.process(user_list_acux2.keys(), num_threads=40, log_progress=False))
+    print agg.threshold_editors_agg(t_n10_d1.process(user_list_acux3.keys(), num_threads=40, log_progress=False))
+
+    print 'Threshold (n1 d7 ns0) - cta4, acux2, acux3'
+    print agg.threshold_editors_agg(t_n1_d7.process(user_list_cta4.keys(), num_threads=40, log_progress=False))
+    print agg.threshold_editors_agg(t_n1_d7.process(user_list_acux2.keys(), num_threads=40, log_progress=False))
+    print agg.threshold_editors_agg(t_n1_d7.process(user_list_acux3.keys(), num_threads=40, log_progress=False))
+
+    print 'Threshold (n1 d7 nsall) - cta4, acux2, acux3'
+    print agg.threshold_editors_agg(t_n1_d7_all.process(user_list_cta4.keys(), num_threads=40, log_progress=False))
+    print agg.threshold_editors_agg(t_n1_d7_all.process(user_list_acux2.keys(), num_threads=40, log_progress=False))
+    print agg.threshold_editors_agg(t_n1_d7_all.process(user_list_acux3.keys(), num_threads=40, log_progress=False))
+
+    print 'Threshold (n10 d7 ns0) - cta4, acux2, acux3'
+    print agg.threshold_editors_agg(t_n10_d7.process(user_list_cta4.keys(), num_threads=40, log_progress=False))
+    print agg.threshold_editors_agg(t_n10_d7.process(user_list_acux2.keys(), num_threads=40, log_progress=False))
+    print agg.threshold_editors_agg(t_n10_d7.process(user_list_acux3.keys(), num_threads=40, log_progress=False))
+
+
+if __name__ == '__main__':
+    args=()
+    sys.exit(main(args))

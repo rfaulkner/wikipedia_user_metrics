@@ -1,0 +1,29 @@
+# Project settings
+# ================
+__home__ = '/Users/rfaulkner/'
+__project_home__ = ''.join([__home__, 'projects/E3_analysis/'])
+__web_home__ = ''.join([__project_home__, 'web_interface/'])
+__sql_home__ = ''.join([__project_home__, 'SQL/'])
+__server_log_local_home__ = ''.join([__project_home__, 'logs/'])
+__data_file_dir__ = ''.join([__project_home__, 'data/'])
+
+__web_app_module__ = 'web_interface'
+__system_user__ = 'rfaulk'
+
+# Database connection settings
+# ============================
+
+connections = {
+    'slave': {
+        'user' : 'research',
+        'host' : '127.0.0.1',
+        'db' : 'staging',
+        'passwd' : 'xxxx',
+        'port' : 3307},
+    'slave-2': {
+        'user' : 'rfaulk',
+        'host' : '127.0.0.1',
+        'db' : 'rfaulk',
+        'passwd' : 'xxxx',
+        'port' : 3307}
+}

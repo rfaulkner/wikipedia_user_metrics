@@ -1,0 +1,8 @@
+{% extends "layout.html" %}
+{% block body %}
+<h2>Metrics</h2>
+{% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+    {% for metric in m_list %}
+    <a href="{{ url_for('metrics') + '/' + c_str + '/' + metric }}">{{ metric }}</a><br>
+    {% endfor %}
+{% endblock %}

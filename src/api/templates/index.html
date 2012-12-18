@@ -1,0 +1,5 @@
+{% extends "layout.html" %}
+{% block body %}
+{% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+<br>Welcome to the user metrics API!<br><br>Choose a <a href="{{ url_for('cohorts') }}">Cohort</a>.
+{% endblock %}
