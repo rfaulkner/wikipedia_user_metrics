@@ -36,7 +36,7 @@ class TimeToThreshold(um.UserMetric):
     """
 
     def __init__(self,
-                 threshold_type_class,
+                 threshold_type_class=TimeToThreshold.EditCountThreshold,
                  **kwargs):
 
         um.UserMetric.__init__(self, **kwargs)
@@ -56,7 +56,7 @@ class TimeToThreshold(um.UserMetric):
             process(), which computes the time, in minutes, taken between making N edits and M edits for a user.  N < M.
         """
 
-        def __init__(self, **kwargs):
+        def __init__(self, first_edit=REGISTRATION, threshold_edit=1):
             """
                 Object constructor.  There are two required parameters:
 
@@ -66,10 +66,10 @@ class TimeToThreshold(um.UserMetric):
             """
 
             try:
-                self._first_edit_ = kwargs['first_edit']
-                self._threshold_edit_ = kwargs['threshold_edit']
+                self._first_edit_ = int(first_edit)
+                self._threshold_edit_ = int(threshold_edit)
 
-            except Exception:
+            except ValueError:
                 raise um.UserMetric.UserMetricError(str(self.__class__()) + ': Invalid init params.')
 
         def process(self, user_handle, threshold_obj, is_id=True, **kwargs):
