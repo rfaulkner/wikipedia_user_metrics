@@ -20,6 +20,7 @@ setup(
     data_files=[('readme', ['README.md'])]
 )
 
+<<<<<<< HEAD
 =======
 # -*- coding: utf-8 -*-
 """
@@ -55,3 +56,5 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules'
     ]
 )
+=======
+>>>>>>> latest

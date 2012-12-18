@@ -8,6 +8,9 @@ __date__ = "December 10th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 class LRClassifier(object): raise NotImplementedError
+<<<<<<< HEAD
 
     def train(self, data):
         for i in data
+=======
+>>>>>>> latest

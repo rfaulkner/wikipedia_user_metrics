@@ -41,10 +41,13 @@ metric_dict = {
     'time_to_threshold' : ttt.TimeToThreshold
 }
 
+<<<<<<< HEAD
 # Global pipe connections
 parent_conn = None
 child_conn = None
 
+=======
+>>>>>>> latest
 # Process Queue. Stores (PID,pipe) pairs.
 processQ = list()
 QStructClass = collections.namedtuple('QStruct', 'process url pipe')
@@ -88,7 +91,10 @@ def metrics(cohort=''):
     else:
         return render_template('metrics.html', c_str=cohort, m_list=metric_dict.keys())
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> latest
 @app.route('/metrics/<cohort>/<metric>')
 def output(cohort, metric):
 
@@ -155,6 +161,10 @@ def process_metrics(url, cohort, metric, p):
     logging.info('Processing complete for %s...' % url)
     del conn
 
+<<<<<<< HEAD
+=======
+    # pkl_data[url] =
+>>>>>>> latest
     p.send(jsonify(results))
 
 if __name__ == '__main__':

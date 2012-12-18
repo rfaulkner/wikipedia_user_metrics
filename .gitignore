@@ -8,7 +8,6 @@ dist
 *.egg-info
 _mailinglist
 .tox
-<<<<<<< HEAD
 .idea
 *.tsv
 settings.py
