@@ -12,6 +12,8 @@ import logging
 import sys
 import re
 import config.settings as settings
+import multiprocessing as mp
+import collections
 
 import src.metrics.threshold as th
 import src.metrics.blocks as b
@@ -39,10 +41,14 @@ metric_dict = {
     'time_to_threshold' : ttt.TimeToThreshold
 }
 
+# Process Queue. Stores (PID,pipe) pairs.
+processQ = list()
+QStructClass = collections.namedtuple('QStruct', 'process url pipe')
+# gl_lock = mp.Lock()    # global lock
 
 @app.route('/')
 def api_root():
-    return 'Welcome to the user metrics API'
+    return render_template('index.html')
 
 @app.route('/login')
 def login():
@@ -82,45 +88,70 @@ def metrics(cohort=''):
 def output(cohort, metric):
 
     url = "".join(['/metrics/', cohort, '/', metric])
+
     if url in pkl_data:
-        results = pkl_data[url]
+        return pkl_data[url]
     else:
-        # Get users
-        conn = dl.Connector(instance='slave')
-        try:
-            conn._cur_.execute('select utm_id from usertags_meta where utm_name = "%s"' % str(cohort))
-            res = conn._cur_.fetchone()[0]
-            conn._cur_.execute('select ut_user from usertags where ut_tag = "%s"' % res)
-        except IndexError:
-            redirect(url_for('cohorts'))
 
-        # Get metric
-        metric_obj = None
-        try:
-            metric_obj = metric_dict[metric]()
-        except KeyError:
-            logging.error('Bad metric handle: %s' % url)
-            redirect(url_for('cohorts'))
+        parent_conn, child_conn = mp.Pipe()
+        p = mp.Process(target=process_metrics, args=(url, cohort, metric, child_conn))
+        p.start()
 
-        if not metric_obj: return redirect(url_for('cohorts'))
+        logging.info('Appending request %s to the queue...' % url)
+        processQ.append(QStructClass(p,url,parent_conn))
 
-        results = dict()
-        results['header'] = " ".join(metric_obj.header())
-        for key in metric_obj.__dict__:
-            if re.search(r'_.*_', key):
-                results[str(key[1:-1])] = str(metric_obj.__dict__[key])
-        results['metric'] = dict()
+        return render_template('processing.html', url_str=url)
 
-        users = [r[0] for r in conn._cur_]
+@app.route('/job_queue')
+def job_queue():
 
-        for m in metric_obj.process(users, num_threads=20):
-            results['metric'][m[0]] = " ".join(dl.DataLoader().cast_elems_to_string(m[1:]))
+    p_list = list()
+    p_list.append(Markup('<u><b>is_alive , PID, url</b></u><br>'))
+    for p in processQ:
+        p_list.append(" , ".join([str(p.process.is_alive()), str(p.process.pid), p.url]))
+        if not p.process.is_alive(): pkl_data[p.url] = p.pipe.recv()
 
-        del conn
-        results = jsonify(results)
-        pkl_data[url] = results
 
-    return results
+    return render_template('queue.html', procs=p_list)
+
+
+def process_metrics(url, cohort, metric, p):
+
+    conn = dl.Connector(instance='slave')
+    try:
+        conn._cur_.execute('select utm_id from usertags_meta where utm_name = "%s"' % str(cohort))
+        res = conn._cur_.fetchone()[0]
+        conn._cur_.execute('select ut_user from usertags where ut_tag = "%s"' % res)
+    except IndexError:
+        redirect(url_for('cohorts'))
+
+    # Get metric
+    metric_obj = None
+    try:
+        metric_obj = metric_dict[metric]()
+    except KeyError:
+        logging.error('Bad metric handle: %s' % url)
+        redirect(url_for('cohorts'))
+
+    if not metric_obj: return redirect(url_for('cohorts'))
+
+    results = dict()
+    results['header'] = " ".join(metric_obj.header())
+    for key in metric_obj.__dict__:
+        if re.search(r'_.*_', key):
+            results[str(key[1:-1])] = str(metric_obj.__dict__[key])
+    results['metric'] = dict()
+
+    users = [r[0] for r in conn._cur_]
+
+    logging.info('Processing results for %s...' % url)
+    for m in metric_obj.process(users, num_threads=20):
+        results['metric'][m[0]] = " ".join(dl.DataLoader().cast_elems_to_string(m[1:]))
+    logging.info('Processing complete for %s...' % url)
+    del conn
+
+    # pkl_data[url] =
+    p.send(jsonify(results))
 
 if __name__ == '__main__':
 
@@ -129,6 +160,7 @@ if __name__ == '__main__':
     pkl_data = cPickle.load(pkl_file)
     pkl_file.close()
 
+    flush_process = None
     try:
         app.run()
     finally:
