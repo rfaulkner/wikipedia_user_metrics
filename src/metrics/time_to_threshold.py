@@ -5,6 +5,7 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 from dateutil.parser import parse as date_parse
+import datetime
 import user_metric as um
 
 
@@ -36,11 +37,18 @@ class TimeToThreshold(um.UserMetric):
     """
 
     def __init__(self,
-                 threshold_type_class=TimeToThreshold.EditCountThreshold,
+                 threshold_type_class=None,
                  **kwargs):
 
         um.UserMetric.__init__(self, **kwargs)
-        self._threshold_obj_ = threshold_type_class(**kwargs)
+        if threshold_type_class is None:
+             self._threshold_obj_ = self.EditCountThreshold(**kwargs)
+        else:
+            try:
+                self._threshold_obj_ = threshold_type_class(**kwargs)
+            except NameError:
+                self._threshold_obj_ = self.EditCountThreshold(**kwargs)
+                print str(datetime.datetime.now()) + ' - Invalid threshold class. Using default (EditCountThreshold).'
 
     @staticmethod
     def header(): return ['user_id', 'minutes_diff']
