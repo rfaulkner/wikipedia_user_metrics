@@ -34,7 +34,7 @@ class Blocks(um.UserMetric):
     """
 
     def __init__(self,
-                 date_start='2001-01-01 00:00:00',
+                 date_start='2012-01-01 00:00:00',
                  project='enwiki',
                  **kwargs):
 
@@ -81,6 +81,7 @@ class Blocks(um.UserMetric):
 				WHERE log_type = "block"
 				AND log_action = "block"
 				AND log_title in (%(usernames)s)
+				AND log_timestamp >= (%(timestamp)s)
 				GROUP BY 1, 2
 			""" % {
             'timestamp': self._date_start_,
