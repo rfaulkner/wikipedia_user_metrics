@@ -25,6 +25,19 @@ class EditRate(um.UserMetric):
     HOUR = 0
     DAY = 1
 
+    # Structure that defines parameters for EditRate class
+    _param_types = {
+        'init' : {
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.'],
+            'date_end' : ['str|datetime', 'Latest date a block is measured.'],
+            'time_unit' : ['int', 'Type of time unit to normalize by (HOUR=0, DAY=1).'],
+            'time_unit_count' : ['int', 'Number of time units to normalize by (e.g. per two days).'],
+            },
+        'process' : {
+            'is_id' : ['bool', 'Are user ids or names being passed.'],
+        }
+    }
+
     def __init__(self,
                  time_unit_count=1,
                  time_unit=DAY,
@@ -36,6 +49,7 @@ class EditRate(um.UserMetric):
         self._start_ts_ = self._get_timestamp(date_start)
         self._end_ts_ = self._get_timestamp(date_end)
         um.UserMetric.__init__(self, **kwargs)
+        self.append_params(um.UserMetric)   # add params from base class
 
     @staticmethod
     def header(): return ['user_id', 'edit_rate', 'start_time', 'period_len']

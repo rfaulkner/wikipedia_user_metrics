@@ -45,6 +45,22 @@ class RevertRate(um.UserMetric):
     REV_SHA1_IDX = 2
     REV_USER_TEXT_IDX = 1
 
+    # Structure that defines parameters for RevertRate class
+    _param_types = {
+        'init' : {
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.'],
+            'date_end' : ['str|datetime', 'Latest date a block is measured.'],
+            'look_ahead' : ['int', 'Number of revisions to look ahead when computing revert.'],
+            'look_back' : ['int', 'Number of revisions to look back when computing revert.'],
+        },
+        'process' : {
+            'is_id' : ['bool', 'Are user ids or names being passed.'],
+            'log_progress' : ['bool', 'Enable logging for processing.'],
+            'num_threads' : ['int', 'Number of worker processes over users.'],
+            'rev_threads' : ['int', 'Number of worker processes over revisions.'],
+        }
+    }
+
     def __init__(self,
                  look_back=15,
                  look_ahead=15,
@@ -58,6 +74,7 @@ class RevertRate(um.UserMetric):
         self._end_ts_ = self._get_timestamp(date_end)
 
         um.UserMetric.__init__(self, **kwargs)
+        self.append_params(um.UserMetric)   # add params from base class
 
     @staticmethod
     def header(): return ['user_id', 'revert_rate', 'total_revisions']

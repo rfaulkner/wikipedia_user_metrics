@@ -30,6 +30,22 @@ class Threshold(um.UserMetric):
             (13234584L, 1)
     """
 
+    # Structure that defines parameters for Thresold class
+    _param_types = {
+        'init' : {
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.'],
+            'date_end' : ['str|datetime', 'Latest date a block is measured.'],
+            't' : ['int', 'The time in minutes until the threshold.'],
+            'n' : ['int', 'Revision threshold that is to be exceeded in time `t`.'],
+            'survival' : ['bool', 'Indicates whether this is to be processed as the survival metric.']
+            },
+        'process' : {
+            'is_id' : ['bool', 'Are user ids or names being passed.'],
+            'log_progress' : ['bool', 'Enable logging for processing.'],
+            'num_threads' : ['int', 'Number of worker processes over users.'],
+            }
+    }
+
     def __init__(self,
                  date_start='2001-01-01 00:00:00',
                  date_end=datetime.datetime.now(),
@@ -54,6 +70,7 @@ class Threshold(um.UserMetric):
             self._t_ = 1
 
         um.UserMetric.__init__(self, **kwargs)
+        self.append_params(um.UserMetric)   # add params from base class
 
     @staticmethod
     def header():

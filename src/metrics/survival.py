@@ -29,6 +29,20 @@ class Survival(um.UserMetric):
 
     """
 
+    # Structure that defines parameters for Survival class
+    _param_types = {
+        'init' : {
+            'date_start' : ['str|datatime', 'Earliest date a block is measured.'],
+            'date_end' : ['str|datatime', 'Latest date a block is measured.'],
+            't' : ['int', 'The time in minutes registration after which survival is measured.'],
+            },
+        'process' : {
+            'is_id' : ['bool', 'Are user ids or names being passed.'],
+            'log_progress' : ['bool', 'Enable logging for processing.'],
+            'num_threads' : ['int', 'Number of worker processes over users.'],
+            }
+    }
+
     def __init__(self,
                  date_start='2001-01-01 00:00:00',
                  date_end=datetime.datetime.now(),
@@ -44,6 +58,7 @@ class Survival(um.UserMetric):
         self._end_ts_ = self._get_timestamp(date_end)
         self._t_ = t
         um.UserMetric.__init__(self, **kwargs)
+        self.append_params(um.UserMetric)   # add params from base class
 
     @staticmethod
     def header():

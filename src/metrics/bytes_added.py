@@ -39,17 +39,17 @@ class BytesAdded(um.UserMetric):
         argument, `num_threads`, to the process() method.
     """
 
-    # Structure that defines parameters for Blocks class
+    # Structure that defines parameters for BytesAdded class
     _param_types = {
         'init' : {
-            'date_start' : 'str|datatime', # earliest date a block is measured
-            'date_end' : 'str|datatime', # earliest date a block is measured
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.'],
+            'date_end' : ['str|datetime', 'Latest date a block is measured.'],
         },
         'process' : {
-            'is_id' : 'bool',
-            'log_progress' : 'bool', # enable logging for processing
-            'log_frequency' : 'int', # revision frequency on which to log (ie. log every n revisions)
-            'num_threads' : 'int'   # number of worker processes
+            'is_id' : ['bool', 'Are user ids or names being passed.'],
+            'log_progress' : ['bool', 'Enable logging for processing.'],
+            'log_frequency' : ['int', 'Revision frequency on which to log (ie. log every n revisions)'],
+            'num_threads' : ['int',   'Number of worker processes.']
         }
     }
 

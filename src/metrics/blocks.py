@@ -36,10 +36,10 @@ class Blocks(um.UserMetric):
     # Structure that defines parameters for Blocks class
     _param_types = {
         'init' : {
-            'date_start' : 'str', # earliest date a block is measured
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.'],
         },
         'process' : {
-            'is_id' : 'bool'
+            'is_id' : ['bool', 'Are user ids or names being passed.'],
         }
     }
 

@@ -61,8 +61,8 @@ class UserMetric(object):
     # Structure that defines parameters for UserMetric class
     _param_types = {
         'init' : {
-            'project' : 'str',
-            'namespace' : 'set',
+            'project' : ['str', 'The project (language) being inspected.'],
+            'namespace' : ['int|set', 'The namespace over which the metric is computed.'],
             },
         'process' : {}
     }

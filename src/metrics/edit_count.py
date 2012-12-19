@@ -21,6 +21,17 @@ class EditCount(um.UserMetric):
             The output in this case is the number of edits (25) made by the editor with ID 123456 and the total number of bytes added by those edits (10000)
     """
 
+    # Structure that defines parameters for EditRate class
+    _param_types = {
+        'init' : {
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.'],
+            'date_end' : ['str|datetime', 'Latest date a block is measured.'],
+            },
+        'process' : {
+            'is_id' : ['bool', 'Are user ids or names being passed.'],
+            }
+    }
+
     def __init__(self,
                  date_start='2001-01-01 00:00:00',
                  date_end=datetime.datetime.now(),
@@ -36,6 +47,7 @@ class EditCount(um.UserMetric):
         self._start_ts_ = self._get_timestamp(date_start)
         self._end_ts_ = self._get_timestamp(date_end)
         um.UserMetric.__init__(self, **kwargs)
+        self.append_params(um.UserMetric)   # add params from base class
 
     @staticmethod
     def header(): return ['user_id', 'edit_count']
