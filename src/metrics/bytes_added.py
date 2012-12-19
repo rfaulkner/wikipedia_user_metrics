@@ -39,11 +39,23 @@ class BytesAdded(um.UserMetric):
         argument, `num_threads`, to the process() method.
     """
 
+    # Structure that defines parameters for Blocks class
+    _param_types = {
+        'init' : {
+            'date_start' : 'str|datatime', # earliest date a block is measured
+            'date_end' : 'str|datatime', # earliest date a block is measured
+        },
+        'process' : {
+            'is_id' : 'bool',
+            'log_progress' : 'bool', # enable logging for processing
+            'log_frequency' : 'int', # revision frequency on which to log (ie. log every n revisions)
+            'num_threads' : 'int'   # number of worker processes
+        }
+    }
+
     def __init__(self,
                  date_start='2010-01-01 00:00:00',
                  date_end=datetime.datetime.now(),
-                 project='enwiki',
-                 namespace=0,
                  **kwargs):
 
         """
@@ -58,7 +70,8 @@ class BytesAdded(um.UserMetric):
         """
         self._start_ts_ = self._get_timestamp(date_start)
         self._end_ts_ = self._get_timestamp(date_end)
-        um.UserMetric.__init__(self, project=project, namespace=namespace, **kwargs)
+        um.UserMetric.__init__(self, **kwargs)
+        self.append_params(um.UserMetric)   # add params from base class
 
     @staticmethod
     def header(): return ['user_id', 'bytes_added_net', 'bytes_added_absolute',
