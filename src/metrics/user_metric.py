@@ -50,20 +50,22 @@ import MySQLdb
 from collections import namedtuple
 from dateutil.parser import parse as date_parse
 
-# Structure that defines parameters for UserMetric class
-_param_types = {
-    'init' : {
-        'project' : 'str',
-        'namespace' : 'set',
-        },
-    'process' : {}
-}
+
 
 class UserMetric(object):
 
     ALL_NAMESPACES = 'all_namespaces'
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
     _static_conn = None
+
+    # Structure that defines parameters for UserMetric class
+    _param_types = {
+        'init' : {
+            'project' : 'str',
+            'namespace' : 'set',
+            },
+        'process' : {}
+    }
 
     def __init__(self,
                  project='enwiki',
@@ -88,6 +90,12 @@ class UserMetric(object):
     def __del__(self):
         if hasattr(self, '_data_source_') and hasattr(self._data_source_, 'close_db'):
             self._data_source_.close_db()
+
+    def append_params(self, class_ref):
+        """ Append params from class reference """
+        if hasattr(class_ref, '_param_types'):
+            for k,v in class_ref._param_types['init'].iteritems(): self.__class__._param_types['init'][k] = v
+            for k,v in class_ref._param_types['process'].iteritems(): self.__class__._param_types['process'][k] = v
 
     @classmethod
     def get_static_connection(cls):

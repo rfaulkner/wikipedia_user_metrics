@@ -5,20 +5,6 @@ __license__ = "GPL (version 2 or later)"
 
 import user_metric as um
 
-# Structure that defines parameters for Blocks class
-# Append params from user_metric module
-_param_types = {
-    'init' : {
-        'date_start' : 'str', # earliest date a block is measured
-        'namespace' : 'set' #
-        },
-    'process' : {
-        'is_id' : 'bool'
-    }
-}
-for k,v in um._param_types['init']: _param_types['init'][k] = v
-for k,v in um._param_types['process']: _param_types['process'][k] = v
-
 class Blocks(um.UserMetric):
     """
         Adapted from Aaron Hafaker's implementation -- uses the logging table to count blocks.  This is a user quality
@@ -47,6 +33,16 @@ class Blocks(um.UserMetric):
             ['Wesley_Mouse', 2L, '20110830010835', '20120526192657', -1]
     """
 
+    # Structure that defines parameters for Blocks class
+    _param_types = {
+        'init' : {
+            'date_start' : 'str', # earliest date a block is measured
+        },
+        'process' : {
+            'is_id' : 'bool'
+        }
+    }
+
     def __init__(self,
                  date_start='2012-01-01 00:00:00',
                  project='enwiki',
@@ -55,6 +51,7 @@ class Blocks(um.UserMetric):
         self._date_start_ = um.UserMetric._get_timestamp(date_start)
         self._project_ = project
         um.UserMetric.__init__(self, project=project, **kwargs)
+        self.append_params(um.UserMetric)   # add params from base class
 
     @staticmethod
     def header(): return ['user_id', 'block_count', 'block_first', 'block_last', 'ban']
