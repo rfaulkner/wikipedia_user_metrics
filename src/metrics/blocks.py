@@ -38,14 +38,14 @@ class Blocks(um.UserMetric):
                  project='enwiki',
                  **kwargs):
 
-        self._date_start_ = date_start
+        self._date_start_ = um.UserMetric._get_timestamp(date_start)
         self._project_ = project
         um.UserMetric.__init__(self, project=project, **kwargs)
 
     @staticmethod
     def header(): return ['user_id', 'block_count', 'block_first', 'block_last', 'ban']
 
-    def process(self, user_handle, is_id=False, **kwargs):
+    def process(self, user_handle, is_id=True, **kwargs):
         """
             Process method for the "blocks" metric.  Computes a list of block and ban events for users.
 
@@ -61,13 +61,20 @@ class Blocks(um.UserMetric):
 
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
         for i in xrange(len(user_handle)):
-            try:
-                user_handle[i] = user_handle[i].encode('utf-8').replace(" ", "_")
-            except UnicodeDecodeError:
-                user_handle[i] = user_handle[i].replace(" ", "_")
+            if hasattr(user_handle[i], 'encode'):
+                try:
+                    user_handle[i] = user_handle[i].encode('utf-8').replace(" ", "_")
+                except UnicodeDecodeError:
+                    user_handle[i] = user_handle[i].replace(" ", "_")
             rowValues[user_handle[i]] = {'block_count' : 0, 'block_first' : -1, 'block_last' : -1, 'ban' : -1}
 
-        user_handle_str = um.dl.DataLoader().format_comma_separated_list(user_handle)
+        # Prepare condition on users based on whether numeric IDs or string usernames are passed
+        if is_id:
+            user_handle = um.dl.DataLoader().cast_elems_to_string(user_handle)
+            user_handle_str = 'AND log_user in (' + um.dl.DataLoader().format_comma_separated_list(
+                user_handle, include_quotes=False) + ')'
+        else:
+            user_handle_str = 'AND log_title in (' + um.dl.DataLoader().format_comma_separated_list(user_handle) + ')'
 
         cursor = self._data_source_._cur_
         sql = """
@@ -80,16 +87,17 @@ class Blocks(um.UserMetric):
 				FROM %(wiki)s.logging
 				WHERE log_type = "block"
 				AND log_action = "block"
-				AND log_title in (%(usernames)s)
-				AND log_timestamp >= (%(timestamp)s)
+				%(user_cond)s
+				AND log_timestamp >= "%(timestamp)s"
 				GROUP BY 1, 2
 			""" % {
             'timestamp': self._date_start_,
-            'usernames': user_handle_str,
+            'user_cond': user_handle_str,
             'wiki' : self._project_
             }
 
         sql = " ".join(sql.strip().split())
+        print sql
         cursor.execute(sql)
 
         for row in cursor:
