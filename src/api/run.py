@@ -5,12 +5,14 @@
     Entry point for flask web server implementin Wikimedia Metrics API
 """
 
-from flask import Flask, render_template, Markup, jsonify, redirect, url_for
+from flask import Flask, render_template, Markup, jsonify, redirect, url_for, make_response
 import src.etl.data_loader as dl
 import cPickle
 import logging
 import sys
+import os
 import re
+import json
 import config.settings as settings
 import multiprocessing as mp
 import collections
@@ -26,12 +28,10 @@ import src.metrics.time_to_threshold as ttt
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
     format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
-# Global instance of pickle file and results data
-pkl_file = None
-pkl_data = None
+global global_id
+global_id = 0
 
 app = Flask(__name__)
-
 metric_dict = {
     'threshold' : th.Threshold,
     'survival' : sv.Survival,
@@ -41,9 +41,8 @@ metric_dict = {
     'time_to_threshold' : ttt.TimeToThreshold
 }
 
-# Process Queue. Stores (PID,pipe) pairs.
 processQ = list()
-QStructClass = collections.namedtuple('QStruct', 'process url pipe status')
+QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
 # gl_lock = mp.Lock()    # global lock
 
 @app.route('/')
@@ -86,19 +85,20 @@ def metrics(cohort=''):
 
 @app.route('/metrics/<cohort>/<metric>')
 def output(cohort, metric):
-
+    global global_id
     url = "".join(['/metrics/', cohort, '/', metric])
 
     if url in pkl_data:
         return pkl_data[url]
     else:
-
-        parent_conn, child_conn = mp.Pipe()
-        p = mp.Process(target=process_metrics, args=(url, cohort, metric, child_conn))
+        q = mp.Queue()
+        p = mp.Process(target=process_metrics, args=(url, cohort, metric, q))
         p.start()
 
+        global_id += 1
+
         logging.info('Appending request %s to the queue...' % url)
-        processQ.append(QStructClass(p,url,parent_conn,['pending']))
+        processQ.append(QStructClass(global_id,p,url,q,['pending']))
 
         return render_template('processing.html', url_str=url)
 
@@ -108,13 +108,29 @@ def job_queue():
     p_list = list()
     p_list.append(Markup('<u><b>is_alive , PID, url, status</b></u><br>'))
     for p in processQ:
-        p_list.append(" , ".join([str(p.process.is_alive()), str(p.process.pid), p.url, p.status[0]]))
         try:
-            if not p.process.is_alive(): pkl_data[p.url] = p.pipe.recv()
-            p.status[0] = 'success'
-        except Exception:
+
+            while not p.queue.empty():
+                if not queue_data.has_key(p.id):
+                    queue_data[p.id] = json.loads(p.queue.get().data)
+                else:
+                    print queue_data[p.id]
+                    for k,v in queue_data[p.id]:
+                        if hasattr(v,'__iter__'): queue_data[p.id][k].extend(v)
+
+            if not p.process.is_alive():
+                q_response = make_response(jsonify(queue_data[p.id]))
+                del queue_data[p.id]
+                pkl_data[p.url] = q_response
+
+                p.status[0] = 'success'
+                logging.info('Completed request %s.' % p.url)
+        except Exception as e:
             p.status[0] = 'failure'
-            logging.error("Could not update request: %s" % p.url )
+            logging.error("Could not update request: %s.  Exception: %s" % (p.url, e.message) )
+
+        # Log the status of the job
+        p_list.append(" , ".join([str(p.process.is_alive()), str(p.process.pid), p.url, p.status[0]]))
 
     return render_template('queue.html', procs=p_list)
 
@@ -148,15 +164,19 @@ def process_metrics(url, cohort, metric, p):
 
     users = [r[0] for r in conn._cur_]
 
-    logging.info('Processing results for %s...' % url)
+    logging.debug('Processing results for %s... (PID = %s)' % (url, os.getpid()))
+
     for m in metric_obj.process(users, num_threads=50, rev_threads=50):
         results['metric'][m[0]] = " ".join(dl.DataLoader().cast_elems_to_string(m[1:]))
-    logging.info('Processing complete for %s...' % url)
-    del conn
 
-    p.send(jsonify(results))
+    p.put(jsonify(results))
+    del conn
+    logging.info('Processing complete for %s... (PID = %s)' % (url, os.getpid()))
+
 
 if __name__ == '__main__':
+
+    queue_data = dict()
 
     # Open the pickled data for reading.  Then
     pkl_file = open(settings.__data_file_dir__ + 'api_data.pkl', 'rb')
