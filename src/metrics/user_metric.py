@@ -50,6 +50,15 @@ import MySQLdb
 from collections import namedtuple
 from dateutil.parser import parse as date_parse
 
+# Structure that defines parameters for UserMetric class
+_param_types = {
+    'init' : {
+        'project' : 'str',
+        'namespace' : 'set',
+        },
+    'process' : {}
+}
+
 class UserMetric(object):
 
     ALL_NAMESPACES = 'all_namespaces'
