@@ -97,7 +97,6 @@ class Blocks(um.UserMetric):
             }
 
         sql = " ".join(sql.strip().split())
-        print sql
         cursor.execute(sql)
 
         for row in cursor:
