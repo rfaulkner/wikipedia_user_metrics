@@ -43,7 +43,7 @@ metric_dict = {
 
 # Process Queue. Stores (PID,pipe) pairs.
 processQ = list()
-QStructClass = collections.namedtuple('QStruct', 'process url pipe')
+QStructClass = collections.namedtuple('QStruct', 'process url pipe status')
 # gl_lock = mp.Lock()    # global lock
 
 @app.route('/')
@@ -98,7 +98,7 @@ def output(cohort, metric):
         p.start()
 
         logging.info('Appending request %s to the queue...' % url)
-        processQ.append(QStructClass(p,url,parent_conn))
+        processQ.append(QStructClass(p,url,parent_conn,['pending']))
 
         return render_template('processing.html', url_str=url)
 
@@ -106,12 +106,14 @@ def output(cohort, metric):
 def job_queue():
 
     p_list = list()
-    p_list.append(Markup('<u><b>is_alive , PID, url</b></u><br>'))
+    p_list.append(Markup('<u><b>is_alive , PID, url, status</b></u><br>'))
     for p in processQ:
-        p_list.append(" , ".join([str(p.process.is_alive()), str(p.process.pid), p.url]))
+        p_list.append(" , ".join([str(p.process.is_alive()), str(p.process.pid), p.url, p.status[0]]))
         try:
             if not p.process.is_alive(): pkl_data[p.url] = p.pipe.recv()
+            p.status[0] = 'success'
         except Exception:
+            p.status[0] = 'failure'
             logging.error("Could not update request: %s" % p.url )
 
     return render_template('queue.html', procs=p_list)
@@ -147,7 +149,7 @@ def process_metrics(url, cohort, metric, p):
     users = [r[0] for r in conn._cur_]
 
     logging.info('Processing results for %s...' % url)
-    for m in metric_obj.process(users, num_threads=20):
+    for m in metric_obj.process(users, num_threads=50, rev_threads=50):
         results['metric'][m[0]] = " ".join(dl.DataLoader().cast_elems_to_string(m[1:]))
     logging.info('Processing complete for %s...' % url)
     del conn
