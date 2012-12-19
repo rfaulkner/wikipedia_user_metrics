@@ -9,6 +9,7 @@ import datetime
 import user_metric as um
 
 
+
 LAST_EDIT = -1
 REGISTRATION = 0
 
@@ -36,19 +37,32 @@ class TimeToThreshold(um.UserMetric):
         If the termination event never occurs the number of minutes returned is -1.
     """
 
+    # Structure that defines parameters for TimeToThreshold class
+    _param_types = {
+        'init' : {
+            'threshold_type_class' : ['str', 'Type of threshold to use.'],
+            },
+        'process' : {
+            'is_id' : ['bool', 'Are user ids or names being passed.'],
+        }
+    }
+
     def __init__(self,
                  threshold_type_class=None,
                  **kwargs):
 
-        um.UserMetric.__init__(self, **kwargs)
-        if threshold_type_class is None:
+        if not threshold_type_class:
              self._threshold_obj_ = self.EditCountThreshold(**kwargs)
         else:
             try:
-                self._threshold_obj_ = threshold_type_class(**kwargs)
+                self._threshold_obj_ = self.__threshold_types[threshold_type_class](**kwargs)
             except NameError:
                 self._threshold_obj_ = self.EditCountThreshold(**kwargs)
                 print str(datetime.datetime.now()) + ' - Invalid threshold class. Using default (EditCountThreshold).'
+
+        um.UserMetric.__init__(self, **kwargs)
+        self.append_params(um.UserMetric)   # add params from base class
+        self._param_types['threshold_type_params'] = self._threshold_obj_._param_types
 
     @staticmethod
     def header(): return ['user_id', 'minutes_diff']
@@ -63,6 +77,17 @@ class TimeToThreshold(um.UserMetric):
             Nested Class. Objects of this class are to be created by the constructor of TimeToThreshold.  The class has one method,
             process(), which computes the time, in minutes, taken between making N edits and M edits for a user.  N < M.
         """
+
+        # Structure that defines parameters for TimeToThreshold class
+        _param_types = {
+            'init' : {
+                'first_edit' : ['int', 'Event that initiates measurement period.'],
+                'threshold_edit' : ['int', 'Threshold event.'],
+                },
+            'process' : {
+                'is_id' : ['bool', 'Are user ids or names being passed.'],
+                }
+        }
 
         def __init__(self, first_edit=REGISTRATION, threshold_edit=1):
             """
@@ -136,3 +161,5 @@ class TimeToThreshold(um.UserMetric):
 
             time_diff = dat_obj_end - dat_obj_start
             return int(time_diff.seconds / 60) + abs(time_diff.days) * 24
+
+    __threshold_types = { 'edit_count_threshold' : EditCountThreshold }
