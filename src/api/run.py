@@ -109,8 +109,10 @@ def job_queue():
     p_list.append(Markup('<u><b>is_alive , PID, url</b></u><br>'))
     for p in processQ:
         p_list.append(" , ".join([str(p.process.is_alive()), str(p.process.pid), p.url]))
-        if not p.process.is_alive(): pkl_data[p.url] = p.pipe.recv()
-
+        try:
+            if not p.process.is_alive(): pkl_data[p.url] = p.pipe.recv()
+        except Exception:
+            logging.error("Could not update request: %s" % p.url )
 
     return render_template('queue.html', procs=p_list)
 
@@ -150,7 +152,6 @@ def process_metrics(url, cohort, metric, p):
     logging.info('Processing complete for %s...' % url)
     del conn
 
-    # pkl_data[url] =
     p.send(jsonify(results))
 
 if __name__ == '__main__':
