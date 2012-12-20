@@ -10,6 +10,7 @@ __license__ = "GPL (version 2 or later)"
 import src.metrics.threshold as th
 import src.metrics.revert_rate as rr
 from itertools import izip
+from numpy import array
 
 def decorator_builder(header):
     """ Decorator method to annotate aggregation methods to ensure the correct data model is exposed by """
@@ -65,7 +66,9 @@ def reverted_revs_agg(metric):
 def list_summation(l, key_index):
     """
         Sums the elements of list keyed on `key_index`.  The elements must be summable (i.e. e1 + e2 is allowed
-        for all e1 and e2).
+        for all e1 and e2).  All elements outside of key are summed on matching keys.
+
+        Returns: <list of summed and keyed elements>
 
         e.g.
         >>> l = [[2,1],[1,4],[2,2]]
@@ -79,6 +82,33 @@ def list_summation(l, key_index):
             d[i[key_index]] = map(sum, izip(summables,d[i[key_index]]))
         else:
             d[i[key_index]] = summables
+    return [d[k][:key_index] + [k] + d[k][key_index:] for k in d]
+
+
+def list_average(l, key_index):
+    """
+        Computes the average of the elements of list keyed on `key_index`.  The elements must be summable
+        (i.e. e1 + e2 is allowed for all e1 and e2).  All elements outside of key are summed on matching keys.
+        This duplicates the code of `list_summation` since it needs to compute counts in the loop also.
+
+        Returns: <list of averaged and keyed elements>
+
+        e.g.
+        >>> l = [[2,1],[1,4],[2,2]]
+        >>> list_summation(l,0)
+        [[1, 4.0], [2, 1.5]]
+    """
+    d=dict()
+    counts=dict()
+    for i in l:
+        summables = i[:key_index] + i[key_index+1:]
+        if d.has_key(i[key_index]):
+            d[i[key_index]] = map(sum, izip(summables,d[i[key_index]]))
+            counts[i[key_index]] += 1
+        else:
+            d[i[key_index]] = summables
+            counts[i[key_index]] = 1
+    for k in counts: d[k] = list(array(d[k]) / float(counts[k]))     # use numpy array perform list operation
     return [d[k][:key_index] + [k] + d[k][key_index:] for k in d]
 
 class AggregatorException(Exception): pass
