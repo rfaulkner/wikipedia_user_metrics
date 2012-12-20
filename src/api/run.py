@@ -10,7 +10,8 @@
         * 'failure' - The result has finished processing but dailed to expose results
 """
 
-from flask import Flask, render_template, Markup, jsonify, redirect, url_for, make_response, request
+from flask import Flask, render_template, Markup, jsonify, \
+    redirect, url_for, make_response, request, escape
 import src.etl.data_loader as dl
 import cPickle
 import logging
@@ -111,6 +112,7 @@ def output(cohort, metric):
     if url in pkl_data:
         return pkl_data[url]
     else:
+        # Queue the job
         q = mp.Queue()
         p = mp.Process(target=process_metrics, args=(url, cohort, metric, q, arg_dict))
         p.start()
@@ -150,7 +152,9 @@ def job_queue():
             logging.error("Could not update request: %s.  Exception: %s" % (p.url, e.message) )
 
         # Log the status of the job
-        p_list.append(" , ".join([str(p.process.is_alive()), str(p.process.pid), p.url, p.status[0]]))
+        response_url = "".join(['<a href="', request.url_root, p.url + '">', p.url, '</a>'])
+        p_list.append(" , ".join([str(p.process.is_alive()), str(p.process.pid),
+                                  escape(Markup(response_url)), p.status[0]]))
 
     return render_template('queue.html', procs=p_list)
 
