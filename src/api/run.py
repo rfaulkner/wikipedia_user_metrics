@@ -49,8 +49,12 @@ QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
 
 @app.route('/')
 def api_root():
-    # include some instructions
-    return render_template('index.html')
+    conn = dl.Connector(instance='slave')
+    conn._cur_.execute('select utm_name from usertags_meta')
+    data = [r[0] for r in conn._cur_]
+    del conn
+
+    return render_template('index.html', cohort_data=data)
 
 @app.route('/login')
 def login():
