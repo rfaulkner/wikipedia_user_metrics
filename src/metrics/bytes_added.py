@@ -7,6 +7,7 @@ import collections
 import datetime
 import user_metric as um
 import os
+import src.etl.aggregator as agg
 import src.utils.multiprocessing_wrapper as mpw
 
 class BytesAdded(um.UserMetric):
@@ -82,7 +83,8 @@ class BytesAdded(um.UserMetric):
         revs = self._get_revisions(user_handle, is_id, log_progress=log_progress)
         args = [log_progress, log_frequency]
         if k:
-            self._results = mpw.build_thread_pool(revs,_process_help,k,args)
+            # Start worker threads and aggregate results
+            self._results = agg.list_summation(mpw.build_thread_pool(revs,_process_help,k,args),0)
         else:
             self._results = _process_help([revs, args])
 
@@ -254,5 +256,7 @@ def _process_help(args):
 
 # Used for testing
 if __name__ == "__main__":
-    BytesAdded(date_start='20120101000000',date_end='20121101000000', namespace=[0,1]).process(user_handle=['156171','13234584'],
-        log_progress=True, num_threads=10)
+    #for r in BytesAdded(date_start='20120101000000',date_end='20121101000000', namespace=[0,1]).process(user_handle=['156171','13234584'],
+    #    log_progress=True, num_threads=10): print r
+
+    for r in BytesAdded().process(user_handle=['156171','13234584'], num_threads=10, log_progress=True): print r
