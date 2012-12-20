@@ -61,21 +61,28 @@ class UserMetric(object):
     # Structure that defines parameters for UserMetric class
     _param_types = {
         'init' : {
-            'project' : ['str', 'The project (language) being inspected.'],
-            'namespace' : ['int|set', 'The namespace over which the metric is computed.'],
+            'project' : ['str', 'The project (language) being inspected.', 'enwiki'],
+            'namespace' : ['int|set', 'The namespace over which the metric is computed.', ALL_NAMESPACES],
             },
         'process' : {}
     }
 
-    def __init__(self,
-                 project='enwiki',
-                 namespace=ALL_NAMESPACES,
-                 **kwargs):
+    def apply_default_kwargs(self, kwargs, arg_type):
+        """ Apply parameter defaults where necessary """
+        if hasattr(kwargs, '__iter__') and arg_type in self._param_types:
+            for k in self._param_types[arg_type]:
+                if not k in kwargs: kwargs[k] = self._param_types[arg_type][k][2]
 
+    def __init__(self, **kwargs):
+
+        self.apply_default_kwargs(kwargs,'init')
         self._data_source_ = dl.Connector(instance='slave')
-        self._results = []
-        self._project_ = project
 
+        self._results = []
+        self._project_ = kwargs['project']
+        self.apply_default_kwargs(kwargs,'init')
+
+        namespace = kwargs['namespace']
         if not namespace == self.ALL_NAMESPACES:
             if not hasattr(namespace, '__iter__'): namespace = [namespace]
             self._namespace_ = set(namespace)
@@ -168,7 +175,7 @@ class UserMetric(object):
     @staticmethod
     def header(): raise NotImplementedError
 
-    def process(self, user_handle, is_id=True, **kwargs): raise NotImplementedError
+    def process(self, user_handle, **kwargs): raise NotImplementedError
 
     class UserMetricError(Exception):
         """ Basic exception class for UserMetric types """
