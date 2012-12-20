@@ -45,11 +45,9 @@ class TimeToThreshold(um.UserMetric):
         },
     }
 
+    @um.pre_metrics_init
     def __init__(self, **kwargs):
 
-        # Add params from base class
-        self.append_params(um.UserMetric)
-        self.apply_default_kwargs(kwargs,'init')
         um.UserMetric.__init__(self, **kwargs)
 
         # Add the parameter definitions from the threshold type

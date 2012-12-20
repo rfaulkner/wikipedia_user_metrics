@@ -32,19 +32,9 @@ class EditCount(um.UserMetric):
             }
     }
 
+    @um.pre_metrics_init
     def __init__(self, **kwargs):
-        """
-            Constructor for EditCount class.  Initialize timestamps over which metric is computed.
 
-             - Paramters:
-                - **date_start**: string or datetime.datetime. start date of edit interval
-                - **date_end**: string or datetime.datetime. end date of edit interval
-                - **raw_count**: Boolean. Flag that when set to True returns one total count for all users.  Count by user otherwise.
-        """
-
-        # Add params from base class
-        self.append_params(um.UserMetric)
-        self.apply_default_kwargs(kwargs,'init')
         um.UserMetric.__init__(self, **kwargs)
 
         self._start_ts_ = self._get_timestamp(kwargs['date_start'])

@@ -38,11 +38,9 @@ class EditRate(um.UserMetric):
         }
     }
 
+    @um.pre_metrics_init
     def __init__(self, **kwargs):
 
-        # Add params from base class
-        self.append_params(um.UserMetric)
-        self.apply_default_kwargs(kwargs,'init')
         um.UserMetric.__init__(self, **kwargs)
 
         self._time_unit_count_ = kwargs['time_unit_count']

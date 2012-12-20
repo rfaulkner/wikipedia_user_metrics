@@ -50,7 +50,17 @@ import MySQLdb
 from collections import namedtuple
 from dateutil.parser import parse as date_parse
 
+def pre_metrics_init(init_f):
+    """ Decorator function for subclassed metrics __init__ """
+    def wrapper(self,**kwargs):
+        # Add params from base class
+        self.append_params(UserMetric)
+        self.apply_default_kwargs(kwargs,'init')
 
+        # Call init
+        init_f(self,**kwargs)
+
+    return wrapper
 
 class UserMetric(object):
 

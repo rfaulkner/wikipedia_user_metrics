@@ -45,17 +45,9 @@ class Threshold(um.UserMetric):
         }
     }
 
+    @um.pre_metrics_init
     def __init__(self, **kwargs):
 
-        """
-            - Parameters:
-                - **date_start**: string or datetime.datetime. start date of edit interval
-                - **date_end**: string or datetime.datetime. end date of edit interval
-        """
-
-        # Add params from base class
-        self.append_params(um.UserMetric)
-        self.apply_default_kwargs(kwargs,'init')
         um.UserMetric.__init__(self, **kwargs)
 
         self._start_ts_ = self._get_timestamp(kwargs['date_start'])

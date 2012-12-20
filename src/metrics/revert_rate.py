@@ -61,11 +61,9 @@ class RevertRate(um.UserMetric):
         }
     }
 
+    @um.pre_metrics_init
     def __init__(self, **kwargs):
 
-        # Add params from base class
-        self.append_params(um.UserMetric)
-        self.apply_default_kwargs(kwargs,'init')
         um.UserMetric.__init__(self, **kwargs)
 
         self.look_back = kwargs['look_back']
