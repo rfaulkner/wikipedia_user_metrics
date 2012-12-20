@@ -23,6 +23,7 @@ import src.metrics.bytes_added as ba
 import src.metrics.survival as sv
 import src.metrics.revert_rate as rr
 import src.metrics.time_to_threshold as ttt
+import src.metrics.edit_rate as er
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
@@ -38,7 +39,8 @@ metric_dict = {
     'revert' : rr.RevertRate,
     'bytes_added' : ba.BytesAdded,
     'blocks' : b.Blocks,
-    'time_to_threshold' : ttt.TimeToThreshold
+    'time_to_threshold' : ttt.TimeToThreshold,
+    'edit_rate' : er.EditRate,
 }
 
 processQ = list()
