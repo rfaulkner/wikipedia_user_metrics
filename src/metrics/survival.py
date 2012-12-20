@@ -68,15 +68,10 @@ class Survival(um.UserMetric):
         """
 
         self.apply_default_kwargs(kwargs,'process')
+        kwargs['survival'] = True
+        kwargs['n'] = 1     # survival is denoted by making at least one revision
 
-        k = kwargs['num_threads'] if 'num_threads' in kwargs else 0
-        log_progress = bool(kwargs['log_progress']) if 'log_progress' in kwargs else False
-
-        return th.Threshold(
-            date_start=self._start_ts_,
-            date_end=self._end_ts_,
-            n=0,
-            t=self._t_).process(user_handle, survival=True, num_threads=k, log_progress=log_progress)
+        return th.Threshold(**kwargs).process(user_handle, **kwargs)
 
 # testing
 if __name__ == "__main__":
