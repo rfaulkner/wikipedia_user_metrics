@@ -27,36 +27,37 @@ class Blocks(um.UserMetric):
 
             >>> import src.metrics.blocks as b
             >>> block_obj = b.Blocks(date_start='2011-01-01 00:00:00')
-            >>> for r in block_obj.process(['Wesley Mouse', 'Nickyp88']).__iter__(): print r
+            >>> for r in block_obj.process(['11174885', '15132776']).__iter__(): print r
             ...
-            ['Nickyp88', 1L, '20110809143215', '20110809143215', -1]
-            ['Wesley_Mouse', 2L, '20110830010835', '20120526192657', -1]
+            ['15132776', 1L, '20110809143215', '20110809143215', -1]
+            ['11174885', 2L, '20110830010835', '20120526192657', -1]
     """
 
     # Structure that defines parameters for Blocks class
     _param_types = {
         'init' : {
-            'date_start' : ['str|datetime', 'Earliest date a block is measured.'],
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.', '2010-01-01 00:00:00'],
         },
         'process' : {
-            'is_id' : ['bool', 'Are user ids or names being passed.'],
+            'is_id' : ['bool', 'Are user ids or names being passed.', True],
         }
     }
 
-    def __init__(self,
-                 date_start='2012-01-01 00:00:00',
-                 project='enwiki',
-                 **kwargs):
+    def __init__(self, **kwargs):
 
-        self._date_start_ = um.UserMetric._get_timestamp(date_start)
-        self._project_ = project
-        um.UserMetric.__init__(self, project=project, **kwargs)
-        self.append_params(um.UserMetric)   # add params from base class
+        # Add params from base class
+        self.append_params(um.UserMetric)
+        self.apply_default_kwargs(kwargs,'init')
+        um.UserMetric.__init__(self, **kwargs)
+
+        self._date_start_ = um.UserMetric._get_timestamp(kwargs['date_start'])
+
+
 
     @staticmethod
     def header(): return ['user_id', 'block_count', 'block_first', 'block_last', 'ban']
 
-    def process(self, user_handle, is_id=True, **kwargs):
+    def process(self, user_handle, **kwargs):
         """
             Process method for the "blocks" metric.  Computes a list of block and ban events for users.
 
@@ -68,6 +69,10 @@ class Blocks(um.UserMetric):
                 - UserMetric::Blocks (self).
 
         """
+
+        self.apply_default_kwargs(kwargs,'process')
+        is_id = kwargs['is_id']
+
         rowValues = {}
 
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable

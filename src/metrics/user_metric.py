@@ -77,11 +77,9 @@ class UserMetric(object):
 
         self.apply_default_kwargs(kwargs,'init')
         self._data_source_ = dl.Connector(instance='slave')
-
         self._results = []
-        self._project_ = kwargs['project']
-        self.apply_default_kwargs(kwargs,'init')
 
+        self._project_ = kwargs['project']
         namespace = kwargs['namespace']
         if not namespace == self.ALL_NAMESPACES:
             if not hasattr(namespace, '__iter__'): namespace = [namespace]

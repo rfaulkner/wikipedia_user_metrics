@@ -8,8 +8,6 @@ from dateutil.parser import parse as date_parse
 import datetime
 import user_metric as um
 
-
-
 LAST_EDIT = -1
 REGISTRATION = 0
 
@@ -40,36 +38,41 @@ class TimeToThreshold(um.UserMetric):
     # Structure that defines parameters for TimeToThreshold class
     _param_types = {
         'init' : {
-            'threshold_type_class' : ['str', 'Type of threshold to use.'],
+            'threshold_type_class' : ['str', 'Type of threshold to use.','edit_count_threshold'],
             },
         'process' : {
-            'is_id' : ['bool', 'Are user ids or names being passed.'],
-        }
+            'is_id' : ['bool', 'Are user ids or names being passed.',True],
+        },
     }
 
-    def __init__(self,
-                 threshold_type_class=None,
-                 **kwargs):
+    def __init__(self, **kwargs):
 
-        if not threshold_type_class:
-             self._threshold_obj_ = self.EditCountThreshold(**kwargs)
-        else:
-            try:
-                self._threshold_obj_ = self.__threshold_types[threshold_type_class](**kwargs)
-            except NameError:
-                self._threshold_obj_ = self.EditCountThreshold(**kwargs)
-                print str(datetime.datetime.now()) + ' - Invalid threshold class. Using default (EditCountThreshold).'
-
+        # Add params from base class
+        self.append_params(um.UserMetric)
+        self.apply_default_kwargs(kwargs,'init')
         um.UserMetric.__init__(self, **kwargs)
-        self.append_params(um.UserMetric)   # add params from base class
-        self._param_types['threshold_type_params'] = self._threshold_obj_._param_types
+
+        # Add the parameter definitions from the threshold type
+        self.append_params(self.__threshold_types[kwargs['threshold_type_class']])
+        self.apply_default_kwargs(kwargs,'init')
+
+        try:
+            self._threshold_obj_ = self.__threshold_types[kwargs['threshold_type_class']](**kwargs)
+            bad = False
+        except NameError: bad = True
+        except KeyError: bad = True
+
+        if bad:
+            self._threshold_obj_ = self.EditCountThreshold(**kwargs)
+            print str(datetime.datetime.now()) + ' - Invalid threshold class. Using default (EditCountThreshold).'
 
     @staticmethod
     def header(): return ['user_id', 'minutes_diff']
 
-    def process(self, user_handle, is_id=True, **kwargs):
+    def process(self, user_handle, **kwargs):
         """ Wrapper for specific threshold objects """
-        self._results =  self._threshold_obj_.process(user_handle, self, is_id=is_id, **kwargs)
+        self.apply_default_kwargs(kwargs,'process')
+        self._results =  self._threshold_obj_.process(user_handle, self, **kwargs)
         return self
 
     class EditCountThreshold():
@@ -81,15 +84,15 @@ class TimeToThreshold(um.UserMetric):
         # Structure that defines parameters for TimeToThreshold class
         _param_types = {
             'init' : {
-                'first_edit' : ['int', 'Event that initiates measurement period.'],
-                'threshold_edit' : ['int', 'Threshold event.'],
+                'first_edit' : ['int', 'Event that initiates measurement period.',REGISTRATION],
+                'threshold_edit' : ['int', 'Threshold event.',1],
                 },
             'process' : {
-                'is_id' : ['bool', 'Are user ids or names being passed.'],
+                'is_id' : ['bool', 'Are user ids or names being passed.',True],
                 }
         }
 
-        def __init__(self, first_edit=REGISTRATION, threshold_edit=1):
+        def __init__(self, **kwargs):
             """
                 Object constructor.  There are two required parameters:
 
@@ -99,13 +102,13 @@ class TimeToThreshold(um.UserMetric):
             """
 
             try:
-                self._first_edit_ = int(first_edit)
-                self._threshold_edit_ = int(threshold_edit)
+                self._first_edit_ = int(kwargs['first_edit'])
+                self._threshold_edit_ = int(kwargs['threshold_edit'])
 
             except ValueError:
                 raise um.UserMetric.UserMetricError(str(self.__class__()) + ': Invalid init params.')
 
-        def process(self, user_handle, threshold_obj, is_id=True, **kwargs):
+        def process(self, user_handle, threshold_obj, **kwargs):
             """
                 First determine if the user has made an adequate number of edits.  If so, compute the number of minutes that passed
                 between the Nth and Mth edit.
@@ -116,6 +119,7 @@ class TimeToThreshold(um.UserMetric):
                         - **threshold_edit** - Integer.  The numeric value of the threshold edit from which to measure the threshold
             """
 
+            is_id=kwargs['is_id']
             minutes_to_threshold = list()
 
             # Operate on either user ids or names

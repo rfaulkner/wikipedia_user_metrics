@@ -42,21 +42,18 @@ class BytesAdded(um.UserMetric):
     # Structure that defines parameters for BytesAdded class
     _param_types = {
         'init' : {
-            'date_start' : ['str|datetime', 'Earliest date a block is measured.'],
-            'date_end' : ['str|datetime', 'Latest date a block is measured.'],
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.', '2010-01-01 00:00:00'],
+            'date_end' : ['str|datetime', 'Latest date a block is measured.', datetime.datetime.now()],
         },
         'process' : {
-            'is_id' : ['bool', 'Are user ids or names being passed.'],
-            'log_progress' : ['bool', 'Enable logging for processing.'],
-            'log_frequency' : ['int', 'Revision frequency on which to log (ie. log every n revisions)'],
-            'num_threads' : ['int',   'Number of worker processes.']
+            'is_id' : ['bool', 'Are user ids or names being passed.', True],
+            'log_progress' : ['bool', 'Enable logging for processing.', False],
+            'log_frequency' : ['int', 'Revision frequency on which to log (ie. log every n revisions)', 1000],
+            'num_threads' : ['int',   'Number of worker processes.', 0]
         }
     }
 
-    def __init__(self,
-                 date_start='2010-01-01 00:00:00',
-                 date_end=datetime.datetime.now(),
-                 **kwargs):
+    def __init__(self, **kwargs):
 
         """
             - Parameters:
@@ -68,21 +65,28 @@ class BytesAdded(um.UserMetric):
             - Return:
                 - Empty.
         """
-        self._start_ts_ = self._get_timestamp(date_start)
-        self._end_ts_ = self._get_timestamp(date_end)
+
+        # add params from base class
+        self.append_params(um.UserMetric)
+        self.apply_default_kwargs(kwargs,'init')
         um.UserMetric.__init__(self, **kwargs)
-        self.append_params(um.UserMetric)   # add params from base class
+
+        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
+        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
 
     @staticmethod
     def header(): return ['user_id', 'bytes_added_net', 'bytes_added_absolute',
                           'bytes_added_pos', 'bytes_added_neg', 'edit_count']
 
-    def process(self, user_handle=None, is_id=True, **kwargs):
+    def process(self, user_handle, **kwargs):
         """ Setup metrics gathering using multiprocessing """
 
-        k = kwargs['num_threads'] if 'num_threads' in kwargs else 0
-        log_progress = bool(kwargs['log_progress']) if 'log_progress' in kwargs else False
-        log_frequency = int(kwargs['log_frequency']) if 'log_frequency' in kwargs else 1000
+        self.apply_default_kwargs(kwargs,'process')
+
+        is_id = kwargs['is_id']
+        k = kwargs['num_threads']
+        log_progress = bool(kwargs['log_progress'])
+        log_frequency = int(kwargs['log_frequency'])
 
         if user_handle:
             if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]

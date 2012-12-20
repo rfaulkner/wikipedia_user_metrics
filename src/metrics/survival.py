@@ -32,39 +32,38 @@ class Survival(um.UserMetric):
     # Structure that defines parameters for Survival class
     _param_types = {
         'init' : {
-            'date_start' : ['str|datatime', 'Earliest date a block is measured.'],
-            'date_end' : ['str|datatime', 'Latest date a block is measured.'],
-            't' : ['int', 'The time in minutes registration after which survival is measured.'],
+            'date_start' : ['str|datatime', 'Earliest date a block is measured.','2001-01-01 00:00:00'],
+            'date_end' : ['str|datatime', 'Latest date a block is measured.',datetime.datetime.now()],
+            't' : ['int', 'The time in minutes registration after which survival is measured.',1440],
             },
         'process' : {
-            'is_id' : ['bool', 'Are user ids or names being passed.'],
-            'log_progress' : ['bool', 'Enable logging for processing.'],
-            'num_threads' : ['int', 'Number of worker processes over users.'],
+            'log_progress' : ['bool', 'Enable logging for processing.',False],
+            'num_threads' : ['int', 'Number of worker processes over users.',0],
             }
     }
 
-    def __init__(self,
-                 date_start='2001-01-01 00:00:00',
-                 date_end=datetime.datetime.now(),
-                 t=1440,
-                 **kwargs):
-
+    def __init__(self, **kwargs):
         """
             - Parameters:
                 - **date_start**: string or datetime.datetime. start date of edit interval
                 - **date_end**: string or datetime.datetime. end date of edit interval
         """
-        self._start_ts_ = self._get_timestamp(date_start)
-        self._end_ts_ = self._get_timestamp(date_end)
-        self._t_ = t
+
+        # Add params from base class
+        self.append_params(um.UserMetric)
+        self.apply_default_kwargs(kwargs,'init')
         um.UserMetric.__init__(self, **kwargs)
-        self.append_params(um.UserMetric)   # add params from base class
+
+        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
+        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
+        self._t_ = kwargs['t']
+
 
     @staticmethod
     def header():
         return ['user_id', 'is_alive']
 
-    def process(self, user_handle, is_id=True, **kwargs):
+    def process(self, user_handle, **kwargs):
 
         """
             Wraps the functionality of UserMetric::Threshold by setting the `survival` flag in process().
@@ -74,6 +73,8 @@ class Survival(um.UserMetric):
                 - **is_id** - Boolean.  Flag indicating whether user_handle stores user names or user ids
 
         """
+
+        self.apply_default_kwargs(kwargs,'process')
 
         k = kwargs['num_threads'] if 'num_threads' in kwargs else 0
         log_progress = bool(kwargs['log_progress']) if 'log_progress' in kwargs else False

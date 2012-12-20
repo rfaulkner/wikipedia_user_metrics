@@ -33,50 +33,47 @@ class Threshold(um.UserMetric):
     # Structure that defines parameters for Thresold class
     _param_types = {
         'init' : {
-            'date_start' : ['str|datetime', 'Earliest date a block is measured.'],
-            'date_end' : ['str|datetime', 'Latest date a block is measured.'],
-            't' : ['int', 'The time in minutes until the threshold.'],
-            'n' : ['int', 'Revision threshold that is to be exceeded in time `t`.'],
-            'survival' : ['bool', 'Indicates whether this is to be processed as the survival metric.']
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.','2001-01-01 00:00:00'],
+            'date_end' : ['str|datetime', 'Latest date a block is measured.',datetime.datetime.now()],
+            't' : ['int', 'The time in minutes until the threshold.',1440],
+            'n' : ['int', 'Revision threshold that is to be exceeded in time `t`.',1],
             },
         'process' : {
-            'is_id' : ['bool', 'Are user ids or names being passed.'],
-            'log_progress' : ['bool', 'Enable logging for processing.'],
-            'num_threads' : ['int', 'Number of worker processes over users.'],
-            }
+            'log_progress' : ['bool', 'Enable logging for processing.',False],
+            'num_threads' : ['int', 'Number of worker processes over users.',0],
+            'survival' : ['bool', 'Indicates whether this is to be processed as the survival metric.',False],
+        }
     }
 
-    def __init__(self,
-                 date_start='2001-01-01 00:00:00',
-                 date_end=datetime.datetime.now(),
-                 t=1440,
-                 n=1,
-                 **kwargs):
+    def __init__(self, **kwargs):
 
         """
             - Parameters:
                 - **date_start**: string or datetime.datetime. start date of edit interval
                 - **date_end**: string or datetime.datetime. end date of edit interval
         """
-        self._start_ts_ = self._get_timestamp(date_start)
-        self._end_ts_ = self._get_timestamp(date_end)
+
+        # Add params from base class
+        self.append_params(um.UserMetric)
+        self.apply_default_kwargs(kwargs,'init')
+        um.UserMetric.__init__(self, **kwargs)
+
+        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
+        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
 
         try:
-            self._t_ = int(t)
-            self._n_ = int(n)
+            self._t_ = int(kwargs['t'])
+            self._n_ = int(kwargs['n'])
         except ValueError:
             print str(datetime.datetime.now()) + ' - parameters `t` and `n` not integers.  Setting to defaults.'
             self._t_ = 1440
-            self._t_ = 1
-
-        um.UserMetric.__init__(self, **kwargs)
-        self.append_params(um.UserMetric)   # add params from base class
+            self._n_ = 1
 
     @staticmethod
     def header():
         return ['user_id', 'has_reached_threshold']
 
-    def process(self, user_handle, is_id=True, **kwargs):
+    def process(self, user_handle, **kwargs):
         """
             This function gathers threahold (survival) metric data by: ::
 
@@ -91,9 +88,11 @@ class Threshold(um.UserMetric):
             **NOTA BENE** - kwarg "survival" is used to execute has this determine survival rather than a threshold metric
         """
 
-        k = kwargs['num_threads'] if 'num_threads' in kwargs else 0
-        log_progress = bool(kwargs['log_progress']) if 'log_progress' in kwargs else False
-        survival = bool(kwargs['survival']) if 'survival' in kwargs else False
+        self.apply_default_kwargs(kwargs,'process')
+
+        k = kwargs['num_threads']
+        log_progress = bool(kwargs['log_progress'])
+        survival = bool(kwargs['survival'])
 
         # Format condition on user ids.  if no user handle exists there is no condition.
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
