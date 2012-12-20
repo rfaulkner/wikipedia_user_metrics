@@ -1,8 +1,14 @@
 {% extends "layout.html" %}
 {% block body %}
 {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
-{% for job in procs %}
-{{ job }}<br>
-{% endfor %}
-<br><br>Back to <a href="{{ url_for('cohorts') }}">Cohorts</a>.
+
+<div class="para_courier">
+    {% for job in procs %}
+    {{ job|safe }}
+    <div class="v_space_sm"></div>
+    {% endfor %}
+</div>
+
+<div class="v_space_sm"></div>
+Back to <a href="{{ url_for('cohorts') }}">Cohorts</a>.
 {% endblock %}
