@@ -2,7 +2,12 @@
 # -*- coding: utf-8 -*-
 
 """
-    Entry point for flask web server implementin Wikimedia Metrics API
+    Entry point for flask web server implementin Wikimedia Metrics API.
+
+    Process states: ::
+        * 'pending' - The request has yet to be fully processed and exposed but is underway
+        * 'success' - The request has finished processing and is exposed at the url
+        * 'failure' - The result has finished processing but dailed to expose results
 """
 
 from flask import Flask, render_template, Markup, jsonify, redirect, url_for, make_response, request
@@ -133,7 +138,7 @@ def job_queue():
                     for k,v in queue_data[p.id]:
                         if hasattr(v,'__iter__'): queue_data[p.id][k].extend(v)
 
-            if not p.process.is_alive():
+            if not p.process.is_alive() and p.status[0] == 'pending':
                 q_response = make_response(jsonify(queue_data[p.id]))
                 del queue_data[p.id]
                 pkl_data[p.url] = q_response
