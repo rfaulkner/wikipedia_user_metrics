@@ -5,7 +5,7 @@
     Entry point for flask web server implementin Wikimedia Metrics API
 """
 
-from flask import Flask, render_template, Markup, jsonify, redirect, url_for, make_response
+from flask import Flask, render_template, Markup, jsonify, redirect, url_for, make_response, request
 import src.etl.data_loader as dl
 import cPickle
 import logging
@@ -47,6 +47,7 @@ QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
 
 @app.route('/')
 def api_root():
+    # include some instructions
     return render_template('index.html')
 
 @app.route('/login')
@@ -76,23 +77,31 @@ def cohorts():
     return render_template('cohorts.html', data=o)
 
 @app.route('/metrics')
-@app.route('/metrics/<cohort>')
+@app.route('/metrics/<string:cohort>')
 def metrics(cohort=''):
     if not cohort:
         return redirect(url_for('cohorts'))
     else:
         return render_template('metrics.html', c_str=cohort, m_list=metric_dict.keys())
 
-@app.route('/metrics/<cohort>/<metric>')
+@app.route('/metrics/<string:cohort>/<string:metric>')
 def output(cohort, metric):
+
     global global_id
-    url = "".join(['/metrics/', cohort, '/', metric])
+    # url = "".join(['/metrics/', cohort, '/', metric])
+    url = request.url.split(request.url_root)[1]
+
+    # GET - parse query string
+    arg_dict = dict()
+
+    for arg in request.args:
+        arg_dict[arg] = request.args[arg]
 
     if url in pkl_data:
         return pkl_data[url]
     else:
         q = mp.Queue()
-        p = mp.Process(target=process_metrics, args=(url, cohort, metric, q))
+        p = mp.Process(target=process_metrics, args=(url, cohort, metric, q, arg_dict))
         p.start()
 
         global_id += 1
@@ -134,8 +143,7 @@ def job_queue():
 
     return render_template('queue.html', procs=p_list)
 
-
-def process_metrics(url, cohort, metric, p):
+def process_metrics(url, cohort, metric, p, args):
 
     conn = dl.Connector(instance='slave')
     try:
@@ -148,7 +156,7 @@ def process_metrics(url, cohort, metric, p):
     # Get metric
     metric_obj = None
     try:
-        metric_obj = metric_dict[metric]()
+        metric_obj = metric_dict[metric](**args)
     except KeyError:
         logging.error('Bad metric handle: %s' % url)
         redirect(url_for('cohorts'))
@@ -166,7 +174,7 @@ def process_metrics(url, cohort, metric, p):
 
     logging.debug('Processing results for %s... (PID = %s)' % (url, os.getpid()))
 
-    for m in metric_obj.process(users, num_threads=50, rev_threads=50):
+    for m in metric_obj.process(users, num_threads=50, rev_threads=50, **args):
         results['metric'][m[0]] = " ".join(dl.DataLoader().cast_elems_to_string(m[1:]))
 
     p.put(jsonify(results))
