@@ -60,7 +60,7 @@ class Blocks(um.UserMetric):
             Process method for the "blocks" metric.  Computes a list of block and ban events for users.
 
             Parameters:
-                - **user_handle** - List.  List of user names (or IDs).
+                - **user_handle** - List.  List of user IDs.
                 - **is_id** - Boolean.  Defaults to False.
 
             Return:
@@ -69,31 +69,28 @@ class Blocks(um.UserMetric):
         """
 
         self.apply_default_kwargs(kwargs,'process')
-        is_id = kwargs['is_id']
-
         rowValues = {}
 
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
-        for i in xrange(len(user_handle)):
-            if hasattr(user_handle[i], 'encode'):
-                try:
-                    user_handle[i] = user_handle[i].encode('utf-8').replace(" ", "_")
-                except UnicodeDecodeError:
-                    user_handle[i] = user_handle[i].replace(" ", "_")
-            rowValues[user_handle[i]] = {'block_count' : 0, 'block_first' : -1, 'block_last' : -1, 'ban' : -1}
+        users = um.dl.DataLoader().cast_elems_to_string(user_handle)
 
-        # Prepare condition on users based on whether numeric IDs or string usernames are passed
-        if is_id:
-            user_handle = um.dl.DataLoader().cast_elems_to_string(user_handle)
-            user_handle_str = 'AND log_user in (' + um.dl.DataLoader().format_comma_separated_list(
-                user_handle, include_quotes=False) + ')'
-        else:
-            user_handle_str = 'AND log_title in (' + um.dl.DataLoader().format_comma_separated_list(user_handle) + ')'
+        for i in xrange(len(users)):
+            rowValues[users[i]] = {'block_count' : 0, 'block_first' : -1, 'block_last' : -1, 'ban' : -1}
 
         cursor = self._data_source_._cur_
+        user_dict = dict()
+
+        # Get usernames for user ids to detect in block events
+        users = um.dl.DataLoader().cast_elems_to_string(users)
+        user_str = um.dl.DataLoader().format_comma_separated_list(users)
+        cursor.execute('select user_id, user_name from enwiki.user where user_id in (%s)' % user_str)
+
+        for r in cursor: user_dict[r[1]] = r[0] # keys username on userid
+        user_handle_str = um.dl.DataLoader().format_comma_separated_list(user_dict.keys())
+
         sql = """
 				SELECT
-				    log_title as user_name,
+				    log_title as user,
 					IF(log_params LIKE "%%indefinite%%", "ban", "block") as type,
 					count(*) as count,
 					min(log_timestamp) as first,
@@ -101,10 +98,11 @@ class Blocks(um.UserMetric):
 				FROM %(wiki)s.logging
 				WHERE log_type = "block"
 				AND log_action = "block"
-				%(user_cond)s
+				AND log_title in (%(user_str)s)
 				AND log_timestamp >= "%(timestamp)s"
 				GROUP BY 1, 2
 			""" % {
+            'user_str' : user_handle_str,
             'timestamp': self._date_start_,
             'user_cond': user_handle_str,
             'wiki' : self._project_
@@ -115,19 +113,22 @@ class Blocks(um.UserMetric):
 
         for row in cursor:
 
-            username = row[0]
+            userid = str(user_dict[row[0]])
             type = row[1]
             count = row[2]
             first = row[3]
             last = row[4]
 
             if type == "block":
-                rowValues[username]['block_count'] = count
-                rowValues[username]['block_first'] = first
-                rowValues[username]['block_last'] = last
+                rowValues[userid]['block_count'] = count
+                rowValues[userid]['block_first'] = first
+                rowValues[userid]['block_last'] = last
 
             elif type == "ban":
-                rowValues[username][type] = first
+                rowValues[userid][type] = first
 
         self._results = [[user, rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']] for user in rowValues.keys()]
         return self
+
+if __name__ == "__main__":
+    for r in Blocks().process(['11174885', '15132776']): print r
