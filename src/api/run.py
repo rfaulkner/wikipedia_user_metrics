@@ -158,6 +158,14 @@ def job_queue():
 
     return render_template('queue.html', procs=p_list)
 
+@app.route('/all_urls')
+def all_urls():
+    url_list = list()
+    for url in pkl_data.keys():
+        url_list.append("".join(['<a href="', request.url_root, url + '">', url, '</a>']))
+    return render_template('all_urls.html', urls=url_list)
+
+
 def process_metrics(url, cohort, metric, p, args):
 
     conn = dl.Connector(instance='slave')
