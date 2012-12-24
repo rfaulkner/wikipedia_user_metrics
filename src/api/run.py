@@ -112,17 +112,26 @@ def output(cohort, metric):
     if url in pkl_data:
         return pkl_data[url]
     else:
-        # Queue the job
-        q = mp.Queue()
-        p = mp.Process(target=process_metrics, args=(url, cohort, metric, q, arg_dict))
-        p.start()
 
-        global_id += 1
+        # Ensure that the job for this url is not already running
+        is_pending_job = False
+        for p in processQ:
+            if not cmp(url, p.url) and p.status[0] == 'pending': is_pending_job = True
 
-        logging.info('Appending request %s to the queue...' % url)
-        processQ.append(QStructClass(global_id,p,url,q,['pending']))
+        if not is_pending_job: # Queue the job
 
-        return render_template('processing.html', url_str=url)
+            q = mp.Queue()
+            p = mp.Process(target=process_metrics, args=(url, cohort, metric, q, arg_dict))
+            p.start()
+
+            global_id += 1
+
+            logging.info('Appending request %s to the queue...' % url)
+            processQ.append(QStructClass(global_id,p,url,q,['pending']))
+
+            return render_template('processing.html', url_str=url)
+        else:
+            return redirect(url_for('job_queue'))
 
 @app.route('/job_queue')
 def job_queue():
