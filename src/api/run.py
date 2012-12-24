@@ -21,6 +21,7 @@ import os
 import re
 import json
 import copy
+from urlparse import urlparse
 import config.settings as settings
 import multiprocessing as mp
 import collections
@@ -116,6 +117,10 @@ def output(cohort, metric):
             if int(arg_dict['refresh']): refresh = True
         except ValueError: pass
 
+    # Format the query string
+    metric_params = metric_dict[metric]()._param_types
+    url = strip_query_string(url, metric_params['init'].keys() + metric_params['process'].keys())
+
     if url in pkl_data and not refresh:
         return pkl_data[url]
     else:
@@ -159,7 +164,6 @@ def job_queue():
                 if not queue_data.has_key(p.id):
                     queue_data[p.id] = json.loads(p.queue.get().data)
                 else:
-                    print queue_data[p.id]
                     for k,v in queue_data[p.id]:
                         if hasattr(v,'__iter__'): queue_data[p.id][k].extend(v)
 
@@ -191,6 +195,31 @@ def all_urls():
         url_list.append("".join(['<a href="', request.url_root, url + '">', url, '</a>']))
     return render_template('all_urls.html', urls=url_list)
 
+def strip_query_string(url, valid_items):
+    """ Strips the query string down to the relevant items defined by the list of string objects `valid_items` """
+
+    # parse the url then remove the query string
+    url_obj = urlparse(url)
+    url = url.split('?')[0]
+
+    q_params = dict()
+    new_q_params = list()
+
+    # Compile the query string elements
+    for q_items in url_obj.query.split('&'):
+        k = q_items.split('=')
+        try: q_params[k[0]] = k[1]
+        except IndexError: pass
+
+    # Filter the parameters
+    for item in valid_items:
+        if q_params.has_key(item): new_q_params.append(item+'='+q_params[item])
+
+    # synthesize and return the new url
+    if new_q_params:
+        return url.split('?')[0] + '?' + "&".join(new_q_params)
+    else:
+        return url
 
 def process_metrics(url, cohort, metric, p, args):
 
