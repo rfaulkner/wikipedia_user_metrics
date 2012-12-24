@@ -67,7 +67,7 @@ class EditCount(um.UserMetric):
         field_name = ['rev_user_text','rev_user'][is_id]
 
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
-        user_set = self._data_source_.format_comma_separated_list(user_handle)
+        user_set = um.dl.DataLoader().format_comma_separated_list(user_handle)
         sql = """
                 select
                     %(field_name)s,
