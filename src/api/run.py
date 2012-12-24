@@ -20,6 +20,7 @@ import sys
 import os
 import re
 import json
+import copy
 import config.settings as settings
 import multiprocessing as mp
 import collections
@@ -108,12 +109,14 @@ def output(cohort, metric):
     url = request.url.split(request.url_root)[1]
 
     # GET - parse query string
-    arg_dict = dict()
+    arg_dict = copy.copy(request.args)
+    refresh = False
+    if 'refresh' in arg_dict:
+        try:
+            if int(arg_dict['refresh']): refresh = True
+        except ValueError: pass
 
-    for arg in request.args:
-        arg_dict[arg] = request.args[arg]
-
-    if url in pkl_data:
+    if url in pkl_data and not refresh:
         return pkl_data[url]
     else:
 
