@@ -39,6 +39,10 @@ logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
 global global_id
 global_id = 0
 
+error_codes = {
+    0 : 'Job already running.'
+}
+
 metric_dict = {
     'threshold' : th.Threshold,
     'survival' : sv.Survival,
@@ -131,10 +135,17 @@ def output(cohort, metric):
 
             return render_template('processing.html', url_str=url)
         else:
-            return redirect(url_for('job_queue'))
+            return redirect(url_for('job_queue') + '?error=0')
 
 @app.route('/job_queue')
 def job_queue():
+
+    error = ''
+    if 'error' in request.args:
+        try:
+            error = error_codes[int(request.args['error'])]
+        except KeyError: pass
+        except ValueError: pass
 
     p_list = list()
     p_list.append(Markup('<u><b>is_alive , PID, url, status</b></u><br>'))
@@ -165,7 +176,10 @@ def job_queue():
         p_list.append(" , ".join([str(p.process.is_alive()), str(p.process.pid),
                                   escape(Markup(response_url)), p.status[0]]))
 
-    return render_template('queue.html', procs=p_list)
+    if error:
+        return render_template('queue.html', procs=p_list, error=error)
+    else:
+        return render_template('queue.html', procs=p_list)
 
 @app.route('/all_urls')
 def all_urls():
