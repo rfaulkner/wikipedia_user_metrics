@@ -21,26 +21,29 @@ class EditCount(um.UserMetric):
             The output in this case is the number of edits (25) made by the editor with ID 123456 and the total number of bytes added by those edits (10000)
     """
 
-    def __init__(self,
-                 date_start='2001-01-01 00:00:00',
-                 date_end=datetime.datetime.now(),
-                 **kwargs):
-        """
-            Constructor for EditCount class.  Initialize timestamps over which metric is computed.
+    # Structure that defines parameters for EditRate class
+    _param_types = {
+        'init' : {
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.','2010-01-01 00:00:00'],
+            'date_end' : ['str|datetime', 'Latest date a block is measured.',datetime.datetime.now()],
+            },
+        'process' : {
+            'is_id' : ['bool', 'Are user ids or names being passed.',True],
+            }
+    }
 
-             - Paramters:
-                - **date_start**: string or datetime.datetime. start date of edit interval
-                - **date_end**: string or datetime.datetime. end date of edit interval
-                - **raw_count**: Boolean. Flag that when set to True returns one total count for all users.  Count by user otherwise.
-        """
-        self._start_ts_ = self._get_timestamp(date_start)
-        self._end_ts_ = self._get_timestamp(date_end)
+    @um.pre_metrics_init
+    def __init__(self, **kwargs):
+
         um.UserMetric.__init__(self, **kwargs)
+
+        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
+        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
 
     @staticmethod
     def header(): return ['user_id', 'edit_count']
 
-    def process(self, user_handle, is_id=True, **kwargs):
+    def process(self, user_handle, **kwargs):
         """
             Determine edit count.  The parameter *user_handle* can be either a string or an integer or a list of these types.  When the
             *user_handle* type is integer it is interpreted as a user id, and as a user_name for string input.  If a list of users is passed
@@ -50,6 +53,9 @@ class EditCount(um.UserMetric):
                 - **user_handle** - String or Integer (optionally lists):  Value or list of values representing user handle(s).
                 - **is_id** - Boolean.  Flag indicating whether user_handle stores user names or user ids
         """
+
+        self.apply_default_kwargs(kwargs,'process')
+        is_id=kwargs['is_id']
 
         edit_count = list()
         ts_condition  = 'and rev_timestamp >= "%s" and rev_timestamp < "%s"' % (self._start_ts_, self._end_ts_)
@@ -61,7 +67,7 @@ class EditCount(um.UserMetric):
         field_name = ['rev_user_text','rev_user'][is_id]
 
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
-        user_set = self._data_source_.format_comma_separated_list(user_handle)
+        user_set = um.dl.DataLoader().format_comma_separated_list(user_handle)
         sql = """
                 select
                     %(field_name)s,

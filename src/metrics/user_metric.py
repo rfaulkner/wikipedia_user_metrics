@@ -50,21 +50,47 @@ import MySQLdb
 from collections import namedtuple
 from dateutil.parser import parse as date_parse
 
+def pre_metrics_init(init_f):
+    """ Decorator function for subclassed metrics __init__ """
+    def wrapper(self,**kwargs):
+        # Add params from base class
+        self.append_params(UserMetric)
+        self.apply_default_kwargs(kwargs,'init')
+
+        # Call init
+        init_f(self,**kwargs)
+
+    return wrapper
+
 class UserMetric(object):
 
     ALL_NAMESPACES = 'all_namespaces'
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
     _static_conn = None
 
-    def __init__(self,
-                 project='enwiki',
-                 namespace=ALL_NAMESPACES,
-                 **kwargs):
+    # Structure that defines parameters for UserMetric class
+    _param_types = {
+        'init' : {
+            'project' : ['str', 'The project (language) being inspected.', 'enwiki'],
+            'namespace' : ['int|set', 'The namespace over which the metric is computed.', ALL_NAMESPACES],
+            },
+        'process' : {}
+    }
 
+    def apply_default_kwargs(self, kwargs, arg_type):
+        """ Apply parameter defaults where necessary """
+        if hasattr(kwargs, '__iter__') and arg_type in self._param_types:
+            for k in self._param_types[arg_type]:
+                if not k in kwargs: kwargs[k] = self._param_types[arg_type][k][2]
+
+    def __init__(self, **kwargs):
+
+        self.apply_default_kwargs(kwargs,'init')
         self._data_source_ = dl.Connector(instance='slave')
         self._results = []
-        self._project_ = project
 
+        self._project_ = kwargs['project']
+        namespace = kwargs['namespace']
         if not namespace == self.ALL_NAMESPACES:
             if not hasattr(namespace, '__iter__'): namespace = [namespace]
             self._namespace_ = set(namespace)
@@ -79,6 +105,12 @@ class UserMetric(object):
     def __del__(self):
         if hasattr(self, '_data_source_') and hasattr(self._data_source_, 'close_db'):
             self._data_source_.close_db()
+
+    def append_params(self, class_ref):
+        """ Append params from class reference """
+        if hasattr(class_ref, '_param_types'):
+            for k,v in class_ref._param_types['init'].iteritems(): self.__class__._param_types['init'][k] = v
+            for k,v in class_ref._param_types['process'].iteritems(): self.__class__._param_types['process'][k] = v
 
     @classmethod
     def get_static_connection(cls):
@@ -151,7 +183,7 @@ class UserMetric(object):
     @staticmethod
     def header(): raise NotImplementedError
 
-    def process(self, user_handle, is_id=True, **kwargs): raise NotImplementedError
+    def process(self, user_handle, **kwargs): raise NotImplementedError
 
     class UserMetricError(Exception):
         """ Basic exception class for UserMetric types """

@@ -29,27 +29,34 @@ class Survival(um.UserMetric):
 
     """
 
-    def __init__(self,
-                 date_start='2001-01-01 00:00:00',
-                 date_end=datetime.datetime.now(),
-                 t=1440,
-                 **kwargs):
+    # Structure that defines parameters for Survival class
+    _param_types = {
+        'init' : {
+            'date_start' : ['str|datatime', 'Earliest date a block is measured.','2001-01-01 00:00:00'],
+            'date_end' : ['str|datatime', 'Latest date a block is measured.',datetime.datetime.now()],
+            't' : ['int', 'The time in minutes registration after which survival is measured.',1440],
+            },
+        'process' : {
+            'log_progress' : ['bool', 'Enable logging for processing.',False],
+            'num_threads' : ['int', 'Number of worker processes over users.',0],
+            }
+    }
 
-        """
-            - Parameters:
-                - **date_start**: string or datetime.datetime. start date of edit interval
-                - **date_end**: string or datetime.datetime. end date of edit interval
-        """
-        self._start_ts_ = self._get_timestamp(date_start)
-        self._end_ts_ = self._get_timestamp(date_end)
-        self._t_ = t
+    @um.pre_metrics_init
+    def __init__(self, **kwargs):
+
         um.UserMetric.__init__(self, **kwargs)
+
+        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
+        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
+        self._t_ = kwargs['t']
+
 
     @staticmethod
     def header():
         return ['user_id', 'is_alive']
 
-    def process(self, user_handle, is_id=True, **kwargs):
+    def process(self, user_handle, **kwargs):
 
         """
             Wraps the functionality of UserMetric::Threshold by setting the `survival` flag in process().
@@ -60,14 +67,11 @@ class Survival(um.UserMetric):
 
         """
 
-        k = kwargs['num_threads'] if 'num_threads' in kwargs else 0
-        log_progress = bool(kwargs['log_progress']) if 'log_progress' in kwargs else False
+        self.apply_default_kwargs(kwargs,'process')
+        kwargs['survival'] = True
+        kwargs['n'] = 1     # survival is denoted by making at least one revision
 
-        return th.Threshold(
-            date_start=self._start_ts_,
-            date_end=self._end_ts_,
-            n=0,
-            t=self._t_).process(user_handle, survival=True, num_threads=k, log_progress=log_progress)
+        return th.Threshold(**kwargs).process(user_handle, **kwargs)
 
 # testing
 if __name__ == "__main__":

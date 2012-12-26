@@ -25,22 +25,34 @@ class EditRate(um.UserMetric):
     HOUR = 0
     DAY = 1
 
-    def __init__(self,
-                 time_unit_count=1,
-                 time_unit=DAY,
-                 date_start='2001-01-01 00:00:00',
-                 date_end=datetime.datetime.now(),
-                 **kwargs):
-        self._time_unit_count_ = time_unit_count
-        self._time_unit_ = time_unit
-        self._start_ts_ = self._get_timestamp(date_start)
-        self._end_ts_ = self._get_timestamp(date_end)
+    # Structure that defines parameters for EditRate class
+    _param_types = {
+        'init' : {
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.', '2010-01-01 00:00:00'],
+            'date_end' : ['str|datetime', 'Latest date a block is measured.', datetime.datetime.now()],
+            'time_unit' : ['int', 'Type of time unit to normalize by (HOUR=0, DAY=1).', DAY],
+            'time_unit_count' : ['int', 'Number of time units to normalize by (e.g. per two days).', 1],
+            },
+        'process' : {
+            'is_id' : ['bool', 'Are user ids or names being passed.', True],
+        }
+    }
+
+    @um.pre_metrics_init
+    def __init__(self, **kwargs):
+
         um.UserMetric.__init__(self, **kwargs)
+
+        self._time_unit_count_ = kwargs['time_unit_count']
+        self._time_unit_ = kwargs['time_unit']
+        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
+        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
+
 
     @staticmethod
     def header(): return ['user_id', 'edit_rate', 'start_time', 'period_len']
 
-    def process(self, user_handle, is_id=True, **kwargs):
+    def process(self, user_handle, **kwargs):
         """
             Determine the edit rate of user(s).  The parameter *user_handle* can be either a string or an integer or a list of these types.  When the
             *user_handle* type is integer it is interpreted as a user id, and as a user_name for string input.  If a list of users is passed to the
@@ -53,6 +65,9 @@ class EditRate(um.UserMetric):
             - Return:
                 - Dictionary. key(string): user handle, value(Float): edit counts
         """
+
+        self.apply_default_kwargs(kwargs,'process')
+        is_id = kwargs['is_id']
 
         # Extract edit count for given parameters
         edit_rate = list()

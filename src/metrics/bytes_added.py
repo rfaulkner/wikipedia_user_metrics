@@ -7,6 +7,7 @@ import collections
 import datetime
 import user_metric as um
 import os
+import src.etl.aggregator as agg
 import src.utils.multiprocessing_wrapper as mpw
 
 class BytesAdded(um.UserMetric):
@@ -39,37 +40,41 @@ class BytesAdded(um.UserMetric):
         argument, `num_threads`, to the process() method.
     """
 
-    def __init__(self,
-                 date_start='2010-01-01 00:00:00',
-                 date_end=datetime.datetime.now(),
-                 project='enwiki',
-                 namespace=0,
-                 **kwargs):
+    # Structure that defines parameters for BytesAdded class
+    _param_types = {
+        'init' : {
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.', '2010-01-01 00:00:00'],
+            'date_end' : ['str|datetime', 'Latest date a block is measured.', datetime.datetime.now()],
+        },
+        'process' : {
+            'is_id' : ['bool', 'Are user ids or names being passed.', True],
+            'log_progress' : ['bool', 'Enable logging for processing.', False],
+            'log_frequency' : ['int', 'Revision frequency on which to log (ie. log every n revisions)', 1000],
+            'num_threads' : ['int',   'Number of worker processes.', 0]
+        }
+    }
 
-        """
-            - Parameters:
-                - **date_start**: string or datetime.datetime. start date of edit interval
-                - **date_end**: string or datetime.datetime. end date of edit interval
-                - **project**: str. Specifies the project to query.
-                - **namespace**: int. Namespace on which to query metrics.
+    @um.pre_metrics_init
+    def __init__(self, **kwargs):
 
-            - Return:
-                - Empty.
-        """
-        self._start_ts_ = self._get_timestamp(date_start)
-        self._end_ts_ = self._get_timestamp(date_end)
-        um.UserMetric.__init__(self, project=project, namespace=namespace, **kwargs)
+        um.UserMetric.__init__(self, **kwargs)
+
+        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
+        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
 
     @staticmethod
     def header(): return ['user_id', 'bytes_added_net', 'bytes_added_absolute',
                           'bytes_added_pos', 'bytes_added_neg', 'edit_count']
 
-    def process(self, user_handle=None, is_id=True, **kwargs):
+    def process(self, user_handle, **kwargs):
         """ Setup metrics gathering using multiprocessing """
 
-        k = kwargs['num_threads'] if 'num_threads' in kwargs else 0
-        log_progress = bool(kwargs['log_progress']) if 'log_progress' in kwargs else False
-        log_frequency = int(kwargs['log_frequency']) if 'log_frequency' in kwargs else 1000
+        self.apply_default_kwargs(kwargs,'process')
+
+        is_id = kwargs['is_id']
+        k = kwargs['num_threads']
+        log_progress = bool(kwargs['log_progress'])
+        log_frequency = int(kwargs['log_frequency'])
 
         if user_handle:
             if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
@@ -78,7 +83,8 @@ class BytesAdded(um.UserMetric):
         revs = self._get_revisions(user_handle, is_id, log_progress=log_progress)
         args = [log_progress, log_frequency]
         if k:
-            self._results = mpw.build_thread_pool(revs,_process_help,k,args)
+            # Start worker threads and aggregate results
+            self._results = agg.list_summation(mpw.build_thread_pool(revs,_process_help,k,args),0)
         else:
             self._results = _process_help([revs, args])
 
@@ -250,5 +256,7 @@ def _process_help(args):
 
 # Used for testing
 if __name__ == "__main__":
-    BytesAdded(date_start='20120101000000',date_end='20121101000000', namespace=[0,1]).process(user_handle=['156171','13234584'],
-        log_progress=True, num_threads=10)
+    #for r in BytesAdded(date_start='20120101000000',date_end='20121101000000', namespace=[0,1]).process(user_handle=['156171','13234584'],
+    #    log_progress=True, num_threads=10): print r
+
+    for r in BytesAdded().process(user_handle=['156171','13234584'], num_threads=10, log_progress=True): print r

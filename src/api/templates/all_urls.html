@@ -1,10 +1,11 @@
 {% extends "layout.html" %}
 {% block body %}
+<div class="underline"> <h2>All Generated Request URLs</h2></div>
 {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
 
 <div class="para_courier">
-    {% for job in procs %}
-    {{ job|safe }}
+    {% for url in urls %}
+    {{ url|safe }}
     <div class="v_space_sm"></div>
     {% endfor %}
 </div>

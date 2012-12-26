@@ -27,52 +27,70 @@ class Blocks(um.UserMetric):
 
             >>> import src.metrics.blocks as b
             >>> block_obj = b.Blocks(date_start='2011-01-01 00:00:00')
-            >>> for r in block_obj.process(['Wesley Mouse', 'Nickyp88']).__iter__(): print r
+            >>> for r in block_obj.process(['11174885', '15132776']).__iter__(): print r
             ...
-            ['Nickyp88', 1L, '20110809143215', '20110809143215', -1]
-            ['Wesley_Mouse', 2L, '20110830010835', '20120526192657', -1]
+            ['15132776', 1L, '20110809143215', '20110809143215', -1]
+            ['11174885', 2L, '20110830010835', '20120526192657', -1]
     """
 
-    def __init__(self,
-                 date_start='2012-01-01 00:00:00',
-                 project='enwiki',
-                 **kwargs):
+    # Structure that defines parameters for Blocks class
+    _param_types = {
+        'init' : {
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.', '2010-01-01 00:00:00'],
+        },
+        'process' : {
+            'is_id' : ['bool', 'Are user ids or names being passed.', True],
+        }
+    }
 
-        self._date_start_ = date_start
-        self._project_ = project
-        um.UserMetric.__init__(self, project=project, **kwargs)
+    @um.pre_metrics_init
+    def __init__(self, **kwargs):
+
+        um.UserMetric.__init__(self, **kwargs)
+
+        self._date_start_ = um.UserMetric._get_timestamp(kwargs['date_start'])
+
+
 
     @staticmethod
     def header(): return ['user_id', 'block_count', 'block_first', 'block_last', 'ban']
 
-    def process(self, user_handle, is_id=False, **kwargs):
+    def process(self, user_handle, **kwargs):
         """
             Process method for the "blocks" metric.  Computes a list of block and ban events for users.
 
             Parameters:
-                - **user_handle** - List.  List of user names (or IDs).
+                - **user_handle** - List.  List of user IDs.
                 - **is_id** - Boolean.  Defaults to False.
 
             Return:
                 - UserMetric::Blocks (self).
 
         """
+
+        self.apply_default_kwargs(kwargs,'process')
         rowValues = {}
 
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
-        for i in xrange(len(user_handle)):
-            try:
-                user_handle[i] = user_handle[i].encode('utf-8').replace(" ", "_")
-            except UnicodeDecodeError:
-                user_handle[i] = user_handle[i].replace(" ", "_")
-            rowValues[user_handle[i]] = {'block_count' : 0, 'block_first' : -1, 'block_last' : -1, 'ban' : -1}
+        users = um.dl.DataLoader().cast_elems_to_string(user_handle)
 
-        user_handle_str = um.dl.DataLoader().format_comma_separated_list(user_handle)
+        for i in xrange(len(users)):
+            rowValues[users[i]] = {'block_count' : 0, 'block_first' : -1, 'block_last' : -1, 'ban' : -1}
 
         cursor = self._data_source_._cur_
+        user_dict = dict()
+
+        # Get usernames for user ids to detect in block events
+        users = um.dl.DataLoader().cast_elems_to_string(users)
+        user_str = um.dl.DataLoader().format_comma_separated_list(users)
+        cursor.execute('select user_id, user_name from enwiki.user where user_id in (%s)' % user_str)
+
+        for r in cursor: user_dict[r[1]] = r[0] # keys username on userid
+        user_handle_str = um.dl.DataLoader().format_comma_separated_list(user_dict.keys())
+
         sql = """
 				SELECT
-				    log_title as user_name,
+				    log_title as user,
 					IF(log_params LIKE "%%indefinite%%", "ban", "block") as type,
 					count(*) as count,
 					min(log_timestamp) as first,
@@ -80,12 +98,13 @@ class Blocks(um.UserMetric):
 				FROM %(wiki)s.logging
 				WHERE log_type = "block"
 				AND log_action = "block"
-				AND log_title in (%(usernames)s)
-				AND log_timestamp >= (%(timestamp)s)
+				AND log_title in (%(user_str)s)
+				AND log_timestamp >= "%(timestamp)s"
 				GROUP BY 1, 2
 			""" % {
+            'user_str' : user_handle_str,
             'timestamp': self._date_start_,
-            'usernames': user_handle_str,
+            'user_cond': user_handle_str,
             'wiki' : self._project_
             }
 
@@ -94,19 +113,22 @@ class Blocks(um.UserMetric):
 
         for row in cursor:
 
-            username = row[0]
+            userid = str(user_dict[row[0]])
             type = row[1]
             count = row[2]
             first = row[3]
             last = row[4]
 
             if type == "block":
-                rowValues[username]['block_count'] = count
-                rowValues[username]['block_first'] = first
-                rowValues[username]['block_last'] = last
+                rowValues[userid]['block_count'] = count
+                rowValues[userid]['block_first'] = first
+                rowValues[userid]['block_last'] = last
 
             elif type == "ban":
-                rowValues[username][type] = first
+                rowValues[userid][type] = first
 
         self._results = [[user, rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']] for user in rowValues.keys()]
         return self
+
+if __name__ == "__main__":
+    for r in Blocks().process(['11174885', '15132776']): print r

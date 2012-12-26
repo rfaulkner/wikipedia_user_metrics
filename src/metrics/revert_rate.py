@@ -45,29 +45,43 @@ class RevertRate(um.UserMetric):
     REV_SHA1_IDX = 2
     REV_USER_TEXT_IDX = 1
 
-    def __init__(self,
-                 look_back=15,
-                 look_ahead=15,
-                 date_start='2010-01-01 00:00:00',
-                 date_end=datetime.datetime.now(),
-                 **kwargs):
+    # Structure that defines parameters for RevertRate class
+    _param_types = {
+        'init' : {
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.','2010-01-01 00:00:00'],
+            'date_end' : ['str|datetime', 'Latest date a block is measured.',datetime.datetime.now()],
+            'look_ahead' : ['int', 'Number of revisions to look ahead when computing revert.',15],
+            'look_back' : ['int', 'Number of revisions to look back when computing revert.',15],
+        },
+        'process' : {
+            'is_id' : ['bool', 'Are user ids or names being passed.',True],
+            'log_progress' : ['bool', 'Enable logging for processing.',False],
+            'num_threads' : ['int', 'Number of worker processes over users.',0],
+            'rev_threads' : ['int', 'Number of worker processes over revisions.',1],
+        }
+    }
 
-        self.look_back = look_back
-        self.look_ahead = look_ahead
-        self._start_ts_ = self._get_timestamp(date_start)
-        self._end_ts_ = self._get_timestamp(date_end)
+    @um.pre_metrics_init
+    def __init__(self, **kwargs):
 
         um.UserMetric.__init__(self, **kwargs)
+
+        self.look_back = kwargs['look_back']
+        self.look_ahead = kwargs['look_ahead']
+        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
+        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
 
     @staticmethod
     def header(): return ['user_id', 'revert_rate', 'total_revisions']
 
-    def process(self, user_handle, is_id=True, **kwargs):
+    def process(self, user_handle, **kwargs):
+
+        self.apply_default_kwargs(kwargs,'process')
 
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
-        k = kwargs['num_threads'] if 'num_threads' in kwargs else 0
-        k_r = kwargs['rev_threads'] if 'rev_threads' in kwargs else 1
-        log_progress = bool(kwargs['log_progress']) if 'log_progress' in kwargs else False
+        k = int(kwargs['num_threads'])
+        k_r = int(kwargs['rev_threads'])
+        log_progress = bool(kwargs['log_progress'])
 
         # Multiprocessing vs. single processing execution
         args = [self._project_, log_progress, self.look_ahead, self.look_back, self._start_ts_, self._end_ts_, k_r]
