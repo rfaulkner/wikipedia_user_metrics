@@ -7,8 +7,6 @@ __author__ = "ryan faulkner"
 __date__ = "12/12/2012"
 __license__ = "GPL (version 2 or later)"
 
-import src.metrics.threshold as th
-import src.metrics.revert_rate as rr
 from itertools import izip
 from numpy import array
 
@@ -25,43 +23,6 @@ def decorator_builder(header):
         return wrapper
     return eval_data_model
 
-@decorator_builder(th.Threshold.header())
-def threshold_editors_agg(metric):
-    """ Computes the fraction of editors reaching a threshold """
-    total=0
-    pos=0
-    for r in metric.__iter__():
-        try:
-            if r[1]: pos+=1
-            total+=1
-        except IndexError: continue
-        except TypeError: continue
-    if total:
-        return total, pos, float(pos) / total
-    else:
-        return total, pos, 0.0
-
-@decorator_builder(rr.RevertRate.header())
-def reverted_revs_agg(metric):
-    """ Computes revert metrics on a user set """
-    total_revs = 0
-    weighted_rate = 0.0
-    total_editors = 0
-    reverted_editors = 0
-    for r in metric.__iter__():
-        try:
-            reverted_revs = int(r[2])
-            total_editors += 1
-            if reverted_revs: reverted_editors += 1
-            total_revs += reverted_revs
-            weighted_rate += reverted_revs * float(r[1])
-        except IndexError: continue
-        except TypeError: continue
-    if total_revs:
-        weighted_rate /= total_revs
-    else:
-        weighted_rate = 0.0
-    return total_revs, weighted_rate, total_editors, reverted_editors
 
 def identity(x):
     """ The identity aggregator - returns whatever was put in """

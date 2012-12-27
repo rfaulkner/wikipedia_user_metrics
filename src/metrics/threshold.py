@@ -8,6 +8,7 @@ import collections
 import os
 import src.utils.multiprocessing_wrapper as mpw
 import user_metric as um
+from src.etl.aggregator import decorator_builder
 
 class Threshold(um.UserMetric):
     """
@@ -179,6 +180,22 @@ def _process_help(args):
     if thread_args.log_progress: print str(datetime.datetime.now()) + ' - Processed PID = %s.' % os.getpid()
 
     return results
+
+@decorator_builder(Threshold.header())
+def threshold_editors_agg(metric):
+    """ Computes the fraction of editors reaching a threshold """
+    total=0
+    pos=0
+    for r in metric.__iter__():
+        try:
+            if r[1]: pos+=1
+            total+=1
+        except IndexError: continue
+        except TypeError: continue
+    if total:
+        return total, pos, float(pos) / total
+    else:
+        return total, pos, 0.0
 
 # testing
 if __name__ == "__main__":

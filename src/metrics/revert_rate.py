@@ -10,6 +10,7 @@ import datetime
 import collections
 import os
 import src.utils.multiprocessing_wrapper as mpw
+from src.etl.aggregator import decorator_builder
 
 # Definition of persistent state for RevertRate objects
 RevertRateArgsClass = collections.namedtuple('RevertRateArgs', 'project log_progress '
@@ -221,3 +222,26 @@ if __name__ == "__main__":
              '17792137', '17792134', '17797328', '17797329', '17792138']
     for r in r.process(users,num_threads=2,rev_threads=10, log_progress=True): print r
     # for r in r.process('156171',num_threads=2,rev_threads=10, log_progress=True): print r
+
+
+@decorator_builder(RevertRate.header())
+def reverted_revs_agg(metric):
+    """ Computes total revert metrics on a user set """
+    total_revs = 0
+    weighted_rate = 0.0
+    total_editors = 0
+    reverted_editors = 0
+    for r in metric.__iter__():
+        try:
+            reverted_revs = int(r[2])
+            total_editors += 1
+            if reverted_revs: reverted_editors += 1
+            total_revs += reverted_revs
+            weighted_rate += reverted_revs * float(r[1])
+        except IndexError: continue
+        except TypeError: continue
+    if total_revs:
+        weighted_rate /= total_revs
+    else:
+        weighted_rate = 0.0
+    return total_revs, weighted_rate, total_editors, reverted_editors
