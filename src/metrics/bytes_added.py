@@ -84,7 +84,7 @@ class BytesAdded(um.UserMetric):
         args = [log_progress, log_frequency]
         if k:
             # Start worker threads and aggregate results
-            self._results = agg.list_summation(mpw.build_thread_pool(revs,_process_help,k,args),0)
+            self._results = agg.list_sum_by_group(mpw.build_thread_pool(revs,_process_help,k,args),0)
         else:
             self._results = _process_help([revs, args])
 
