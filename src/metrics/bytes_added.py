@@ -30,7 +30,7 @@ class BytesAdded(um.UserMetric):
             usage e.g.: ::
 
                 >>> import src.,metrics.bytes_added as ba
-                >>> for r in ba.BytesAdded(date_start='2012-07-30 00:00:00').process([13234584], num_threads=0).__iter__(): r)
+                >>> for r in ba.BytesAdded(date_start='2012-07-30 00:00:00').process([13234584], num_threads=0).__iter__(): r
                 ['13234584', 2, 2, 2, 0, 1]
                 >>> ba.BytesAdded.header()
                 ['user_id', 'bytes_added_net', 'bytes_added_absolute', 'bytes_added_pos', 'bytes_added_neg', 'edit_count']
@@ -66,6 +66,7 @@ class BytesAdded(um.UserMetric):
     def header(): return ['user_id', 'bytes_added_net', 'bytes_added_absolute',
                           'bytes_added_pos', 'bytes_added_neg', 'edit_count']
 
+    @um.aggregator
     def process(self, user_handle, **kwargs):
         """ Setup metrics gathering using multiprocessing """
 
@@ -145,6 +146,12 @@ class BytesAdded(um.UserMetric):
         except um.MySQLdb.ProgrammingError:
            raise um.UserMetric.UserMetricError(message=str(BytesAdded) +
                                                     '::Could not get revisions for specified users(s) - Query Failed.')
+
+# Define the metrics data model meta
+BytesAdded._data_model_meta['id_fields'] = [0]
+BytesAdded._data_model_meta['float_fields'] = []
+BytesAdded._data_model_meta['integer_fields'] = [1,2,3,4,5]
+
 
 def _process_help(args):
 

@@ -46,6 +46,7 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import src.etl.data_loader as dl
+import src.etl.aggregator as agg
 import MySQLdb
 from collections import namedtuple
 from dateutil.parser import parse as date_parse
@@ -62,11 +63,25 @@ def pre_metrics_init(init_f):
 
     return wrapper
 
+def aggregator(process_method):
+    """ Decorator that allows aggregators to be applied to metrics data """
+    def wrapper(self, user_handle, **kwargs):
+        process_method(self, user_handle, **kwargs)
+        aggregator_str = kwargs['aggregator'] if 'aggregator' in kwargs else ''
+        if aggregator_str == 'sum_all':
+            self._results = [['total sum'] + agg.list_sum_indices(self,
+                self._data_model_meta['float_fields'] + self._data_model_meta['integer_fields'])]
+        return self
+    return wrapper
+
+
 class UserMetric(object):
 
     ALL_NAMESPACES = 'all_namespaces'
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
+
     _static_conn = None
+    _data_model_meta = dict()
 
     # Structure that defines parameters for UserMetric class
     _param_types = {
