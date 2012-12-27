@@ -294,9 +294,17 @@ if __name__ == '__main__':
     queue_data = dict()
 
     # Open the pickled data for reading.
-    pkl_file = open(settings.__data_file_dir__ + 'api_data.pkl', 'rb')
-    pkl_data = cPickle.load(pkl_file)
-    pkl_file.close()
+    try:
+        pkl_file = open(settings.__data_file_dir__ + 'api_data.pkl', 'rb')
+    except IOError:
+        pkl_file = None
+
+    # test whether the open was successful
+    if pkl_file:
+        pkl_data = cPickle.load(pkl_file)
+        pkl_file.close()
+    else:
+        pkl_data = dict()
 
     flush_process = None
     try:
@@ -307,7 +315,7 @@ if __name__ == '__main__':
             cPickle.dump(pkl_data, pkl_file)
         except Exception:
             logging.error('Could not pickle data.')
-            pass
-        pkl_file.close()
+        finally:
+            if hasattr(pkl_file, 'close'): pkl_file.close()
 
 
