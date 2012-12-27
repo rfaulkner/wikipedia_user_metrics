@@ -63,6 +63,20 @@ def reverted_revs_agg(metric):
         weighted_rate = 0.0
     return total_revs, weighted_rate, total_editors, reverted_editors
 
+def list_sum_indices(l, indices):
+    """
+        Sums the elements of list indicated by numeric list `indices`.  The elements must be summable (i.e. e1 + e2 is allowed
+        for all e1 and e2).
+
+        Returns: <list of summed elements>
+
+        e.g.
+        >>> l = [['1',1,50],['2',4,1],['3',2,6]]
+        >>> list_sum_indices(l,[1,2])
+        [7, 57]
+    """
+    return list(reduce(lambda x,y: x+y, [array([elem.__getitem__(i) for i in indices]) for elem in l]))
+
 def list_sum_by_group(l, group_index):
     """
         Sums the elements of list keyed on `key_index`.  The elements must be summable (i.e. e1 + e2 is allowed
