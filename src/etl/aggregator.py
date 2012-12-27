@@ -63,6 +63,10 @@ def reverted_revs_agg(metric):
         weighted_rate = 0.0
     return total_revs, weighted_rate, total_editors, reverted_editors
 
+def identity(x):
+    """ The identity aggregator - returns whatever was put in """
+    return x
+
 def list_sum_indices(l, indices):
     """
         Sums the elements of list indicated by numeric list `indices`.  The elements must be summable (i.e. e1 + e2 is allowed
