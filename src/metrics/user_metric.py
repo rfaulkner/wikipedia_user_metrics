@@ -46,7 +46,6 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import src.etl.data_loader as dl
-import src.etl.aggregator as agg
 import MySQLdb
 from collections import namedtuple
 from dateutil.parser import parse as date_parse
@@ -63,16 +62,13 @@ def pre_metrics_init(init_f):
 
     return wrapper
 
-def aggregator(process_method):
-    """ Decorator that allows aggregators to be applied to metrics data """
-    def wrapper(self, user_handle, **kwargs):
-        process_method(self, user_handle, **kwargs)
-        aggregator_str = kwargs['aggregator'] if 'aggregator' in kwargs else ''
-        if aggregator_str == 'sum_all':
-            self._results = [['total sum'] + agg.list_sum_indices(self,
-                self._data_model_meta['float_fields'] + self._data_model_meta['integer_fields'])]
-        return self
-    return wrapper
+# Class for storing aggregate data
+aggregate_data_class = namedtuple("AggregateData", "header data")
+def aggregator(agg_method, data, data_header, field_indices):
+    """ Method for wrapping and executing aggregated data """
+    agg_header = ['type'] + [data_header[i] for i in field_indices]
+    data = [agg_method.__name__] + agg_method(data, field_indices)
+    return aggregate_data_class(agg_header, data)
 
 
 class UserMetric(object):
@@ -102,7 +98,7 @@ class UserMetric(object):
 
         self.apply_default_kwargs(kwargs,'init')
         self._data_source_ = dl.Connector(instance='slave')
-        self._results = []
+        self._results = list()      # Stores results of a process reqeust
 
         self._project_ = kwargs['project']
         namespace = kwargs['namespace']
