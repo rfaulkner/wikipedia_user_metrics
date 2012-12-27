@@ -10,9 +10,8 @@
         * 'failure' - The result has finished processing but dailed to expose results
 """
 
-from flask import render_template, Markup, jsonify, \
+from flask import Flask, render_template, Markup, jsonify, \
     redirect, url_for, make_response, request, escape
-from src.api import app
 import src.etl.data_loader as dl
 import cPickle
 import logging
@@ -33,6 +32,8 @@ import src.metrics.survival as sv
 import src.metrics.revert_rate as rr
 import src.metrics.time_to_threshold as ttt
 import src.metrics.edit_rate as er
+
+app = Flask(__name__)
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
