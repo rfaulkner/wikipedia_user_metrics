@@ -25,6 +25,8 @@ import config.settings as settings
 import multiprocessing as mp
 import collections
 
+import src.etl.aggregator as agg
+import src.metrics.user_metric as um
 import src.metrics.threshold as th
 import src.metrics.blocks as b
 import src.metrics.bytes_added as ba
@@ -54,6 +56,11 @@ metric_dict = {
     'blocks' : b.Blocks,
     'time_to_threshold' : ttt.TimeToThreshold,
     'edit_rate' : er.EditRate,
+}
+
+aggregator_dict = {
+    'sum+bytes_added' : (agg.list_sum_indices,
+                         ba.BytesAdded._data_model_meta['float_fields'] + ba.BytesAdded._data_model_meta['integer_fields']),
 }
 
 processQ = list()
@@ -112,15 +119,18 @@ def output(cohort, metric):
 
     # GET - parse query string
     arg_dict = copy.copy(request.args)
+
     refresh = False
     if 'refresh' in arg_dict:
         try:
             if int(arg_dict['refresh']): refresh = True
         except ValueError: pass
 
+    aggregator = arg_dict['aggregator'] if 'aggregator' in arg_dict else ''
+
     # Format the query string
     metric_params = metric_dict[metric]()._param_types
-    url = strip_query_string(url, metric_params['init'].keys() + metric_params['process'].keys())
+    url = strip_query_string(url, metric_params['init'].keys() + metric_params['process'].keys() + ['aggregator'])
 
     if url in pkl_data and not refresh:
         return pkl_data[url]
@@ -134,7 +144,7 @@ def output(cohort, metric):
         if not is_pending_job: # Queue the job
 
             q = mp.Queue()
-            p = mp.Process(target=process_metrics, args=(url, cohort, metric, q, arg_dict))
+            p = mp.Process(target=process_metrics, args=(url, cohort, metric, aggregator, q, arg_dict))
             p.start()
 
             global_id += 1
@@ -222,7 +232,7 @@ def strip_query_string(url, valid_items):
     else:
         return url
 
-def process_metrics(url, cohort, metric, p, args):
+def process_metrics(url, cohort, metric, aggregator, p, args):
 
     conn = dl.Connector(instance='slave')
     try:
@@ -231,6 +241,17 @@ def process_metrics(url, cohort, metric, p, args):
         conn._cur_.execute('select ut_user from usertags where ut_tag = "%s"' % res)
     except IndexError:
         redirect(url_for('cohorts'))
+
+    # Get the aggregator if there is one
+    aggregator_key = '+'.join([aggregator,metric])
+    aggregator_func = None
+    field_indices = None
+
+    if aggregator_key in aggregator_dict.keys():
+        aggregator_func = aggregator_dict[aggregator_key][0]
+        field_indices = aggregator_dict[aggregator_key][1]
+    else:
+        aggregator = None
 
     # Get metric
     metric_obj = None
@@ -253,8 +274,15 @@ def process_metrics(url, cohort, metric, p, args):
 
     logging.debug('Processing results for %s... (PID = %s)' % (url, os.getpid()))
 
-    for m in metric_obj.process(users, num_threads=50, rev_threads=50, **args):
-        results['metric'][m[0]] = " ".join(dl.DataLoader().cast_elems_to_string(m[1:]))
+    # process metrics
+    metric_obj.process(users, num_threads=20, rev_threads=50, **args)
+
+    if aggregator:
+        r = um.aggregator(aggregator_func, metric_obj.__iter__(), metric_obj.header(), field_indices)
+        results['metric'][r.data[0]] = " ".join(dl.DataLoader().cast_elems_to_string(r.data[1:]))
+    else:
+        for m in metric_obj.__iter__():
+            results['metric'][m[0]] = " ".join(dl.DataLoader().cast_elems_to_string(m[1:]))
 
     p.put(jsonify(results))
     del conn
@@ -265,7 +293,7 @@ if __name__ == '__main__':
 
     queue_data = dict()
 
-    # Open the pickled data for reading.  Then
+    # Open the pickled data for reading.
     pkl_file = open(settings.__data_file_dir__ + 'api_data.pkl', 'rb')
     pkl_data = cPickle.load(pkl_file)
     pkl_file.close()
