@@ -62,12 +62,25 @@ def pre_metrics_init(init_f):
 
     return wrapper
 
-# Class for storing aggregate data
-aggregate_data_class = namedtuple("AggregateData", "header data")
-def aggregator(agg_method, data, data_header, field_indices):
+# Define aggregator processing methods, method attributes, and namedtuple class for packaging aggregate data
+
+METRIC_AGG_METHOD_FLAG = 'metric_agg_flag'      # flag attribute for a type of metric aggregation methods
+METRIC_AGG_METHOD_HEAD = 'metric_agg_head'      # header attribute for a type of metric aggregation methods
+METRIC_AGG_METHOD_NAME = 'metric_agg_name'      # name attribute for a type of metric aggregation methods
+
+aggregate_data_class = namedtuple("AggregateData", "header data")   # Class for storing aggregate data
+
+def aggregator(agg_method, metric, data_header, field_indices):
     """ Method for wrapping and executing aggregated data """
-    agg_header = ['type'] + [data_header[i] for i in field_indices]
-    data = [agg_method.__name__] + agg_method(data, field_indices)
+
+    if hasattr(agg_method, METRIC_AGG_METHOD_FLAG) and getattr(agg_method, METRIC_AGG_METHOD_FLAG):
+        # These are metric specific aggregators.  The method must also define the header.
+        agg_header = getattr(agg_method, METRIC_AGG_METHOD_HEAD)
+        data = [getattr(agg_method,METRIC_AGG_METHOD_NAME)] + agg_method(metric)
+    else:
+        # Generic aggregators that are metric agnostic
+        agg_header = ['type'] + [data_header[i] for i in field_indices]
+        data = [agg_method.__name__] + agg_method(metric.__iter__(), field_indices)
     return aggregate_data_class(agg_header, data)
 
 
