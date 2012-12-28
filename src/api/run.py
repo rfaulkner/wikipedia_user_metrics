@@ -69,6 +69,7 @@ QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
 
 @app.route('/')
 def api_root():
+    """ View for root url - API instructions """
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('select utm_name from usertags_meta')
     data = [r[0] for r in conn._cur_]
@@ -78,10 +79,12 @@ def api_root():
 
 @app.route('/login')
 def login():
+    """ View for login """
     return render_template('login.html')
 
 @app.route('/tag_definitions')
 def tag_definitions():
+    """ View for tag definitions where cohort meta dat can be reviewed """
 
     usertag_meta_data = ''
     conn = dl.Connector(instance='slave')
@@ -95,6 +98,7 @@ def tag_definitions():
 
 @app.route('/cohorts')
 def cohorts():
+    """ View for listing and selecting cohorts """
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('select distinct utm_name from usertags_meta')
     o = [r[0] for r in conn._cur_]
@@ -105,6 +109,7 @@ def cohorts():
 @app.route('/metrics')
 @app.route('/metrics/<string:cohort>')
 def metrics(cohort=''):
+    """ View for listing and selecting metrics """
     if not cohort:
         return redirect(url_for('cohorts'))
     else:
@@ -112,6 +117,7 @@ def metrics(cohort=''):
 
 @app.route('/metrics/<string:cohort>/<string:metric>')
 def output(cohort, metric):
+    """ View corresponding to a data request - all of the setup and execution for a request happens here. """
 
     global global_id
     # url = "".join(['/metrics/', cohort, '/', metric])
@@ -158,6 +164,7 @@ def output(cohort, metric):
 
 @app.route('/job_queue')
 def job_queue():
+    """ View for listing current jobs working """
 
     error = ''
     if 'error' in request.args:
@@ -171,6 +178,7 @@ def job_queue():
     for p in processQ:
         try:
 
+            # Pull data off of the queue and add it to the queue data
             while not p.queue.empty():
                 if not queue_data.has_key(p.id):
                     queue_data[p.id] = json.loads(p.queue.get().data)
@@ -178,6 +186,7 @@ def job_queue():
                     for k,v in queue_data[p.id]:
                         if hasattr(v,'__iter__'): queue_data[p.id][k].extend(v)
 
+            # once a process has finished working remove it and put its contents into the cache
             if not p.process.is_alive() and p.status[0] == 'pending':
                 q_response = make_response(jsonify(queue_data[p.id]))
                 del queue_data[p.id]
@@ -185,6 +194,7 @@ def job_queue():
 
                 p.status[0] = 'success'
                 logging.info('Completed request %s.' % p.url)
+
         except Exception as e:
             p.status[0] = 'failure'
             logging.error("Could not update request: %s.  Exception: %s" % (p.url, e.message) )
@@ -201,6 +211,8 @@ def job_queue():
 
 @app.route('/all_urls')
 def all_urls():
+    """ View for listing all requests """
+
     url_list = list()
     for url in pkl_data.keys():
         url_list.append("".join(['<a href="', request.url_root, url + '">', url, '</a>']))
@@ -233,6 +245,7 @@ def strip_query_string(url, valid_items):
         return url
 
 def process_metrics(url, cohort, metric, aggregator, p, args):
+    """ Worker process for requests - this will typically operate in a forked process """
 
     conn = dl.Connector(instance='slave')
     try:
@@ -291,6 +304,7 @@ def process_metrics(url, cohort, metric, aggregator, p, args):
 
 if __name__ == '__main__':
 
+    # stores data in Queue objects that are active
     queue_data = dict()
 
     # Open the pickled data for reading.
@@ -306,7 +320,6 @@ if __name__ == '__main__':
     else:
         pkl_data = dict()
 
-    flush_process = None
     try:
         app.run()
     finally:
