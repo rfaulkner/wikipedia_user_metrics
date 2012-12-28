@@ -121,7 +121,8 @@ def output(cohort, metric):
     """ View corresponding to a data request - all of the setup and execution for a request happens here. """
 
     global global_id
-    # url = "".join(['/metrics/', cohort, '/', metric])
+    extra_params = list()   # stores extra query parameters that may be valid outside of metric parameters
+
     url = request.url.split(request.url_root)[1]
 
     # GET - parse query string
@@ -134,10 +135,15 @@ def output(cohort, metric):
         except ValueError: pass
 
     aggregator = arg_dict['aggregator'] if 'aggregator' in arg_dict else ''
+    aggregator_key = '+'.join([aggregator,metric])
+    if not aggregator_dict.has_key(aggregator_key):
+        aggregator_key = ''
+    else:
+        extra_params.append('aggregator')
 
     # Format the query string
     metric_params = metric_dict[metric]()._param_types
-    url = strip_query_string(url, metric_params['init'].keys() + metric_params['process'].keys() + ['aggregator'])
+    url = strip_query_string(url, metric_params['init'].keys() + metric_params['process'].keys() + extra_params)
 
     if url in pkl_data and not refresh:
         return pkl_data[url]
@@ -151,7 +157,7 @@ def output(cohort, metric):
         if not is_pending_job: # Queue the job
 
             q = mp.Queue()
-            p = mp.Process(target=process_metrics, args=(url, cohort, metric, aggregator, q, arg_dict))
+            p = mp.Process(target=process_metrics, args=(url, cohort, metric, aggregator_key, q, arg_dict))
             p.start()
 
             global_id += 1
@@ -245,7 +251,7 @@ def strip_query_string(url, valid_items):
     else:
         return url
 
-def process_metrics(url, cohort, metric, aggregator, p, args):
+def process_metrics(url, cohort, metric, aggregator_key, p, args):
     """ Worker process for requests - this will typically operate in a forked process """
 
     conn = dl.Connector(instance='slave')
@@ -257,7 +263,6 @@ def process_metrics(url, cohort, metric, aggregator, p, args):
         redirect(url_for('cohorts'))
 
     # Get the aggregator if there is one
-    aggregator_key = '+'.join([aggregator,metric])
     aggregator_func = None
     field_indices = None
 
@@ -291,7 +296,7 @@ def process_metrics(url, cohort, metric, aggregator, p, args):
     # process metrics
     metric_obj.process(users, num_threads=20, rev_threads=50, **args)
     f = dl.DataLoader().cast_elems_to_string
-    if aggregator:
+    if aggregator_key:
         r = um.aggregator(aggregator_func, metric_obj, metric_obj.header(), field_indices)
         results['metric'][r.data[0]] = " ".join(f(r.data[1:]))
         results['header'] = " ".join(f(r.header))
