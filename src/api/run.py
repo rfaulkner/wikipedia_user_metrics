@@ -25,6 +25,8 @@ import config.settings as settings
 import multiprocessing as mp
 import collections
 
+import src.etl.aggregator as agg
+import src.metrics.user_metric as um
 import src.metrics.threshold as th
 import src.metrics.blocks as b
 import src.metrics.bytes_added as ba
@@ -56,12 +58,20 @@ metric_dict = {
     'edit_rate' : er.EditRate,
 }
 
+aggregator_dict = {
+    'sum+bytes_added' : (agg.list_sum_indices,
+                         ba.BytesAdded._data_model_meta['float_fields'] + ba.BytesAdded._data_model_meta['integer_fields']),
+    'average+threshold' : (th.threshold_editors_agg, []),
+    'average+revert' : (rr.reverted_revs_agg, []),
+    }
+
 processQ = list()
 QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
 # gl_lock = mp.Lock()    # global lock
 
 @app.route('/')
 def api_root():
+    """ View for root url - API instructions """
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('select utm_name from usertags_meta')
     data = [r[0] for r in conn._cur_]
@@ -71,23 +81,25 @@ def api_root():
 
 @app.route('/login')
 def login():
+    """ View for login """
     return render_template('login.html')
 
 @app.route('/tag_definitions')
 def tag_definitions():
+    """ View for tag definitions where cohort meta dat can be reviewed """
 
-    usertag_meta_data = ''
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('select * from usertags_meta')
 
-    for r in conn._cur_:
-        usertag_meta_data += " ".join(dl.DataLoader().cast_elems_to_string(list(r))) + '<br>'
+    f = dl.DataLoader().cast_elems_to_string
+    usertag_meta_data = [escape(", ".join(f(r))) for r in conn._cur_]
 
     del conn
-    return render_template('tag_definitions.html', data=Markup(usertag_meta_data))
+    return render_template('tag_definitions.html', data=usertag_meta_data)
 
 @app.route('/cohorts')
 def cohorts():
+    """ View for listing and selecting cohorts """
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('select distinct utm_name from usertags_meta')
     o = [r[0] for r in conn._cur_]
@@ -98,6 +110,7 @@ def cohorts():
 @app.route('/metrics')
 @app.route('/metrics/<string:cohort>')
 def metrics(cohort=''):
+    """ View for listing and selecting metrics """
     if not cohort:
         return redirect(url_for('cohorts'))
     else:
@@ -105,22 +118,32 @@ def metrics(cohort=''):
 
 @app.route('/metrics/<string:cohort>/<string:metric>')
 def output(cohort, metric):
+    """ View corresponding to a data request - all of the setup and execution for a request happens here. """
 
     global global_id
-    # url = "".join(['/metrics/', cohort, '/', metric])
+    extra_params = list()   # stores extra query parameters that may be valid outside of metric parameters
+
     url = request.url.split(request.url_root)[1]
 
     # GET - parse query string
     arg_dict = copy.copy(request.args)
+
     refresh = False
     if 'refresh' in arg_dict:
         try:
             if int(arg_dict['refresh']): refresh = True
         except ValueError: pass
 
+    aggregator = arg_dict['aggregator'] if 'aggregator' in arg_dict else ''
+    aggregator_key = '+'.join([aggregator,metric])
+    if not aggregator_dict.has_key(aggregator_key):
+        aggregator_key = ''
+    else:
+        extra_params.append('aggregator')
+
     # Format the query string
     metric_params = metric_dict[metric]()._param_types
-    url = strip_query_string(url, metric_params['init'].keys() + metric_params['process'].keys())
+    url = strip_query_string(url, metric_params['init'].keys() + metric_params['process'].keys() + extra_params)
 
     if url in pkl_data and not refresh:
         return pkl_data[url]
@@ -134,7 +157,7 @@ def output(cohort, metric):
         if not is_pending_job: # Queue the job
 
             q = mp.Queue()
-            p = mp.Process(target=process_metrics, args=(url, cohort, metric, q, arg_dict))
+            p = mp.Process(target=process_metrics, args=(url, cohort, metric, aggregator_key, q, arg_dict))
             p.start()
 
             global_id += 1
@@ -148,6 +171,7 @@ def output(cohort, metric):
 
 @app.route('/job_queue')
 def job_queue():
+    """ View for listing current jobs working """
 
     error = ''
     if 'error' in request.args:
@@ -161,6 +185,7 @@ def job_queue():
     for p in processQ:
         try:
 
+            # Pull data off of the queue and add it to the queue data
             while not p.queue.empty():
                 if not queue_data.has_key(p.id):
                     queue_data[p.id] = json.loads(p.queue.get().data)
@@ -168,6 +193,7 @@ def job_queue():
                     for k,v in queue_data[p.id]:
                         if hasattr(v,'__iter__'): queue_data[p.id][k].extend(v)
 
+            # once a process has finished working remove it and put its contents into the cache
             if not p.process.is_alive() and p.status[0] == 'pending':
                 q_response = make_response(jsonify(queue_data[p.id]))
                 del queue_data[p.id]
@@ -175,6 +201,7 @@ def job_queue():
 
                 p.status[0] = 'success'
                 logging.info('Completed request %s.' % p.url)
+
         except Exception as e:
             p.status[0] = 'failure'
             logging.error("Could not update request: %s.  Exception: %s" % (p.url, e.message) )
@@ -191,6 +218,8 @@ def job_queue():
 
 @app.route('/all_urls')
 def all_urls():
+    """ View for listing all requests """
+
     url_list = list()
     for url in pkl_data.keys():
         url_list.append("".join(['<a href="', request.url_root, url + '">', url, '</a>']))
@@ -222,7 +251,8 @@ def strip_query_string(url, valid_items):
     else:
         return url
 
-def process_metrics(url, cohort, metric, p, args):
+def process_metrics(url, cohort, metric, aggregator_key, p, args):
+    """ Worker process for requests - this will typically operate in a forked process """
 
     conn = dl.Connector(instance='slave')
     try:
@@ -231,6 +261,16 @@ def process_metrics(url, cohort, metric, p, args):
         conn._cur_.execute('select ut_user from usertags where ut_tag = "%s"' % res)
     except IndexError:
         redirect(url_for('cohorts'))
+
+    # Get the aggregator if there is one
+    aggregator_func = None
+    field_indices = None
+
+    if aggregator_key in aggregator_dict.keys():
+        aggregator_func = aggregator_dict[aggregator_key][0]
+        field_indices = aggregator_dict[aggregator_key][1]
+    else:
+        aggregator = None
 
     # Get metric
     metric_obj = None
@@ -253,8 +293,16 @@ def process_metrics(url, cohort, metric, p, args):
 
     logging.debug('Processing results for %s... (PID = %s)' % (url, os.getpid()))
 
-    for m in metric_obj.process(users, num_threads=50, rev_threads=50, **args):
-        results['metric'][m[0]] = " ".join(dl.DataLoader().cast_elems_to_string(m[1:]))
+    # process metrics
+    metric_obj.process(users, num_threads=20, rev_threads=50, **args)
+    f = dl.DataLoader().cast_elems_to_string
+    if aggregator_key:
+        r = um.aggregator(aggregator_func, metric_obj, metric_obj.header(), field_indices)
+        results['metric'][r.data[0]] = " ".join(f(r.data[1:]))
+        results['header'] = " ".join(f(r.header))
+    else:
+        for m in metric_obj.__iter__():
+            results['metric'][m[0]] = " ".join(dl.DataLoader().cast_elems_to_string(m[1:]))
 
     p.put(jsonify(results))
     del conn
@@ -263,14 +311,22 @@ def process_metrics(url, cohort, metric, p, args):
 
 if __name__ == '__main__':
 
+    # stores data in Queue objects that are active
     queue_data = dict()
 
-    # Open the pickled data for reading.  Then
-    pkl_file = open(settings.__data_file_dir__ + 'api_data.pkl', 'rb')
-    pkl_data = cPickle.load(pkl_file)
-    pkl_file.close()
+    # Open the pickled data for reading.
+    try:
+        pkl_file = open(settings.__data_file_dir__ + 'api_data.pkl', 'rb')
+    except IOError:
+        pkl_file = None
 
-    flush_process = None
+    # test whether the open was successful
+    if pkl_file:
+        pkl_data = cPickle.load(pkl_file)
+        pkl_file.close()
+    else:
+        pkl_data = dict()
+
     try:
         app.run()
     finally:
@@ -279,7 +335,7 @@ if __name__ == '__main__':
             cPickle.dump(pkl_data, pkl_file)
         except Exception:
             logging.error('Could not pickle data.')
-            pass
-        pkl_file.close()
+        finally:
+            if hasattr(pkl_file, 'close'): pkl_file.close()
 
 

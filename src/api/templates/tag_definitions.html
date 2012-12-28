@@ -1,6 +1,18 @@
 {% extends "layout.html" %}
 {% block body %}
-    <h2>Tag definitions</h2>
-    {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
-    {{ data }}
+{% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+
+<div class="para_courier">
+    <h2>Tag definitions</h2><div class="v_space_sm"></div>
+    <div class="embed_p">
+        {% for row in data %}
+            {{ row|safe }}
+        <div class="v_space_sm"></div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="v_space_sm"></div>
+Back <a href="/">home</a>.
 {% endblock %}
+
