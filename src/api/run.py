@@ -61,7 +61,9 @@ metric_dict = {
 aggregator_dict = {
     'sum+bytes_added' : (agg.list_sum_indices,
                          ba.BytesAdded._data_model_meta['float_fields'] + ba.BytesAdded._data_model_meta['integer_fields']),
-}
+    'average+threshold' : (th.threshold_editors_agg, []),
+    'average+revert' : (rr.reverted_revs_agg, []),
+    }
 
 processQ = list()
 QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
@@ -86,7 +88,6 @@ def login():
 def tag_definitions():
     """ View for tag definitions where cohort meta dat can be reviewed """
 
-    usertag_meta_data = ''
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('select * from usertags_meta')
 
@@ -289,10 +290,11 @@ def process_metrics(url, cohort, metric, aggregator, p, args):
 
     # process metrics
     metric_obj.process(users, num_threads=20, rev_threads=50, **args)
-
+    f = dl.DataLoader().cast_elems_to_string
     if aggregator:
-        r = um.aggregator(aggregator_func, metric_obj.__iter__(), metric_obj.header(), field_indices)
-        results['metric'][r.data[0]] = " ".join(dl.DataLoader().cast_elems_to_string(r.data[1:]))
+        r = um.aggregator(aggregator_func, metric_obj, metric_obj.header(), field_indices)
+        results['metric'][r.data[0]] = " ".join(f(r.data[1:]))
+        results['header'] = " ".join(f(r.header))
     else:
         for m in metric_obj.__iter__():
             results['metric'][m[0]] = " ".join(dl.DataLoader().cast_elems_to_string(m[1:]))
