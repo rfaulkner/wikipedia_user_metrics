@@ -90,11 +90,11 @@ def tag_definitions():
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('select * from usertags_meta')
 
-    for r in conn._cur_:
-        usertag_meta_data += " ".join(dl.DataLoader().cast_elems_to_string(list(r))) + '<br>'
+    f = dl.DataLoader().cast_elems_to_string
+    usertag_meta_data = [escape(", ".join(f(r))) for r in conn._cur_]
 
     del conn
-    return render_template('tag_definitions.html', data=Markup(usertag_meta_data))
+    return render_template('tag_definitions.html', data=usertag_meta_data)
 
 @app.route('/cohorts')
 def cohorts():
