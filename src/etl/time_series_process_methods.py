@@ -11,11 +11,17 @@ import datetime
 from dateutil.parser import parse as date_parse
 import src.metrics.threshold as th
 import src.metrics.revert_rate as rr
-import src.etl.aggregator as agg
 import src.etl.data_loader as dl
+import src.metrics.user_metric as um
+# import src.utils.multiprocessing_wrapper as mpw
 
 def _get_timeseries(date_start, date_end, interval):
     """ Generates a series of timestamps given a start date, end date, and interval"""
+
+    # Ensure the dates are string representations
+    date_start = um.UserMetric._get_timestamp(date_start)
+    date_end = um.UserMetric._get_timestamp(date_end)
+
     c = date_parse(date_start) + datetime.timedelta(hours=-interval)
     e = date_parse(date_end)
     while c < e:
@@ -56,7 +62,7 @@ def threshold_editors(args,interval,log=True,project='enwiki',k=1,n=1,t=1440):
         # Build an iterator across users for a given threshold
         threshold_obj = th.Threshold(date_start=ts_s, date_end=ts_e,n=n,t=t).process(user_ids,
             log_progress=True, num_threads=k)
-        total, pos, rate = agg.threshold_editors_agg(threshold_obj)
+        total, pos, rate = th.threshold_editors_agg(threshold_obj)
 
         if log: print " ".join(['timestamp = ', str(ts_s), ', total registrations = ',
                             str(total), ', % prod editors = ',str(rate)])
@@ -83,7 +89,7 @@ def reverted(args,interval,log=True,project='enwiki',la=15,lb=15,k=1):
 
         revert_obj = rr.RevertRate(date_start=ts_s, date_end=ts_e,look_ahead=la,look_back=lb).process(user_ids,
             log_progress=True, num_threads=k)
-        total_revs, weighted_rate, total_editors, reverted_editors = agg.reverted_revs_agg(revert_obj)
+        total_revs, weighted_rate, total_editors, reverted_editors = rr.reverted_revs_agg(revert_obj)
 
         if log:
             print " ".join(['timestamp = ', str(ts_s), ', total revisions = ',
