@@ -149,6 +149,11 @@ def __future(conn, rev_id, page_id, n, project='enwiki'):
 
     for row in cursor:
         yield row
+# Define the metrics data model meta
+RevertRate._data_model_meta['id_fields'] = [0]
+RevertRate._data_model_meta['float_fields'] = [1]
+RevertRate._data_model_meta['integer_fields'] = [2]
+RevertRate._data_model_meta['boolean_fields'] = []
 
 def _process_help(args):
     """ Used by Threshold::process() for forking.  Should not be called externally. """
@@ -215,15 +220,6 @@ def _revision_proc(args):
         revision_count += 1.0
     return [(revision_count, revert_count)]
 
-# testing
-if __name__ == "__main__":
-    r = RevertRate()
-    users = ['17792132', '17797320', '17792130', '17792131', '17792136',
-             '17792137', '17792134', '17797328', '17797329', '17792138']
-    for r in r.process(users,num_threads=2,rev_threads=10, log_progress=True): print r
-    # for r in r.process('156171',num_threads=2,rev_threads=10, log_progress=True): print r
-
-
 @decorator_builder(RevertRate.header())
 def reverted_revs_agg(metric):
     """ Computes total revert metrics on a user set """
@@ -244,4 +240,18 @@ def reverted_revs_agg(metric):
         weighted_rate /= total_revs
     else:
         weighted_rate = 0.0
-    return total_revs, weighted_rate, total_editors, reverted_editors
+    return [total_revs, weighted_rate, total_editors, reverted_editors]
+setattr(reverted_revs_agg, um.METRIC_AGG_METHOD_FLAG, True)
+setattr(reverted_revs_agg, um.METRIC_AGG_METHOD_NAME, 'reversion_aggregates')
+setattr(reverted_revs_agg, um.METRIC_AGG_METHOD_HEAD, ['type', 'total_revs',
+                                      'weighted_rate','total_editors','reverted_editors'])
+
+# testing
+if __name__ == "__main__":
+    r = RevertRate()
+    users = ['17792132', '17797320', '17792130', '17792131', '17792136',
+             '17792137', '17792134', '17797328', '17797329', '17792138']
+    for r in r.process(users,num_threads=2,rev_threads=10, log_progress=True): print r
+    # for r in r.process('156171',num_threads=2,rev_threads=10, log_progress=True): print r
+
+

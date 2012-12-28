@@ -122,6 +122,11 @@ class Threshold(um.UserMetric):
 
         return self
 
+# Define the metrics data model meta
+Threshold._data_model_meta['id_fields'] = [0]
+Threshold._data_model_meta['float_fields'] = []
+Threshold._data_model_meta['integer_fields'] = []
+Threshold._data_model_meta['boolean_fields'] = [1]
 
 def _process_help(args):
     """ Used by Threshold::process() for forking.  Should not be called externally. """
@@ -182,6 +187,7 @@ def _process_help(args):
     return results
 
 @decorator_builder(Threshold.header())
+
 def threshold_editors_agg(metric):
     """ Computes the fraction of editors reaching a threshold """
     total=0
@@ -193,9 +199,13 @@ def threshold_editors_agg(metric):
         except IndexError: continue
         except TypeError: continue
     if total:
-        return total, pos, float(pos) / total
+        return [total, pos, float(pos) / total]
     else:
-        return total, pos, 0.0
+        return [total, pos, 0.0]
+setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_FLAG, True)
+setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_NAME, 'reversion_aggregates')
+setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_HEAD, ['threshold_aggregates', 'total_revs',
+                                      'reverions','rate'])
 
 # testing
 if __name__ == "__main__":
