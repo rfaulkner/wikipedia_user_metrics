@@ -269,8 +269,6 @@ def process_metrics(url, cohort, metric, aggregator_key, p, args):
     if aggregator_key in aggregator_dict.keys():
         aggregator_func = aggregator_dict[aggregator_key][0]
         field_indices = aggregator_dict[aggregator_key][1]
-    else:
-        aggregator = None
 
     # Get metric
     metric_obj = None
@@ -296,7 +294,7 @@ def process_metrics(url, cohort, metric, aggregator_key, p, args):
     # process metrics
     metric_obj.process(users, num_threads=20, rev_threads=50, **args)
     f = dl.DataLoader().cast_elems_to_string
-    if aggregator_key:
+    if aggregator_func:
         r = um.aggregator(aggregator_func, metric_obj, metric_obj.header(), field_indices)
         results['metric'][r.data[0]] = " ".join(f(r.data[1:]))
         results['header'] = " ".join(f(r.header))
