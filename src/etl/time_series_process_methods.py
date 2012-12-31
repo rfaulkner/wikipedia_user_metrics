@@ -31,7 +31,11 @@ def _get_timeseries(date_start, date_end, interval):
     # Ensure the dates are string representations
     date_start = um.UserMetric._get_timestamp(date_start)
     date_end = um.UserMetric._get_timestamp(date_end)
-    print date_start + " - " + date_end
+
+    # ensure that at least two intervals are included in the time series
+    if (date_parse(date_end) - date_parse(date_start)).total_seconds() / 3600 < interval:
+        raise TimeSeriesException(message="Time series must contain at least one interval.")
+
     c = date_parse(date_start) + datetime.timedelta(hours=-interval)
     e = date_parse(date_end)
     while c < e:
@@ -120,7 +124,7 @@ def build_time_series(start, end, interval, metric, aggregator, cohort, **kwargs
     # Get datetime types, and the number of threads
     start = date_parse(um.UserMetric._get_timestamp(start))
     end = date_parse(um.UserMetric._get_timestamp(end))
-    k = kwargs['num_threads'] if 'num_threads' in kwargs else 0
+    k = kwargs['num_threads'] if 'num_threads' in kwargs else 1
 
     # Compute window size and ensure that all the conditions necessary to generate a proper time series are met
     num_intervals = int((end - start).total_seconds() / (3600 * interval))
@@ -191,6 +195,11 @@ def time_series_worker(time_series, metric, aggregator, cohort, kwargs, q):
 
 class DataTypeMethods(object):
     DATA_TYPE = {'prod' : threshold_editors, 'revert' : reverted}
+
+class TimeSeriesException(Exception):
+    """ Basic exception class for UserMetric types """
+    def __init__(self, message="Could not generate time series."):
+        Exception.__init__(self, message)
 
 if __name__ == '__main__':
 
