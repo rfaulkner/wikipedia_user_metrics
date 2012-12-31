@@ -46,6 +46,14 @@ class Threshold(um.UserMetric):
         }
     }
 
+    # Define the metrics data model meta
+    _data_model_meta = {
+        'id_fields' : [0],
+        'float_fields' : [],
+        'integer_fields' : [],
+        'boolean_fields' : [1],
+        }
+
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 
@@ -122,12 +130,6 @@ class Threshold(um.UserMetric):
 
         return self
 
-# Define the metrics data model meta
-Threshold._data_model_meta['id_fields'] = [0]
-Threshold._data_model_meta['float_fields'] = []
-Threshold._data_model_meta['integer_fields'] = []
-Threshold._data_model_meta['boolean_fields'] = [1]
-
 def _process_help(args):
     """ Used by Threshold::process() for forking.  Should not be called externally. """
 
@@ -187,7 +189,6 @@ def _process_help(args):
     return results
 
 @decorator_builder(Threshold.header())
-
 def threshold_editors_agg(metric):
     """ Computes the fraction of editors reaching a threshold """
     total=0

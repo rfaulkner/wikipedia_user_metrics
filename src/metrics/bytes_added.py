@@ -54,6 +54,14 @@ class BytesAdded(um.UserMetric):
         }
     }
 
+    # Define the metrics data model meta
+    _data_model_meta = {
+        'id_fields' : [0],
+        'float_fields' : [],
+        'integer_fields' : [1,2,3,4,5],
+        'boolean_fields' : [],
+        }
+
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 
@@ -151,12 +159,6 @@ class BytesAdded(um.UserMetric):
         except um.MySQLdb.ProgrammingError:
            raise um.UserMetric.UserMetricError(message=str(BytesAdded) +
                                                     '::Could not get revisions for specified users(s) - Query Failed.')
-
-# Define the metrics data model meta
-BytesAdded._data_model_meta['id_fields'] = [0]
-BytesAdded._data_model_meta['float_fields'] = []
-BytesAdded._data_model_meta['integer_fields'] = [1,2,3,4,5]
-
 
 def _process_help(args):
 

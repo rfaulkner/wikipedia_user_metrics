@@ -62,6 +62,13 @@ class RevertRate(um.UserMetric):
         }
     }
 
+    # Define the metrics data model meta
+    _data_model_meta = {
+        'id_fields' : [0],
+        'float_fields' : [1],
+        'integer_fields' : [2],
+        }
+
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 
@@ -149,11 +156,6 @@ def __future(conn, rev_id, page_id, n, project='enwiki'):
 
     for row in cursor:
         yield row
-# Define the metrics data model meta
-RevertRate._data_model_meta['id_fields'] = [0]
-RevertRate._data_model_meta['float_fields'] = [1]
-RevertRate._data_model_meta['integer_fields'] = [2]
-RevertRate._data_model_meta['boolean_fields'] = []
 
 def _process_help(args):
     """ Used by Threshold::process() for forking.  Should not be called externally. """
