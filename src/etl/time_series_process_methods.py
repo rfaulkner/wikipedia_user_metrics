@@ -114,8 +114,24 @@ def reverted(args,interval,log=True,project='enwiki',la=15,lb=15,k=1):
 
 def build_time_series(start, end, interval, metric, aggregator, cohort, **kwargs):
     """
-        Computes a list of threshold metrics.
+        Builds a timeseries dataset of .
 
+            Parameters:
+                - **start**: str or datetime. date + time indicating start of time series
+                - **end**: str or datetime. date + time indicating end of time series
+                - **interval**: int. integer value in hours that defines the amount of time between data-points
+                - **metric**: class object. Metrics class (derived from UserMetric)
+                - **aggregator**: method. Aggregator method used to aggregate data for time series data points
+                - **cohort**: list(str). list of user IDs
+        e.g.
+
+        >>> cohort = ['156171','13234584']
+        >>> metric = ba.BytesAdded
+        >>> aggregator = agg.list_sum_indices
+        >>> field_indices = ba.BytesAdded._data_model_meta['integer_fields']
+
+        >>> build_time_series('20120101000000', '20120112000000', 24, metric, aggregator, cohort,
+            num_threads=4, num_threads_metric=2, log=True)
 
     """
 
@@ -164,6 +180,7 @@ def build_time_series(start, end, interval, metric, aggregator, cohort, **kwargs
         if not len(processes):
             break
 
+
     return data
 
 def time_series_worker(time_series, metric, aggregator, cohort, kwargs, q):
@@ -188,6 +205,7 @@ def time_series_worker(time_series, metric, aggregator, cohort, kwargs, q):
         metric_obj = metric(date_start=ts_s,date_end=ts_e,**new_kwargs).process(cohort, **new_kwargs)
 
         r = um.aggregator(aggregator, metric_obj, metric.header(), field_indices)
+
         data.append([str(ts_s), str(ts_e)] + r.data)
 
         ts_s = ts_e
@@ -208,5 +226,5 @@ if __name__ == '__main__':
     aggregator = agg.list_sum_indices
     field_indices = ba.BytesAdded._data_model_meta['integer_fields']
 
-    print build_time_series('20120101000000', '20120401000000', 24, metric, aggregator, cohort,
+    print build_time_series('20120101000000', '20120112000000', 24, metric, aggregator, cohort,
         num_threads=4, num_threads_metric=2, log=True)
