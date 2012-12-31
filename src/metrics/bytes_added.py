@@ -88,6 +88,12 @@ class BytesAdded(um.UserMetric):
         else:
             self._results = _process_help([revs, args])
 
+        # Add any missing users - O(n)
+        tallied_users = set([r[0] for r in self._results])
+        for user in user_handle:
+            if not tallied_users.__contains__(user):
+                self._results.append([user,0,0,0,0,0]) # Add a row indicating no activity for that user
+
         return self
 
     def _get_revisions(self, user_handle, is_id, log_progress=True):
