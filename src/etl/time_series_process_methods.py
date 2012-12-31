@@ -12,7 +12,9 @@ import time
 import os
 from copy import deepcopy
 from dateutil.parser import parse as date_parse
-import sys, logging
+import sys
+import logging
+import operator
 
 import src.etl.aggregator as agg
 import src.metrics.bytes_added as ba
@@ -180,8 +182,8 @@ def build_time_series(start, end, interval, metric, aggregator, cohort, **kwargs
         if not len(processes):
             break
 
-
-    return data
+    # sort
+    return sorted(data, key=operator.itemgetter(0), reverse=False)
 
 def time_series_worker(time_series, metric, aggregator, cohort, kwargs, q):
     """ worker thread which computes time series data for a set of points """
