@@ -89,7 +89,6 @@ class UserMetric(object):
     ALL_NAMESPACES = 'all_namespaces'
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
-    _static_conn = None
     _data_model_meta = dict()
 
     # Structure that defines parameters for UserMetric class
@@ -135,12 +134,6 @@ class UserMetric(object):
         if hasattr(class_ref, '_param_types'):
             for k,v in class_ref._param_types['init'].iteritems(): self.__class__._param_types['init'][k] = v
             for k,v in class_ref._param_types['process'].iteritems(): self.__class__._param_types['process'][k] = v
-
-    @classmethod
-    def get_static_connection(cls):
-        if cls._static_conn is None:
-            cls._static_conn = dl.Connector(instance='slave')
-        return cls._static_conn._db_
 
     @classmethod
     def _construct_data_point(cls): return namedtuple(cls.__name__, cls.header())
