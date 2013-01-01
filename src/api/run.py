@@ -23,11 +23,6 @@ from urlparse import urlparse
 import config.settings as settings
 import multiprocessing as mp
 import collections
-
-import src.etl.aggregator as agg
-import src.metrics.threshold as th
-import src.metrics.bytes_added as ba
-import src.metrics.revert_rate as rr
 import src.metrics.metrics_manager as mm
 
 app = Flask(__name__)
@@ -42,13 +37,6 @@ global_id = 0
 error_codes = {
     0 : 'Job already running.'
 }
-
-aggregator_dict = {
-    'sum+bytes_added' : (agg.list_sum_indices,
-                         ba.BytesAdded._data_model_meta['float_fields'] + ba.BytesAdded._data_model_meta['integer_fields']),
-    'average+threshold' : (th.threshold_editors_agg, []),
-    'average+revert' : (rr.reverted_revs_agg, []),
-    }
 
 processQ = list()
 QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
@@ -119,11 +107,10 @@ def output(cohort, metric):
             if int(arg_dict['refresh']): refresh = True
         except ValueError: pass
 
+
     aggregator = arg_dict['aggregator'] if 'aggregator' in arg_dict else ''
-    aggregator_key = '+'.join([aggregator,metric])
-    if not aggregator_dict.has_key(aggregator_key):
-        aggregator_key = ''
-    else:
+    aggregator_key = mm.get_agg_key(aggregator, metric)
+    if mm.aggregator_dict.has_key(aggregator_key):
         extra_params.append('aggregator')
 
     # Format the query string
@@ -142,7 +129,7 @@ def output(cohort, metric):
         if not is_pending_job: # Queue the job
 
             q = mp.Queue()
-            p = mp.Process(target=process_metrics, args=(url, cohort, metric, aggregator_key, q, arg_dict))
+            p = mp.Process(target=process_metrics, args=(url, cohort, metric, aggregator, q, arg_dict))
             p.start()
 
             global_id += 1
@@ -236,7 +223,7 @@ def strip_query_string(url, valid_items):
     else:
         return url
 
-def process_metrics(url, cohort, metric, aggregator_key, p, args):
+def process_metrics(url, cohort, metric, aggregator, p, args):
     """ Worker process for requests - this will typically operate in a forked process """
 
     conn = dl.Connector(instance='slave')
@@ -247,30 +234,11 @@ def process_metrics(url, cohort, metric, aggregator_key, p, args):
     except IndexError:
         redirect(url_for('cohorts'))
 
-    # Get the aggregator if there is one
-    aggregator_func = None
-    field_indices = None
-
-    if aggregator_key in aggregator_dict.keys():
-        aggregator_func = aggregator_dict[aggregator_key][0]
-        field_indices = aggregator_dict[aggregator_key][1]
-
-    # Get metric
-    metric_obj = None
-    try:
-        metric_obj = mm.metric_dict[metric](**args)
-    except KeyError:
-        logging.error('Bad metric handle: %s' % url)
-        redirect(url_for('cohorts'))
-
-    if not metric_obj: return redirect(url_for('cohorts'))
     users = [r[0] for r in conn._cur_]
-
     logging.debug('Processing results for %s... (PID = %s)' % (url, os.getpid()))
 
     # process metrics
-    results  = mm.process_data_request(metric_obj, users, aggregator_func=aggregator_func, time_series=False,
-        field_indices=field_indices, **args)
+    results  = mm.process_data_request(metric, users, agg_handle=aggregator, time_series=False, **args)
 
     p.put(jsonify(results))
     del conn
