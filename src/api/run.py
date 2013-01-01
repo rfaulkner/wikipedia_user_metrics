@@ -17,7 +17,6 @@ import cPickle
 import logging
 import sys
 import os
-import re
 import json
 import copy
 from urlparse import urlparse
@@ -26,7 +25,6 @@ import multiprocessing as mp
 import collections
 
 import src.etl.aggregator as agg
-import src.metrics.user_metric as um
 import src.metrics.threshold as th
 import src.metrics.blocks as b
 import src.metrics.bytes_added as ba
@@ -34,6 +32,7 @@ import src.metrics.survival as sv
 import src.metrics.revert_rate as rr
 import src.metrics.time_to_threshold as ttt
 import src.metrics.edit_rate as er
+import src.metrics.metrics_manager as mm
 
 app = Flask(__name__)
 
@@ -279,28 +278,13 @@ def process_metrics(url, cohort, metric, aggregator_key, p, args):
         redirect(url_for('cohorts'))
 
     if not metric_obj: return redirect(url_for('cohorts'))
-
-    results = dict()
-    results['header'] = " ".join(metric_obj.header())
-    for key in metric_obj.__dict__:
-        if re.search(r'_.*_', key):
-            results[str(key[1:-1])] = str(metric_obj.__dict__[key])
-    results['metric'] = dict()
-
     users = [r[0] for r in conn._cur_]
 
     logging.debug('Processing results for %s... (PID = %s)' % (url, os.getpid()))
 
     # process metrics
-    metric_obj.process(users, num_threads=20, rev_threads=50, **args)
-    f = dl.DataLoader().cast_elems_to_string
-    if aggregator_func:
-        r = um.aggregator(aggregator_func, metric_obj, metric_obj.header(), field_indices)
-        results['metric'][r.data[0]] = " ".join(f(r.data[1:]))
-        results['header'] = " ".join(f(r.header))
-    else:
-        for m in metric_obj.__iter__():
-            results['metric'][m[0]] = " ".join(dl.DataLoader().cast_elems_to_string(m[1:]))
+    results  = mm.process_data_request(metric_obj, users, aggregator_func=aggregator_func, time_series=False,
+        field_indices=field_indices, **args)
 
     p.put(jsonify(results))
     del conn
