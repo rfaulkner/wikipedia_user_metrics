@@ -204,7 +204,7 @@ def threshold_editors_agg(metric):
     else:
         return [total, pos, 0.0]
 setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_FLAG, True)
-setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_NAME, 'reversion_aggregates')
+setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_NAME, 'threshold_aggregates')
 setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_HEAD, ['threshold_aggregates', 'total_revs',
                                       'reverions','rate'])
 
