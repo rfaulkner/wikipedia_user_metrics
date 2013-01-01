@@ -9,7 +9,27 @@ __license__ = "GPL (version 2 or later)"
 
 import re
 import src.metrics.user_metric as um
+import src.metrics.threshold as th
+import src.metrics.blocks as b
+import src.metrics.bytes_added as ba
+import src.metrics.survival as sv
+import src.metrics.revert_rate as rr
+import src.metrics.time_to_threshold as ttt
+import src.metrics.edit_rate as er
 import src.etl.data_loader as dl
+
+metric_dict = {
+    'threshold' : th.Threshold,
+    'survival' : sv.Survival,
+    'revert' : rr.RevertRate,
+    'bytes_added' : ba.BytesAdded,
+    'blocks' : b.Blocks,
+    'time_to_threshold' : ttt.TimeToThreshold,
+    'edit_rate' : er.EditRate,
+    }
+
+def get_metric_names(): return metric_dict.keys()
+def get_param_types(metric_handle): return metric_dict[metric_handle]()._param_types
 
 def process_data_request(metric_obj, users, aggregator_func=None, time_series=False, field_indices=None, **kwargs):
 

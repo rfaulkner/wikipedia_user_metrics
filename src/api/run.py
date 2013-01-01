@@ -26,12 +26,8 @@ import collections
 
 import src.etl.aggregator as agg
 import src.metrics.threshold as th
-import src.metrics.blocks as b
 import src.metrics.bytes_added as ba
-import src.metrics.survival as sv
 import src.metrics.revert_rate as rr
-import src.metrics.time_to_threshold as ttt
-import src.metrics.edit_rate as er
 import src.metrics.metrics_manager as mm
 
 app = Flask(__name__)
@@ -45,16 +41,6 @@ global_id = 0
 
 error_codes = {
     0 : 'Job already running.'
-}
-
-metric_dict = {
-    'threshold' : th.Threshold,
-    'survival' : sv.Survival,
-    'revert' : rr.RevertRate,
-    'bytes_added' : ba.BytesAdded,
-    'blocks' : b.Blocks,
-    'time_to_threshold' : ttt.TimeToThreshold,
-    'edit_rate' : er.EditRate,
 }
 
 aggregator_dict = {
@@ -113,7 +99,7 @@ def metrics(cohort=''):
     if not cohort:
         return redirect(url_for('cohorts'))
     else:
-        return render_template('metrics.html', c_str=cohort, m_list=metric_dict.keys())
+        return render_template('metrics.html', c_str=cohort, m_list=mm.get_metric_names())
 
 @app.route('/metrics/<string:cohort>/<string:metric>')
 def output(cohort, metric):
@@ -141,7 +127,7 @@ def output(cohort, metric):
         extra_params.append('aggregator')
 
     # Format the query string
-    metric_params = metric_dict[metric]()._param_types
+    metric_params = mm.get_param_types(metric)
     url = strip_query_string(url, metric_params['init'].keys() + metric_params['process'].keys() + extra_params)
 
     if url in pkl_data and not refresh:
@@ -272,7 +258,7 @@ def process_metrics(url, cohort, metric, aggregator_key, p, args):
     # Get metric
     metric_obj = None
     try:
-        metric_obj = metric_dict[metric](**args)
+        metric_obj = mm.metric_dict[metric](**args)
     except KeyError:
         logging.error('Bad metric handle: %s' % url)
         redirect(url_for('cohorts'))
