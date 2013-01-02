@@ -36,10 +36,10 @@ metric_dict = {
     }
 
 aggregator_dict = {
-    'sum+bytes_added' : (agg.list_sum_indices,
-                         ba.BytesAdded._data_model_meta['float_fields'] + ba.BytesAdded._data_model_meta['integer_fields']),
-    'average+threshold' : (th.threshold_editors_agg, []),
-    'average+revert' : (rr.reverted_revs_agg, []),
+    'sum+bytes_added' : agg.list_sum_indices,
+    'sum+edit_rate' : agg.list_sum_indices,
+    'average+threshold' : th.threshold_editors_agg,
+    'average+revert' : rr.reverted_revs_agg,
     }
 
 def get_metric_names(): return metric_dict.keys()
@@ -63,7 +63,7 @@ def process_data_request(metric_handle, users, agg_handle='', **kwargs):
 
     aggregator_key = get_agg_key(agg_handle, metric_handle)
     if aggregator_key in aggregator_dict.keys():
-        aggregator_func = aggregator_dict[aggregator_key][0]
+        aggregator_func = aggregator_dict[aggregator_key]
 
     time_series = True if 'time_series' in kwargs else False
 
