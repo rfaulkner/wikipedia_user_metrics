@@ -56,7 +56,7 @@ class Threshold(um.UserMetric):
         }
 
     _agg_indices = {
-        'list_sum_indices' : _data_model_meta['integer_fields'] + _data_model_meta['float_fields'],
+        'list_sum_indices' : _data_model_meta['boolean_fields'],
         }
 
     @um.pre_metrics_init
