@@ -60,12 +60,10 @@ def process_data_request(metric_handle, users, agg_handle='', **kwargs):
 
     # Get the aggregator if there is one
     aggregator_func = None
-    field_indices = None
 
     aggregator_key = get_agg_key(agg_handle, metric_handle)
     if aggregator_key in aggregator_dict.keys():
         aggregator_func = aggregator_dict[aggregator_key][0]
-        field_indices = aggregator_dict[aggregator_key][1]
 
     time_series = True if 'time_series' in kwargs else False
 
