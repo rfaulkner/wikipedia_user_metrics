@@ -49,10 +49,14 @@ class Threshold(um.UserMetric):
     # Define the metrics data model meta
     _data_model_meta = {
         'id_fields' : [0],
+        'date_fields' : [],
         'float_fields' : [],
         'integer_fields' : [],
         'boolean_fields' : [1],
         }
+
+    # define class indices for aggregators
+    Threshold.class_preprocessing()
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):

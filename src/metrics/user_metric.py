@@ -102,6 +102,10 @@ class UserMetric(object):
     }
 
     @classmethod
+    def class_preprocessing(cls):
+        cls.define_agg_indices()
+
+    @classmethod
     def define_agg_indices(cls):
         cls._agg_indices['list_sum_indices'] = cls._data_model_meta['integer_fields'] + cls._data_model_meta['integer_fields']
 

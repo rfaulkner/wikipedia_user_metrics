@@ -43,6 +43,18 @@ class Blocks(um.UserMetric):
         }
     }
 
+    # Define the metrics data model meta
+    _data_model_meta = {
+        'id_fields' : [0],
+        'date_fields' : [2,3],
+        'float_fields' : [],
+        'integer_fields' : [1,4],
+        'boolean_fields' : [],
+        }
+
+    # define class indices for aggregators
+    Blocks.class_preprocessing()
+
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 

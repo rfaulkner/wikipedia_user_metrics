@@ -32,6 +32,18 @@ class EditCount(um.UserMetric):
             }
     }
 
+    # Define the metrics data model meta
+    _data_model_meta = {
+        'id_fields' : [0],
+        'date_fields' : [],
+        'float_fields' : [],
+        'integer_fields' : [1],
+        'boolean_fields' : [],
+        }
+
+    # define class indices for aggregators
+    EditCount.class_preprocessing()
+
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 
