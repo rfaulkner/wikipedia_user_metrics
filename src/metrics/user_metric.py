@@ -70,7 +70,7 @@ METRIC_AGG_METHOD_NAME = 'metric_agg_name'      # name attribute for a type of m
 
 aggregate_data_class = namedtuple("AggregateData", "header data")   # Class for storing aggregate data
 
-def aggregator(agg_method, metric, data_header, field_indices):
+def aggregator(agg_method, metric, data_header):
     """ Method for wrapping and executing aggregated data """
 
     if hasattr(agg_method, METRIC_AGG_METHOD_FLAG) and getattr(agg_method, METRIC_AGG_METHOD_FLAG):
@@ -79,8 +79,8 @@ def aggregator(agg_method, metric, data_header, field_indices):
         data = [getattr(agg_method,METRIC_AGG_METHOD_NAME)] + agg_method(metric)
     else:
         # Generic aggregators that are metric agnostic
-        agg_header = ['type'] + [data_header[i] for i in field_indices]
-        data = [agg_method.__name__] + agg_method(metric.__iter__(), field_indices)
+        agg_header = ['type'] + [data_header[i] for i in metric._agg_indices]
+        data = [agg_method.__name__] + agg_method(metric.__iter__(), metric._agg_indices)
     return aggregate_data_class(agg_header, data)
 
 
