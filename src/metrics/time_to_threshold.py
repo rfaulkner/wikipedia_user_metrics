@@ -54,6 +54,10 @@ class TimeToThreshold(um.UserMetric):
         'boolean_fields' : [],
         }
 
+    _agg_indices = {
+        'list_sum_indices' : _data_model_meta['integer_fields'] + _data_model_meta['float_fields'],
+        }
+
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 
@@ -174,6 +178,3 @@ class TimeToThreshold(um.UserMetric):
             return int(time_diff.seconds / 60) + abs(time_diff.days) * 24
 
     __threshold_types = { 'edit_count_threshold' : EditCountThreshold }
-
-# Perform class preprocessing
-TimeToThreshold.class_preprocessing()

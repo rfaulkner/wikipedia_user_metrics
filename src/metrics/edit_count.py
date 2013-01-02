@@ -41,6 +41,10 @@ class EditCount(um.UserMetric):
         'boolean_fields' : [],
         }
 
+    _agg_indices = {
+        'list_sum_indices' : _data_model_meta['integer_fields'] + _data_model_meta['float_fields'],
+        }
+
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 
@@ -99,6 +103,3 @@ class EditCount(um.UserMetric):
         for row in self._data_source_._cur_.fetchall(): edit_count.append([row[0], int(row[1])])
         self._results = edit_count
         return self
-
-# Perform class preprocessing
-EditCount.class_preprocessing()

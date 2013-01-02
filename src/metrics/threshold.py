@@ -55,6 +55,10 @@ class Threshold(um.UserMetric):
         'boolean_fields' : [1],
         }
 
+    _agg_indices = {
+        'list_sum_indices' : _data_model_meta['integer_fields'] + _data_model_meta['float_fields'],
+        }
+
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 
@@ -130,9 +134,6 @@ class Threshold(um.UserMetric):
             self._results = _process_help([user_data, args])
 
         return self
-
-# Perform class preprocessing
-Threshold.class_preprocessing()
 
 def _process_help(args):
     """ Used by Threshold::process() for forking.  Should not be called externally. """

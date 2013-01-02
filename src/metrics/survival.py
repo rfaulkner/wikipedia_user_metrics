@@ -51,6 +51,10 @@ class Survival(um.UserMetric):
         'boolean_fields' : [1],
         }
 
+    _agg_indices = {
+        'list_sum_indices' : _data_model_meta['integer_fields'] + _data_model_meta['float_fields'],
+        }
+
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 
@@ -81,9 +85,6 @@ class Survival(um.UserMetric):
         kwargs['n'] = 1     # survival is denoted by making at least one revision
 
         return th.Threshold(**kwargs).process(user_handle, **kwargs)
-
-# Perform class preprocessing
-Survival.class_preprocessing()
 
 # testing
 if __name__ == "__main__":

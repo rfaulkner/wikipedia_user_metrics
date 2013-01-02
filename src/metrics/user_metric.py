@@ -79,10 +79,9 @@ def aggregator(agg_method, metric, data_header):
         data = [getattr(agg_method,METRIC_AGG_METHOD_NAME)] + agg_method(metric)
     else:
         # Generic aggregators that are metric agnostic
-        agg_header = ['type'] + [data_header[i] for i in metric._agg_indices]
-        data = [agg_method.__name__] + agg_method(metric.__iter__(), metric._agg_indices)
+        agg_header = ['type'] + [data_header[i] for i in metric._agg_indices[agg_method.__name__]]
+        data = [agg_method.__name__] + agg_method(metric.__iter__(), metric._agg_indices[agg_method.__name__])
     return aggregate_data_class(agg_header, data)
-
 
 class UserMetric(object):
 
@@ -100,14 +99,6 @@ class UserMetric(object):
             },
         'process' : {}
     }
-
-    @classmethod
-    def class_preprocessing(cls):
-        cls.define_agg_indices()
-
-    @classmethod
-    def define_agg_indices(cls):
-        cls._agg_indices['list_sum_indices'] = cls._data_model_meta['integer_fields'] + cls._data_model_meta['integer_fields']
 
     def apply_default_kwargs(self, kwargs, arg_type):
         """ Apply parameter defaults where necessary """

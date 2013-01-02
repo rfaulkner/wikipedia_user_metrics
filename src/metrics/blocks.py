@@ -52,6 +52,10 @@ class Blocks(um.UserMetric):
         'boolean_fields' : [],
         }
 
+    _agg_indices = {
+        'list_sum_indices' : _data_model_meta['integer_fields'] + _data_model_meta['float_fields'],
+        }
+
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 
@@ -138,9 +142,6 @@ class Blocks(um.UserMetric):
 
         self._results = [[user, rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']] for user in rowValues.keys()]
         return self
-
-# Perform class preprocessing
-Blocks.class_preprocessing()
 
 if __name__ == "__main__":
     for r in Blocks().process(['11174885', '15132776']): print r
