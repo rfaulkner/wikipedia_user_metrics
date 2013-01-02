@@ -71,9 +71,6 @@ class RevertRate(um.UserMetric):
         'boolean_fields' : [],
         }
 
-    # define class indices for aggregators
-    RevertRate.class_preprocessing()
-
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 
@@ -161,6 +158,9 @@ def __future(conn, rev_id, page_id, n, project='enwiki'):
 
     for row in cursor:
         yield row
+
+# Perform class preprocessing
+RevertRate.class_preprocessing()
 
 def _process_help(args):
     """ Used by Threshold::process() for forking.  Should not be called externally. """

@@ -63,9 +63,6 @@ class BytesAdded(um.UserMetric):
         'boolean_fields' : [],
         }
 
-    # define class indices for aggregators
-    BytesAdded.class_preprocessing()
-
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 
@@ -163,6 +160,9 @@ class BytesAdded(um.UserMetric):
         except um.MySQLdb.ProgrammingError:
            raise um.UserMetric.UserMetricError(message=str(BytesAdded) +
                                                     '::Could not get revisions for specified users(s) - Query Failed.')
+
+# Perform class preprocessing
+BytesAdded.class_preprocessing()
 
 def _process_help(args):
 

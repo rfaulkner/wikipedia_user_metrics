@@ -51,10 +51,6 @@ class Survival(um.UserMetric):
         'boolean_fields' : [1],
         }
 
-    # define class indices for aggregators
-    Survival.class_preprocessing()
-
-
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 
@@ -85,6 +81,9 @@ class Survival(um.UserMetric):
         kwargs['n'] = 1     # survival is denoted by making at least one revision
 
         return th.Threshold(**kwargs).process(user_handle, **kwargs)
+
+# Perform class preprocessing
+Survival.class_preprocessing()
 
 # testing
 if __name__ == "__main__":

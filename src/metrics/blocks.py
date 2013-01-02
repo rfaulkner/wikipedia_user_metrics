@@ -52,9 +52,6 @@ class Blocks(um.UserMetric):
         'boolean_fields' : [],
         }
 
-    # define class indices for aggregators
-    Blocks.class_preprocessing()
-
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 
@@ -141,6 +138,9 @@ class Blocks(um.UserMetric):
 
         self._results = [[user, rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']] for user in rowValues.keys()]
         return self
+
+# Perform class preprocessing
+Blocks.class_preprocessing()
 
 if __name__ == "__main__":
     for r in Blocks().process(['11174885', '15132776']): print r

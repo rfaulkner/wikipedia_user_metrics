@@ -47,9 +47,6 @@ class EditRate(um.UserMetric):
         'boolean_fields' : [],
         }
 
-    # define class indices for aggregators
-    EditRate.class_preprocessing()
-
     @um.pre_metrics_init
     def __init__(self, **kwargs):
 
@@ -116,3 +113,5 @@ class EditRate(um.UserMetric):
         self._results = edit_rate
         return self
 
+# Perform class preprocessing
+EditRate.class_preprocessing()
