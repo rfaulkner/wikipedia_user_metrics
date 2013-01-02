@@ -9,6 +9,7 @@ import user_metric as um
 import os
 import src.etl.aggregator as agg
 import src.utils.multiprocessing_wrapper as mpw
+from config import logging
 
 class BytesAdded(um.UserMetric):
     """
@@ -113,9 +114,10 @@ class BytesAdded(um.UserMetric):
         if not user_handle:
             sql = 'select distinct rev_user from enwiki.revision where rev_timestamp >= "%s" and rev_timestamp < "%s"'
             sql = sql % (self._start_ts_, self._end_ts_)
-            print str(datetime.datetime.now()) + ' - Getting all distinct users: " %s "' % sql
+
+            logging.info(__name__ + '::Getting all distinct users: " %s "' % sql)
             user_handle = [str(row[0]) for row in self._data_source_.execute_SQL(sql)]
-            print str(datetime.datetime.now()) + ' - Retrieved %s users.' % len(user_handle)
+            logging.info(__name__ + '::Retrieved %s users.' % len(user_handle))
 
         ts_condition  = 'rev_timestamp >= "%s" and rev_timestamp < "%s"' % (self._start_ts_, self._end_ts_)
 
@@ -154,9 +156,12 @@ class BytesAdded(um.UserMetric):
         sql = " ".join(sql.strip().split())
 
         if log_progress:
-            print str(datetime.datetime.now()) +\
-                  ' - Querying revisions for %(count)s users (project = %(project)s, namespace = %(namespace)s)... ' % {
-                      'count' : len(user_handle), 'project' : self._project_, 'namespace' : self._namespace_}
+            logging.info(__name__ + '::Querying revisions for %(count)s users (project = %(project)s, '
+                         'namespace = %(namespace)s)... ' % {
+                      'count' : len(user_handle),
+                      'project' : self._project_,
+                      'namespace' : self._namespace_ }
+            )
         try:
             return self._data_source_.execute_SQL(sql)
         except um.MySQLdb.ProgrammingError:
@@ -202,8 +207,7 @@ def _process_help(args):
     total_rows = len(revs)
 
     if thread_args.is_log:
-        s = ' - Processing revision data (%s rows) by user... (PID = %s)' % (total_rows, os.getpid())
-        print str(datetime.datetime.now()) + s
+        logging.info(__name__ + '::Processing revision data (%s rows) by user... (PID = %s)' % (total_rows, os.getpid()))
 
     for row in revs:
         try:
@@ -259,15 +263,13 @@ def _process_help(args):
 
 
         if thread_args.freq and row_count % thread_args.freq == 0 and thread_args.is_log:
-            s = ' - Processed %s of %s records. (PID = %s)' % (row_count, total_rows, os.getpid())
-            print str(datetime.datetime.now()) + s
+            logging.info(__name__ + '::Processed %s of %s records. (PID = %s)' % (row_count, total_rows, os.getpid()))
 
         row_count += 1
 
     results = [[user] + bytes_added[user] for user in bytes_added]
     if thread_args.is_log:
-        s = ' - processed %s out of %s records. (PID = %s)' % (total_rows - missed_records,total_rows, os.getpid())
-        print str(datetime.datetime.now()) + s
+        logging.info(__name__ + '::Processed %s out of %s records. (PID = %s)' % (total_rows - missed_records,total_rows, os.getpid()))
 
     return results
 
