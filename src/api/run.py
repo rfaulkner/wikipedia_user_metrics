@@ -18,7 +18,6 @@ import logging
 import sys
 import os
 import json
-import copy
 from urlparse import urlparse
 import config.settings as settings
 import multiprocessing as mp
@@ -99,7 +98,8 @@ def output(cohort, metric):
     url = request.url.split(request.url_root)[1]
 
     # GET - parse query string
-    arg_dict = copy.copy(request.args)
+    arg_dict = dict()
+    for key in request.args: arg_dict[key] = request.args[key]
 
     refresh = False
     if 'refresh' in arg_dict:
@@ -107,11 +107,12 @@ def output(cohort, metric):
             if int(arg_dict['refresh']): refresh = True
         except ValueError: pass
 
-
     aggregator = arg_dict['aggregator'] if 'aggregator' in arg_dict else ''
     aggregator_key = mm.get_agg_key(aggregator, metric)
     if mm.aggregator_dict.has_key(aggregator_key):
         extra_params.append('aggregator')
+
+    if 'time_series' in arg_dict: extra_params.extend(['time_series', 'date_start', 'date_end', 'interval'])
 
     # Format the query string
     metric_params = mm.get_param_types(metric)
@@ -213,6 +214,9 @@ def strip_query_string(url, valid_items):
         try: q_params[k[0]] = k[1]
         except IndexError: pass
 
+    # Hardcode time series var if it is included
+    q_params['time_series'] = 'True'
+
     # Filter the parameters
     for item in valid_items:
         if q_params.has_key(item): new_q_params.append(item+'='+q_params[item])
@@ -238,7 +242,7 @@ def process_metrics(url, cohort, metric, aggregator, p, args):
     logging.debug('Processing results for %s... (PID = %s)' % (url, os.getpid()))
 
     # process metrics
-    results  = mm.process_data_request(metric, users, agg_handle=aggregator, time_series=False, **args)
+    results = mm.process_data_request(metric, users, agg_handle=aggregator, **args)
 
     p.put(jsonify(results))
     del conn
