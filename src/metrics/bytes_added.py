@@ -50,7 +50,7 @@ class BytesAdded(um.UserMetric):
             'is_id' : ['bool', 'Are user ids or names being passed.', True],
             'log_progress' : ['bool', 'Enable logging for processing.', False],
             'log_frequency' : ['int', 'Revision frequency on which to log (ie. log every n revisions)', 1000],
-            'num_threads' : ['int',   'Number of worker processes.', 0]
+            'num_threads' : ['int',   'Number of worker processes.', 1]
         }
     }
 
@@ -92,14 +92,12 @@ class BytesAdded(um.UserMetric):
         if user_handle:
             if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
 
-        # Multiprocessing vs. single processing execution
+        # get revisions
         revs = self._get_revisions(user_handle, is_id, log_progress=log_progress)
         args = [log_progress, log_frequency]
-        if k:
-            # Start worker threads and aggregate results
-            self._results = agg.list_sum_by_group(mpw.build_thread_pool(revs,_process_help,k,args),0)
-        else:
-            self._results = _process_help([revs, args])
+
+        # Start worker threads and aggregate results
+        self._results = agg.list_sum_by_group(mpw.build_thread_pool(revs,_process_help,k,args),0)
 
         # Add any missing users - O(n)
         tallied_users = set([r[0] for r in self._results])
@@ -190,7 +188,7 @@ def _process_help(args):
             - Dictionary. key(string): user handle, value(Float): edit counts
     """
 
-    BytesAddedArgsClass = collections.namedtuple('ThresholdArgs', 'is_log freq')
+    BytesAddedArgsClass = collections.namedtuple('BytesAddedArgs', 'is_log freq')
     revs = args[0]
     state = args[1]
     thread_args = BytesAddedArgsClass(state[0],state[1])
