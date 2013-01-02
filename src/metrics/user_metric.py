@@ -90,6 +90,7 @@ class UserMetric(object):
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
     _data_model_meta = dict()
+    _agg_indices = dict()
 
     # Structure that defines parameters for UserMetric class
     _param_types = {
@@ -99,6 +100,10 @@ class UserMetric(object):
             },
         'process' : {}
     }
+
+    @classmethod
+    def define_agg_indices(cls):
+        cls._agg_indices['list_sum_indices'] = cls._data_model_meta['integer_fields'] + cls._data_model_meta['integer_fields']
 
     def apply_default_kwargs(self, kwargs, arg_type):
         """ Apply parameter defaults where necessary """
