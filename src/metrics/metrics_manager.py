@@ -8,7 +8,9 @@ __date__ = "12/28/2012"
 __license__ = "GPL (version 2 or later)"
 
 import re
+import sys
 from dateutil.parser import parse as date_parse
+import logging
 
 import src.metrics.user_metric as um
 import src.metrics.threshold as th
@@ -21,6 +23,9 @@ import src.metrics.edit_rate as er
 import src.etl.data_loader as dl
 import src.etl.aggregator as agg
 import src.etl.time_series_process_methods as tspm
+
+logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
+    format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 INTERVALS_PER_THREAD = 10
 MAX_THREADS = 10
@@ -81,7 +86,13 @@ def process_data_request(metric_handle, users, agg_handle='', **kwargs):
             total_intervals = (date_parse(end) - date_parse(start)).total_seconds() / (3600 * interval)
             num_threads = min(MAX_THREADS, int(total_intervals / INTERVALS_PER_THREAD))
 
-
+            logging.info('Metrics Manager: Initiating time series for %(metric)s with %(agg)s from '
+                         '%(start)s to %(end)s.' % {
+                'metric' : metric_class.__name__,
+                'agg' : aggregator_func.__name__,
+                'start' : str(start),
+                'end' : str(end),
+            })
             out = tspm.build_time_series(start, end, interval, metric_class, aggregator_func, users,
                 num_threads=num_threads, metric_threads='{"num_threads" : 20, "rev_threads" : 50}', log=True)
 
