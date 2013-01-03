@@ -150,7 +150,8 @@ experiments = {
                                                         `mw_user_token` varbinary(255) NOT NULL DEFAULT '',
                                                         `version` varbinary(255) NOT NULL DEFAULT '',
                                                         `by_email` varbinary(255) NOT NULL DEFAULT '',
-                                                        `creator_user_id` varbinary(255) NOT NULL DEFAULT ''
+                                                        `creator_user_id` varbinary(255) NOT NULL DEFAULT '',
+                                                        `campaign` varbinary(255) NOT NULL DEFAULT ''
                                                         ) ENGINE=MyISAM DEFAULT CHARSET=binary
                                                     """,
                               'table_name' : 'e3_%s_server_events',
@@ -223,15 +224,20 @@ experiments = {
 
 experiments['acux3'] = copy.deepcopy(experiments['acux2'])
 experiments['acux3']['version'] = 3
-experiments['acux3']['log_files'] = ['clicktracking.log-20121106.gz', 'clicktracking.log-20121107.gz',
-                                      'clicktracking.log-20121108.gz', 'clicktracking.log-20121109.gz',
-                                      'clicktracking.log-20121110.gz', 'clicktracking.log-20121111.gz',
-                                      'clicktracking.log-20121112.gz', 'clicktracking.log-20121113.gz',
-                                      'clicktracking.log-20121114.gz', 'clicktracking.log-20121115.gz',
-                                      'clicktracking.log-20121116.gz', 'clicktracking.log-20121117.gz',
-                                      'clicktracking.log-20121118.gz', 'clicktracking.log-20121119.gz',
-                                      'clicktracking.log-20121120.gz', 'clicktracking.log-20121121.gz',
-                                      'clicktracking.log-20121122.gz', 'clicktracking.log-20121123.gz']
+
+experiments['acux3']['log_files'] = ['clicktracking.log-20121227.gz', 'clicktracking.log-20121228.gz',
+                                     'clicktracking.log-20121229.gz', 'clicktracking.log-20121230.gz',
+                                     'clicktracking.log-20121231.gz', 'clicktracking.log-20130101.gz',
+                                     'clicktracking.log-20130102.gz',]
+#experiments['acux3']['log_files'] = ['clicktracking.log-20121106.gz', 'clicktracking.log-20121107.gz',
+#                                      'clicktracking.log-20121108.gz', 'clicktracking.log-20121109.gz',
+#                                      'clicktracking.log-20121110.gz', 'clicktracking.log-20121111.gz',
+#                                      'clicktracking.log-20121112.gz', 'clicktracking.log-20121113.gz',
+#                                      'clicktracking.log-20121114.gz', 'clicktracking.log-20121115.gz',
+#                                      'clicktracking.log-20121116.gz', 'clicktracking.log-20121117.gz',
+#                                      'clicktracking.log-20121118.gz', 'clicktracking.log-20121119.gz',
+#                                      'clicktracking.log-20121120.gz', 'clicktracking.log-20121121.gz',
+#                                      'clicktracking.log-20121122.gz', 'clicktracking.log-20121123.gz']
 
 experiments['acux3']['start_date'] = '2012110600000'
 experiments['acux3']['end_date'] = '2012112300000'

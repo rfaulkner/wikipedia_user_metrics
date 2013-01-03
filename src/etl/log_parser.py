@@ -164,10 +164,12 @@ class LineParseMethods():
                     if query_vars['self_made'][0] and query_vars['?event_id'][0] == 'account_create' \
                     and str(version) in userbuckets['ACUX'][0]:
 
+                        campaign = userbuckets['campaign'][0] if 'campaign' in userbuckets else ''
+
                         return [line_bits[0], query_vars['username'][0], query_vars['user_id'][0],
                                 query_vars['timestamp'][0], query_vars['?event_id'][0], query_vars['self_made'][0],
                                 query_vars['mw_user_token'][0], query_vars['version'][0], query_vars['by_email'][0],
-                                query_vars['creator_user_id'][0]]
+                                query_vars['creator_user_id'][0], campaign]
                 else:
                     return []
 
