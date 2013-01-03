@@ -39,6 +39,8 @@ class Survival(um.UserMetric):
         'process' : {
             'log_progress' : ['bool', 'Enable logging for processing.',False],
             'num_threads' : ['int', 'Number of worker processes over users.',0],
+            'restrict' : ['bool', 'Restrict threshold calculations to those users registered between'
+                                  '`date_start` and `date_end`',False],
             }
     }
 
@@ -63,7 +65,6 @@ class Survival(um.UserMetric):
         self._start_ts_ = self._get_timestamp(kwargs['date_start'])
         self._end_ts_ = self._get_timestamp(kwargs['date_end'])
         self._t_ = kwargs['t']
-
 
     @staticmethod
     def header():

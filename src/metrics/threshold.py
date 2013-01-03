@@ -3,12 +3,14 @@ __author__ = "Ryan Faulkner"
 __date__ = "December 6th, 2012"
 __license__ = "GPL (version 2 or later)"
 
-import datetime
+from datetime import datetime, timedelta
 import collections
 import os
 import src.utils.multiprocessing_wrapper as mpw
 import user_metric as um
 from src.etl.aggregator import decorator_builder
+
+from config import logging
 
 class Threshold(um.UserMetric):
     """
@@ -31,11 +33,11 @@ class Threshold(um.UserMetric):
             (13234584L, 1)
     """
 
-    # Structure that defines parameters for Thresold class
+    # Structure that defines parameters for Threshold class
     _param_types = {
         'init' : {
-            'date_start' : ['str|datetime', 'Earliest date a block is measured.','2001-01-01 00:00:00'],
-            'date_end' : ['str|datetime', 'Latest date a block is measured.',datetime.datetime.now()],
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.',datetime.now() + timedelta(days=-30)],
+            'date_end' : ['str|datetime', 'Latest date a block is measured.',datetime.now()],
             't' : ['int', 'The time in minutes until the threshold.',24],
             'n' : ['int', 'Revision threshold that is to be exceeded in time `t`.',1],
             },
@@ -43,6 +45,8 @@ class Threshold(um.UserMetric):
             'log_progress' : ['bool', 'Enable logging for processing.',False],
             'num_threads' : ['int', 'Number of worker processes over users.',0],
             'survival' : ['bool', 'Indicates whether this is to be processed as the survival metric.',False],
+            'restrict' : ['bool', 'Restrict threshold calculations to those users registered between'
+                                  '`date_start` and `date_end`',False],
         }
     }
 
@@ -61,14 +65,12 @@ class Threshold(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-
         um.UserMetric.__init__(self, **kwargs)
 
         self._start_ts_ = self._get_timestamp(kwargs['date_start'])
         self._end_ts_ = self._get_timestamp(kwargs['date_end'])
         self._t_ =int(kwargs['t']) if 't' in kwargs else 1440
         self._n_ = int(kwargs['n']) if 'n' in kwargs else 1
-        self._restrict_ = bool(kwargs['restrict']) if 'restrict' in kwargs else False
 
     @staticmethod
     def header():
@@ -94,6 +96,7 @@ class Threshold(um.UserMetric):
         k = kwargs['num_threads']
         log_progress = bool(kwargs['log_progress'])
         survival = bool(kwargs['survival'])
+        restrict = bool(kwargs['restrict'])
 
         # Format condition on user ids.  if no user handle exists there is no condition.
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
@@ -104,7 +107,7 @@ class Threshold(um.UserMetric):
 
         # Format condition on user ids.  if no user handle exists there is no condition.
         ts_cond = ''
-        if self._restrict_:
+        if restrict:
             ts_cond = 'log_timestamp >= %(date_start)s and log_timestamp <= %(date_end)s and' % {
                 'date_start' : self._start_ts_,
                 'date_end' : self._end_ts_,
@@ -145,8 +148,8 @@ def _process_help(args):
     state = args[1]
     thread_args = ThresholdArgsClass(state[0],state[1],state[2],state[3],state[4],state[5])
 
-    if thread_args.log_progress: print str(datetime.datetime.now()) + ' - Processing revision data ' + \
-        '(%s users) by user... (PID = %s)' % (len(user_data), os.getpid())
+    if thread_args.log_progress: logging.info(__name__ + '::Processing revision data ' + \
+        '(%s users) by user... (PID = %s)' % (len(user_data), os.getpid()))
 
     # only proceed if there is user data
     if not len(user_data): return []
@@ -177,7 +180,7 @@ def _process_help(args):
     results = list()
     for r in user_data:
         try:
-            ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) + datetime.timedelta(hours=thread_args.t))
+            ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) + timedelta(hours=thread_args.t))
             id = long(r[0])
             conn._cur_.execute(sql % {'project' : thread_args.project, 'ts' : ts,
                                       'ns' : ns_cond, 'id' : id})
@@ -190,7 +193,7 @@ def _process_help(args):
         else:
             results.append((r[0],1))
 
-    if thread_args.log_progress: print str(datetime.datetime.now()) + ' - Processed PID = %s.' % os.getpid()
+    if thread_args.log_progress: logging.info(__name__ + '::Processed PID = %s.' % os.getpid())
 
     return results
 
