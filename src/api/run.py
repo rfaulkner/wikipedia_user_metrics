@@ -33,6 +33,9 @@ logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
 global global_id
 global_id = 0
 
+global pkl_data
+pkl_data = dict()
+
 error_codes = {
     0 : 'Job already running.'
 }
@@ -248,7 +251,6 @@ def process_metrics(url, cohort, metric, aggregator, p, args):
     del conn
     logging.info('Processing complete for %s... (PID = %s)' % (url, os.getpid()))
 
-
 if __name__ == '__main__':
 
     # stores data in Queue objects that are active
@@ -264,8 +266,6 @@ if __name__ == '__main__':
     if pkl_file:
         pkl_data = cPickle.load(pkl_file)
         pkl_file.close()
-    else:
-        pkl_data = dict()
 
     try:
         app.run()
