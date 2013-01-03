@@ -33,8 +33,8 @@ class Survival(um.UserMetric):
     _param_types = {
         'init' : {
             'date_start' : ['str|datatime', 'Earliest date a block is measured.','2001-01-01 00:00:00'],
-            'date_end' : ['str|datatime', 'Latest date a block is measured.',datetime.datetime.now()],
-            't' : ['int', 'The time in minutes registration after which survival is measured.',1440],
+            'date_end' : ['str|datatime', 'Latest date a block is measured.', datetime.datetime.now()],
+            't' : ['int', 'The time in minutes registration after which survival is measured.',24],
             },
         'process' : {
             'log_progress' : ['bool', 'Enable logging for processing.',False],

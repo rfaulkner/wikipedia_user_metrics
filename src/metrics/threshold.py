@@ -36,7 +36,7 @@ class Threshold(um.UserMetric):
         'init' : {
             'date_start' : ['str|datetime', 'Earliest date a block is measured.','2001-01-01 00:00:00'],
             'date_end' : ['str|datetime', 'Latest date a block is measured.',datetime.datetime.now()],
-            't' : ['int', 'The time in minutes until the threshold.',1440],
+            't' : ['int', 'The time in minutes until the threshold.',24],
             'n' : ['int', 'Revision threshold that is to be exceeded in time `t`.',1],
             },
         'process' : {
@@ -177,10 +177,8 @@ def _process_help(args):
     results = list()
     for r in user_data:
         try:
-            ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) + datetime.timedelta(minutes=thread_args.t))
+            ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) + datetime.timedelta(hours=thread_args.t))
             id = long(r[0])
-            print sql % {'project' : thread_args.project, 'ts' : ts,
-                         'ns' : ns_cond, 'id' : id}
             conn._cur_.execute(sql % {'project' : thread_args.project, 'ts' : ts,
                                       'ns' : ns_cond, 'id' : id})
             count = int(conn._cur_.fetchone()[0])
