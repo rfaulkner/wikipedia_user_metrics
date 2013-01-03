@@ -4,7 +4,7 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import collections
-import datetime
+from datetime import datetime, timedelta
 import user_metric as um
 import os
 import src.etl.aggregator as agg
@@ -44,8 +44,8 @@ class BytesAdded(um.UserMetric):
     # Structure that defines parameters for BytesAdded class
     _param_types = {
         'init' : {
-            'date_start' : ['str|datetime', 'Earliest date a block is measured.', '2010-01-01 00:00:00'],
-            'date_end' : ['str|datetime', 'Latest date a block is measured.', datetime.datetime.now()],
+            'date_start' : ['str|datetime', 'Earliest date a block is measured.', datetime.now() + timedelta(days=-7)],
+            'date_end' : ['str|datetime', 'Latest date a block is measured.', datetime.now()],
         },
         'process' : {
             'is_id' : ['bool', 'Are user ids or names being passed.', True],
@@ -85,19 +85,28 @@ class BytesAdded(um.UserMetric):
 
         self.apply_default_kwargs(kwargs,'process')
 
-        is_id = kwargs['is_id']
         k = kwargs['num_threads']
         log_progress = bool(kwargs['log_progress'])
         log_frequency = int(kwargs['log_frequency'])
 
         if user_handle:
             if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
+            # build the argument lists for each thread
+
+        if not user_handle:
+            sql = 'select distinct rev_user from enwiki.revision where rev_timestamp >= "%s" and rev_timestamp < "%s"'
+            sql = sql % (self._start_ts_, self._end_ts_)
+
+            if log_progress: logging.info(__name__ + '::Getting all distinct users: " %s "' % sql)
+            user_handle = [str(row[0]) for row in self._data_source_.execute_SQL(sql)]
+            if log_progress: logging.info(__name__ + '::Retrieved %s users.' % len(user_handle))
 
         # get revisions
-        revs = self._get_revisions(user_handle, is_id, log_progress=log_progress)
-        args = [log_progress, log_frequency]
+        args = [log_progress, self._start_ts_, self._end_ts_, self._project_, self._namespace_]
+        revs = mpw.build_thread_pool(user_handle,_get_revisions,k,args)
 
-        # Start worker threads and aggregate results
+        # Start worker threads and aggregate results for bytes added
+        args = [log_progress, log_frequency]
         self._results = agg.list_sum_by_group(mpw.build_thread_pool(revs,_process_help,k,args),0)
 
         # Add any missing users - O(n)
@@ -108,65 +117,57 @@ class BytesAdded(um.UserMetric):
 
         return self
 
-    def _get_revisions(self, user_handle, is_id, log_progress=True):
+def _get_revisions(args):
 
-        # build the argument lists for each thread
-        if not user_handle:
-            sql = 'select distinct rev_user from enwiki.revision where rev_timestamp >= "%s" and rev_timestamp < "%s"'
-            sql = sql % (self._start_ts_, self._end_ts_)
+    MethodArgsClass = collections.namedtuple('MethodArg', 'log start end project namespace')
+    users = args[0]
+    state = args[1]
+    arg_obj = MethodArgsClass(state[0], state[1], state[2], state[3], state[4])
+    conn = um.dl.Connector(instance='slave')
 
-            logging.info(__name__ + '::Getting all distinct users: " %s "' % sql)
-            user_handle = [str(row[0]) for row in self._data_source_.execute_SQL(sql)]
-            logging.info(__name__ + '::Retrieved %s users.' % len(user_handle))
+    if arg_obj.log: logging.info('Computing revisions, PID = %s' % os.getpid())
+    ts_condition  = 'rev_timestamp >= "%s" and rev_timestamp < "%s"' % (arg_obj.start, arg_obj.end)
 
-        ts_condition  = 'rev_timestamp >= "%s" and rev_timestamp < "%s"' % (self._start_ts_, self._end_ts_)
+    # build the user set for inclusion into the query -
+    # if the user_handle is empty or None get all users for timeframe
+    users = um.UserMetric._escape_var(users) # Escape user_handle for SQL injection
+    if not hasattr(users, '__iter__'): users = [users] # ensure the handles are iterable
 
-        # determine the format field
-        field_name = ['rev_user_text','rev_user'][is_id]
+    user_set = um.dl.DataLoader().format_comma_separated_list(users, include_quotes=False)
+    where_clause = 'rev_user in (%(user_set)s) and %(ts_condition)s' % {
+        'user_set' : user_set, 'ts_condition' : ts_condition}
 
-        # build the user set for inclusion into the query -
-        # if the user_handle is empty or None get all users for timeframe
-        user_handle = um.UserMetric._escape_var(user_handle) # Escape user_handle for SQL injection
-        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
-        if is_id:
-            user_set = um.dl.DataLoader().format_comma_separated_list(user_handle, include_quotes=False)
-        else:
-            user_set = um.dl.DataLoader().format_comma_separated_list(user_handle, include_quotes=True)
-        where_clause = '%(field_name)s in (%(user_set)s) and %(ts_condition)s' % {
-            'field_name' : field_name, 'user_set' : user_set, 'ts_condition' : ts_condition}
+    # format the namespace condition
+    ns_cond = um.UserMetric._format_namespace(arg_obj.namespace)
+    if ns_cond: ns_cond += ' and'
 
-        # format the namespace condition
-        ns_cond = um.UserMetric._format_namespace(self._namespace_)
-        if ns_cond: ns_cond += ' and'
+    sql = """
+            select
+                rev_user,
+                rev_len,
+                rev_parent_id
+            from %(project)s.revision
+                join %(project)s.page
+                on page.page_id = revision.rev_page
+            where %(namespace)s %(where_clause)s
+        """ % {
+        'where_clause' : where_clause,
+        'project' : arg_obj.project,
+        'namespace' : ns_cond}
+    sql = " ".join(sql.strip().split())
 
-        sql = """
-                select
-                    %(field_name)s,
-                    rev_len,
-                    rev_parent_id
-                from %(project)s.revision
-                    join %(project)s.page
-                    on page.page_id = revision.rev_page
-                where %(namespace)s %(where_clause)s
-            """ % {
-            'field_name' : field_name,
-            'where_clause' : where_clause,
-            'project' : self._project_,
-            'namespace' : ns_cond}
-        sql = " ".join(sql.strip().split())
-
-        if log_progress:
-            logging.info(__name__ + '::Querying revisions for %(count)s users (project = %(project)s, '
-                         'namespace = %(namespace)s)... ' % {
-                      'count' : len(user_handle),
-                      'project' : self._project_,
-                      'namespace' : self._namespace_ }
-            )
-        try:
-            return self._data_source_.execute_SQL(sql)
-        except um.MySQLdb.ProgrammingError:
-           raise um.UserMetric.UserMetricError(message=str(BytesAdded) +
-                                                    '::Could not get revisions for specified users(s) - Query Failed.')
+    if arg_obj.log:
+        logging.info(__name__ + '::Querying revisions for %(count)s users (project = %(project)s, '
+                     'namespace = %(namespace)s)... ' % {
+                  'count' : len(users),
+                  'project' : arg_obj.project,
+                  'namespace' : arg_obj.namespace}
+        )
+    try:
+        return list(conn.execute_SQL(sql))
+    except um.MySQLdb.ProgrammingError:
+       raise um.UserMetric.UserMetricError(message=str(BytesAdded) +
+                                                '::Could not get revisions for specified users(s) - Query Failed.')
 
 def _process_help(args):
 
