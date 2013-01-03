@@ -66,14 +66,9 @@ class Threshold(um.UserMetric):
 
         self._start_ts_ = self._get_timestamp(kwargs['date_start'])
         self._end_ts_ = self._get_timestamp(kwargs['date_end'])
-
-        try:
-            self._t_ = int(kwargs['t'])
-            self._n_ = int(kwargs['n'])
-        except ValueError:
-            print str(datetime.datetime.now()) + ' - parameters `t` and `n` not integers.  Setting to defaults.'
-            self._t_ = 1440
-            self._n_ = 1
+        self._t_ =int(kwargs['t']) if 't' in kwargs else 1440
+        self._n_ = int(kwargs['n']) if 'n' in kwargs else 1
+        self._restrict_ = bool(kwargs['restrict']) if 'restrict' in kwargs else False
 
     @staticmethod
     def header():
@@ -107,22 +102,29 @@ class Threshold(um.UserMetric):
             um.dl.DataLoader().cast_elems_to_string(user_handle), include_quotes=False)
         user_id_cond = "and log_user in (%s)" % user_id_str
 
-        # get all registrations in the time period
+        # Format condition on user ids.  if no user handle exists there is no condition.
+        ts_cond = ''
+        if self._restrict_:
+            ts_cond = 'log_timestamp >= %(date_start)s and log_timestamp <= %(date_end)s and' % {
+                'date_start' : self._start_ts_,
+                'date_end' : self._end_ts_,
+                }
+
+        # Get all registrations - this assumes that each user id corresponds to a valid registration event in the
+        # the logging table.
         sql = """
             select
                 log_user,
                 log_timestamp
             from %(project)s.logging
-            where log_timestamp >= %(date_start)s and log_timestamp <= %(date_end)s and
+            where %(ts_cond)s
                 log_action = 'create' AND log_type='newusers'
                 %(uid_str)s
         """ % {
+            'ts_cond' : ts_cond,
             'project' : self._project_,
-            'date_start' : self._start_ts_,
-            'date_end' : self._end_ts_,
             'uid_str' : user_id_cond
         }
-
         self._data_source_._cur_.execute(" ".join(sql.strip().split('\n')))
 
         # Multiprocessing vs. single processing execution
@@ -177,7 +179,8 @@ def _process_help(args):
         try:
             ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) + datetime.timedelta(minutes=thread_args.t))
             id = long(r[0])
-
+            print sql % {'project' : thread_args.project, 'ts' : ts,
+                         'ns' : ns_cond, 'id' : id}
             conn._cur_.execute(sql % {'project' : thread_args.project, 'ts' : ts,
                                       'ns' : ns_cond, 'id' : id})
             count = int(conn._cur_.fetchone()[0])
@@ -210,8 +213,8 @@ def threshold_editors_agg(metric):
         return [total, pos, 0.0]
 setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_FLAG, True)
 setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_NAME, 'threshold_aggregates')
-setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_HEAD, ['threshold_aggregates', 'total_revs',
-                                      'reverions','rate'])
+setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_HEAD, ['threshold_aggregates', 'total_users',
+                                      'threshold_reached','rate'])
 
 # testing
 if __name__ == "__main__":
