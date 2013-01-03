@@ -8,9 +8,8 @@ __date__ = "12/28/2012"
 __license__ = "GPL (version 2 or later)"
 
 import re
-import sys
+from datetime import datetime, timedelta
 from dateutil.parser import parse as date_parse
-import logging
 
 import src.metrics.user_metric as um
 import src.metrics.threshold as th
@@ -24,8 +23,7 @@ import src.etl.data_loader as dl
 import src.etl.aggregator as agg
 import src.etl.time_series_process_methods as tspm
 
-logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
-    format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
+from config import logging
 
 INTERVALS_PER_THREAD = 10
 MAX_THREADS = 10
@@ -53,6 +51,15 @@ def get_agg_key(agg_handle, metric_handle): return '+'.join([agg_handle, metric_
 
 def process_data_request(metric_handle, users, agg_handle='', **kwargs):
 
+    # create shorthand method refs
+    to_string = dl.DataLoader().cast_elems_to_string
+    get_timestamp = um.UserMetric._get_timestamp
+
+    start = get_timestamp(kwargs['date_start']) if 'date_start' in kwargs else get_timestamp(datetime.now() + timedelta(days=-1))
+    end = get_timestamp(kwargs['date_end']) if 'date_end' in kwargs else get_timestamp(datetime.now())
+    kwargs['date_start'] = start
+    kwargs['date_end'] = end
+
     # Initialize the results
     results = dict()
     metric_class = metric_dict[metric_handle]
@@ -72,15 +79,10 @@ def process_data_request(metric_handle, users, agg_handle='', **kwargs):
 
     time_series = True if 'time_series' in kwargs else False
 
-    # Compute the metric
-    metric_obj.process(users, num_threads=20, rev_threads=50, **kwargs)
-    f = dl.DataLoader().cast_elems_to_string
     if aggregator_func:
 
         if time_series:
 
-            start = um.UserMetric._get_timestamp(kwargs['date_start'])
-            end = um.UserMetric._get_timestamp(kwargs['date_end'])
             interval = int(kwargs['interval'])      # interval length in hours
 
             total_intervals = (date_parse(end) - date_parse(start)).total_seconds() / (3600 * interval)
@@ -97,13 +99,31 @@ def process_data_request(metric_handle, users, agg_handle='', **kwargs):
                 num_threads=num_threads, metric_threads='{"num_threads" : 20, "rev_threads" : 50}', log=True)
 
             for row in out:
-                results['metric'][row[0] + ' - ' + row[1]] = " ".join(dl.DataLoader().cast_elems_to_string(row[3:]))
+                results['metric'][row[0] + ' - ' + row[1]] = " ".join(to_string(row[3:]))
         else:
+
+            logging.info('Metrics Manager: Initiating aggregator for %(metric)s with %(agg)s from '
+                         '%(start)s to %(end)s.' % {
+                'metric' : metric_class.__name__,
+                'agg' : aggregator_func.__name__,
+                'start' : str(start),
+                'end' : str(end),
+                })
+
+            metric_obj.process(users, num_threads=20, rev_threads=50, **kwargs)
             r = um.aggregator(aggregator_func, metric_obj, metric_obj.header())
-            results['metric'][r.data[0]] = " ".join(f(r.data[1:]))
-            results['header'] = " ".join(f(r.header))
+            results['metric'][r.data[0]] = " ".join(to_string(r.data[1:]))
+            results['header'] = " ".join(to_string(r.header))
     else:
+
+        logging.info('Metrics Manager: Initiating user data for %(metric)s from '
+                     '%(start)s to %(end)s.' % {
+            'metric' : metric_class.__name__,
+            'start' : str(start),
+            'end' : str(end),
+            })
+        metric_obj.process(users, num_threads=20, rev_threads=50, log_progress=True, **kwargs)
         for m in metric_obj.__iter__():
-            results['metric'][m[0]] = " ".join(dl.DataLoader().cast_elems_to_string(m[1:]))
+            results['metric'][m[0]] = " ".join(to_string(m[1:]))
 
     return results
