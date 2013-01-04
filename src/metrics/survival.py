@@ -85,7 +85,8 @@ class Survival(um.UserMetric):
         kwargs['survival'] = True
         kwargs['n'] = 1     # survival is denoted by making at least one revision
 
-        return th.Threshold(**kwargs).process(user_handle, **kwargs)
+        self._results =  th.Threshold(**kwargs).process(user_handle, **kwargs)._results
+        return self
 
 # testing
 if __name__ == "__main__":

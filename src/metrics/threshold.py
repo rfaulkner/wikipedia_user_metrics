@@ -171,7 +171,7 @@ def _process_help(args):
             from %(project)s.revision as r
                 join %(project)s.page as p
                 on r.rev_page = p.page_id
-            where %(ns)s rev_timestamp <= %(ts)s and rev_user = %(id)s
+            where %(ns)s rev_user = %(id)s
         """
     sql += timestamp_cond
     sql = " ".join(sql.strip().split('\n'))
@@ -182,9 +182,12 @@ def _process_help(args):
         try:
             ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) + timedelta(hours=thread_args.t))
             id = long(r[0])
+            print sql % {'project' : thread_args.project, 'ts' : ts,
+                         'ns' : ns_cond, 'id' : id}
             conn._cur_.execute(sql % {'project' : thread_args.project, 'ts' : ts,
                                       'ns' : ns_cond, 'id' : id})
             count = int(conn._cur_.fetchone()[0])
+            print count
         except IndexError: continue
         except ValueError: continue
 
