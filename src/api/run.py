@@ -12,23 +12,22 @@
 
 from flask import Flask, render_template, Markup, jsonify, \
     redirect, url_for, make_response, request, escape
-import src.etl.data_loader as dl
+
 import cPickle
-import logging
-import sys
+from re import search
+from config import logging
 import os
 import json
 from urlparse import urlparse
 import config.settings as settings
 import multiprocessing as mp
 import collections
+
+import src.etl.data_loader as dl
 import src.metrics.metrics_manager as mm
+from src.api import COHORT_REGEX, parse_cohorts
 
 app = Flask(__name__)
-
-# CONFIGURE THE LOGGER
-logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
-    format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 # hash for jobs in queue_data dict
 global global_id
@@ -243,22 +242,34 @@ def process_metrics(url, cohort, metric, aggregator, p, args):
     """ Worker process for requests - this will typically operate in a forked process """
 
     conn = dl.Connector(instance='slave')
-    try:
-        conn._cur_.execute('select utm_id from usertags_meta where utm_name = "%s"' % str(cohort))
-        res = conn._cur_.fetchone()[0]
-        conn._cur_.execute('select ut_user from usertags where ut_tag = "%s"' % res)
-    except IndexError:
-        redirect(url_for('cohorts'))
-
-    users = [r[0] for r in conn._cur_]
-    logging.info(__name__ + '::Processing results for %s... (PID = %s)' % (url, os.getpid()))
+    logging.info(__name__ + '::START JOB %s (PID = %s)' % (url, os.getpid()))
 
     # process metrics
+    users = get_users(cohort)
     results = mm.process_data_request(metric, users, agg_handle=aggregator, **args)
 
     p.put(jsonify(results))
     del conn
-    logging.info(__name__ + '::Processing complete for %s... (PID = %s)' % (url, os.getpid()))
+    logging.info(__name__ + '::END JOB %s (PID = %s)' % (url, os.getpid()))
+
+def get_users(cohort_exp):
+    """ get users from cohort """
+
+    if search(COHORT_REGEX, cohort_exp):
+        logging.info(__name__ + '::Processing cohort by expression.')
+        users = [user for user in parse_cohorts(cohort_exp)]
+    else:
+        logging.info(__name__ + '::Processing cohort by tag name.')
+        conn = dl.Connector(instance='slave')
+        try:
+            conn._cur_.execute('select utm_id from usertags_meta where utm_name = "%s"' % str(cohort_exp))
+            res = conn._cur_.fetchone()[0]
+            conn._cur_.execute('select ut_user from usertags where ut_tag = "%s"' % res)
+        except IndexError:
+            redirect(url_for('cohorts'))
+        users = [r[0] for r in conn._cur_]
+        del conn
+    return users
 
 class APIMethods(object):
 
