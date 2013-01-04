@@ -30,8 +30,7 @@ def parse_cohorts(expression):
         raise MetricsAPIError()
 
     # parse expression
-    yield parse(expression)
-
+    return parse(expression)
 
 
 def parse(expression):
@@ -39,6 +38,7 @@ def parse(expression):
      included in the evaluated expression """
     user_ids_seen = set()
     for sub_exp_1 in expression.split(COHORT_OP_OR):
+        print sub_exp_1
         for user_id in intersect_ids(sub_exp_1.split(COHORT_OP_AND)):
             if not user_ids_seen.__contains__(user_id):
                 user_ids_seen.add(user_id)
@@ -65,6 +65,7 @@ def intersect_ids(cohort_id_list):
     user_ids = dict()
     if len(cohort_id_list) == 1: # only a single cohort id in the expression - return all users of this cohort
         for id in get_cohort_ids(conn, cohort_id_list[0]):
+            print id
             yield id
     else:
         for cid in cohort_id_list:
