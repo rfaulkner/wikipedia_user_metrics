@@ -30,19 +30,28 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
     format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
+# hash for jobs in queue_data dict
 global global_id
 global_id = 0
 
+# Stores cached requests (this should eventually be replaced with a proper cache)
 global pkl_data
 pkl_data = dict()
 
+# stores data in Queue objects that are active
+global queue_data
+queue_data = dict()
+
+global error_codes
 error_codes = {
     0 : 'Job already running.'
 }
 
+global processQ
 processQ = list()
+
 QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
-# gl_lock = mp.Lock()    # global lock
+
 
 @app.route('/')
 def api_root():
@@ -138,7 +147,7 @@ def output(cohort, metric):
 
             global_id += 1
 
-            logging.info('Appending request %s to the queue...' % url)
+            logging.info(__name__ + '::Appending request %s to the queue...' % url)
             processQ.append(QStructClass(global_id,p,url,q,['pending']))
 
             return render_template('processing.html', url_str=url)
@@ -176,11 +185,11 @@ def job_queue():
                 pkl_data[p.url] = q_response
 
                 p.status[0] = 'success'
-                logging.info('Completed request %s.' % p.url)
+                logging.info(__name__ + '::Completed request %s.' % p.url)
 
         except Exception as e:
             p.status[0] = 'failure'
-            logging.error("Could not update request: %s.  Exception: %s" % (p.url, e.message) )
+            logging.error(__name__ + "::Could not update request: %s.  Exception: %s" % (p.url, e.message) )
 
         # Log the status of the job
         response_url = "".join(['<a href="', request.url_root, p.url + '">', p.url, '</a>'])
@@ -242,40 +251,60 @@ def process_metrics(url, cohort, metric, aggregator, p, args):
         redirect(url_for('cohorts'))
 
     users = [r[0] for r in conn._cur_]
-    logging.debug('Processing results for %s... (PID = %s)' % (url, os.getpid()))
+    logging.info(__name__ + '::Processing results for %s... (PID = %s)' % (url, os.getpid()))
 
     # process metrics
     results = mm.process_data_request(metric, users, agg_handle=aggregator, **args)
 
     p.put(jsonify(results))
     del conn
-    logging.info('Processing complete for %s... (PID = %s)' % (url, os.getpid()))
+    logging.info(__name__ + '::Processing complete for %s... (PID = %s)' % (url, os.getpid()))
 
-if __name__ == '__main__':
+class APIMethods(object):
 
-    # stores data in Queue objects that are active
-    queue_data = dict()
+    __instance = None   # Singleton instance
 
-    # Open the pickled data for reading.
-    try:
-        pkl_file = open(settings.__data_file_dir__ + 'api_data.pkl', 'rb')
-    except IOError:
+    def __new__(cls):
+        """ This class is Singleton, return only one instance """
+        if not cls.__instance:
+            cls.__instance = super(APIMethods, cls).__new__(cls)
+        return cls.__instance
+
+    def __init__(self):
+
+        global pkl_data
+
+        # Open the pickled data for reading.
+        try:
+            pkl_file = open(settings.__data_file_dir__ + 'api_data.pkl', 'rb')
+        except IOError:
+            pkl_file = None
+
+        # test whether the open was successful
+        if pkl_file:
+            pkl_data = cPickle.load(pkl_file)
+            pkl_file.close()
+
+    def __del__(self):
+
+        global pkl_data
+
         pkl_file = None
-
-    # test whether the open was successful
-    if pkl_file:
-        pkl_data = cPickle.load(pkl_file)
-        pkl_file.close()
-
-    try:
-        app.run()
-    finally:
         try:
             pkl_file = open(settings.__data_file_dir__ + 'api_data.pkl', 'wb')
             cPickle.dump(pkl_data, pkl_file)
         except Exception:
-            logging.error('Could not pickle data.')
+            logging.error(__name__ + '::Could not pickle data.')
         finally:
             if hasattr(pkl_file, 'close'): pkl_file.close()
+
+if __name__ == '__main__':
+
+    a = APIMethods() # initialize API data
+    try:
+        app.run()
+    finally:
+        del a
+
 
 
