@@ -100,6 +100,12 @@ class EditCount(um.UserMetric):
         except um.MySQLdb.ProgrammingError:
             raise um.UserMetric.UserMetricError(message=str(self.__class__()) + 'Could not get edit counts - Query failed.')
 
-        for row in self._data_source_._cur_.fetchall(): edit_count.append([row[0], int(row[1])])
+        # Get edit counts from query - all users not appearing have an edit count of 0
+        user_set = set([long(user_id) for user_id in user_handle])
+        for row in self._data_source_._cur_.fetchall():
+            edit_count.append([row[0], int(row[1])])
+            user_set.discard(row[0])
+        for user in user_set: edit_count.append([user, 0])
+
         self._results = edit_count
         return self
