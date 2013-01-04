@@ -5,7 +5,7 @@
     https://meta.wikimedia.org/wiki/Research:Metrics.
 """
 
-COHORT_REGEX = r'^([0-9]+[&|~])*[0-9]+$' # This regex must be matched to parse cohorts
+COHORT_REGEX = r'^([0-9]+[&~])*[0-9]+$' # This regex must be matched to parse cohorts
 COHORT_OP_AND = '&'
 COHORT_OP_OR = '~'
 # COHORT_OP_NOT = '^'
