@@ -62,11 +62,6 @@ def api_root():
 
     return render_template('index.html', cohort_data=data)
 
-@app.route('/login')
-def login():
-    """ View for login """
-    return render_template('login.html')
-
 @app.route('/tag_definitions')
 def tag_definitions():
     """ View for tag definitions where cohort meta dat can be reviewed """
