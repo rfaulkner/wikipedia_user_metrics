@@ -41,14 +41,17 @@ pkl_data = dict()
 global queue_data
 queue_data = dict()
 
+# Error codes for web requests
 global error_codes
 error_codes = {
     0 : 'Job already running.'
 }
 
+# Queue for storing all active processes
 global processQ
 processQ = list()
 
+# Class defining all objects contained on the processQ
 QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
 
 
@@ -267,6 +270,7 @@ def get_users(cohort_exp):
     return users
 
 class APIMethods(object):
+    """ Provides initialization and boilerplate for API execution """
 
     __instance = None   # Singleton instance
 
@@ -277,7 +281,7 @@ class APIMethods(object):
         return cls.__instance
 
     def __init__(self):
-
+        """ Load cached data from pickle file. """
         global pkl_data
 
         # Open the pickled data for reading.
@@ -292,7 +296,7 @@ class APIMethods(object):
             pkl_file.close()
 
     def __del__(self):
-
+        """  When the instance is deleted store the pickled data """
         global pkl_data
 
         pkl_file = None
@@ -306,7 +310,7 @@ class APIMethods(object):
 
 if __name__ == '__main__':
 
-    a = APIMethods() # initialize API data
+    a = APIMethods() # initialize API data - get the instance
     try:
         app.run()
     finally:
