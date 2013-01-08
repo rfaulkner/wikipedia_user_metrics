@@ -11,14 +11,16 @@ import re
 from datetime import datetime, timedelta
 from dateutil.parser import parse as date_parse
 
-import src.metrics.user_metric as um
-import src.metrics.threshold as th
-import src.metrics.blocks as b
-import src.metrics.bytes_added as ba
-import src.metrics.survival as sv
-import src.metrics.revert_rate as rr
-import src.metrics.time_to_threshold as ttt
-import src.metrics.edit_rate as er
+import user_metric as um
+import threshold as th
+from blocks import Blocks
+from bytes_added import BytesAdded
+from survival import Survival
+import revert_rate as rr
+from time_to_threshold import TimeToThreshold
+from edit_rate import EditRate
+from namespace_of_edits import NamespaceEdits
+
 import src.etl.data_loader as dl
 import src.etl.aggregator as agg
 import src.etl.time_series_process_methods as tspm
@@ -28,14 +30,16 @@ from config import logging
 INTERVALS_PER_THREAD = 10
 MAX_THREADS = 10
 
+# Registered metrics types
 metric_dict = {
     'threshold' : th.Threshold,
-    'survival' : sv.Survival,
+    'survival' : Survival,
     'revert' : rr.RevertRate,
-    'bytes_added' : ba.BytesAdded,
-    'blocks' : b.Blocks,
-    'time_to_threshold' : ttt.TimeToThreshold,
-    'edit_rate' : er.EditRate,
+    'bytes_added' : BytesAdded,
+    'blocks' : Blocks,
+    'time_to_threshold' : TimeToThreshold,
+    'edit_rate' : EditRate,
+    'namespace_edits' : NamespaceEdits,
     }
 
 aggregator_dict = {
