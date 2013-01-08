@@ -41,7 +41,7 @@ class NamespaceEdits(um.UserMetric):
         over revision history.
     """
 
-    VALID_NAMESPACES = range(16) # namespaces or which counts are gathered
+    VALID_NAMESPACES = [-1,-2] + range(16) + [100, 101, 108, 109] # namespaces or which counts are gathered
 
     # Structure that defines parameters for RevertRate class
     _param_types = {
@@ -152,7 +152,19 @@ def _process_help(args):
     return [(user, results[user]) for user in results]
 
 @decorator_builder(NamespaceEdits.header())
-def namespace_edits_sum(metric): raise NotImplementedError
+def namespace_edits_sum(metric):
+    """ Computes the fraction of editors reaching a threshold """
+    summed_results = ["namespace_edits_sum", OrderedDict()]
+    for ns in NamespaceEdits.VALID_NAMESPACES:
+        summed_results[1][str(ns)] = 0
+    for r in metric.__iter__():
+        print r
+        try:
+            for ns in NamespaceEdits.VALID_NAMESPACES:
+                summed_results[1][str(ns)] += r[1][str(ns)]
+        except IndexError: continue
+        except TypeError: continue
+    return summed_results
 setattr(namespace_edits_sum, um.METRIC_AGG_METHOD_FLAG, True)
 setattr(namespace_edits_sum, um.METRIC_AGG_METHOD_NAME, 'reversion_aggregates')
 setattr(namespace_edits_sum, um.METRIC_AGG_METHOD_HEAD, ['type', 'total_revs',
@@ -160,4 +172,8 @@ setattr(namespace_edits_sum, um.METRIC_AGG_METHOD_HEAD, ['type', 'total_revs',
 
 if __name__ == "__main__":
     users = ['17792132', '17797320', '17792130', '17792131', '17792136', 13234584, 156171]
-    for r in NamespaceEdits(date_start='20110101000000').process(users,log=True): print r
+
+    m = NamespaceEdits(date_start='20110101000000')
+    m.process(users,log=True)
+    # for r in NamespaceEdits(date_start='20110101000000').process(users,log=True): print r
+    print namespace_edits_sum(m)
