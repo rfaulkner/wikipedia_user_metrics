@@ -100,12 +100,13 @@ class Threshold(um.UserMetric):
 
         # Format condition on user ids.  if no user handle exists there is no condition.
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
-        if not user_handle: user_handle.append(-1)
+        if not user_handle: user_handle.append(-1) # No user is matched
+
         user_id_str = um.dl.DataLoader().format_comma_separated_list(
             um.dl.DataLoader().cast_elems_to_string(user_handle), include_quotes=False)
         user_id_cond = "and log_user in (%s)" % user_id_str
 
-        # Format condition on user ids.  if no user handle exists there is no condition.
+        # Format condition on timestamps
         ts_cond = ''
         if restrict:
             ts_cond = 'log_timestamp >= %(date_start)s and log_timestamp <= %(date_end)s and' % {
