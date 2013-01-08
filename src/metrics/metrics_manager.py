@@ -19,7 +19,7 @@ from survival import Survival
 import revert_rate as rr
 from time_to_threshold import TimeToThreshold
 from edit_rate import EditRate
-from namespace_of_edits import NamespaceEdits
+from namespace_of_edits import NamespaceEdits, namespace_edits_sum
 
 import src.etl.data_loader as dl
 import src.etl.aggregator as agg
@@ -45,6 +45,7 @@ metric_dict = {
 aggregator_dict = {
     'sum+bytes_added' : agg.list_sum_indices,
     'sum+edit_rate' : agg.list_sum_indices,
+    'sum+namespace_edits' : namespace_edits_sum,
     'average+threshold' : th.threshold_editors_agg,
     'average+revert' : rr.reverted_revs_agg,
     }
