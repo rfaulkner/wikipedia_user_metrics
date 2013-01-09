@@ -78,10 +78,7 @@ def tags():
     conn._cur_.execute('select * from usertags_meta')
 
     f = dl.DataLoader().cast_elems_to_string
-    utm = list()
-    utm.append(Markup('<tbody\n<tr><td>'))
-    utm.append(Markup('</td><td>'.join(f(r)) for r in conn._cur_))
-    utm.append(Markup('</td></tr>\n</tbody>'))
+    utm = [escape(", ".join(f(r))) for r in conn._cur_]
 
     del conn
     return render_template('tags.html', procs=utm)

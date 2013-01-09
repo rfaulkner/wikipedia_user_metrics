@@ -5,7 +5,7 @@
 <h2>Tag definitions</h2>
 <table class="table table-striped">
     {% for tag in procs %}
-    {{ tag }}
+    {{ tag | safe}}
     {% endfor %}
 </table>
 
