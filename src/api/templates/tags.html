@@ -1,18 +1,14 @@
 {% extends "layout.html" %}
 {% block body %}
-{% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+{% if error %}<p class=error><strong>Warning:</strong> {{ error }}{% endif %}
 
-<div class="para_courier">
-    <h2>Tag definitions</h2><div class="v_space_sm"></div>
-    <div class="embed_p">
-        {% for row in data %}
-            {{ row|safe }}
-        <div class="v_space_sm"></div>
-        {% endfor %}
-    </div>
-</div>
+<h2>Tag definitions</h2>
+<table class="table table-striped">
+    {% for tag in procs %}
+    {{ tag }}
+    {% endfor %}
+</table>
 
-<div class="v_space_sm"></div>
 Back <a href="/">home</a>.
 {% endblock %}
 

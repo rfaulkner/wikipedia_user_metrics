@@ -53,7 +53,6 @@ processQ = list()
 
 QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
 
-
 @app.route('/')
 def api_root():
     """ View for root url - API instructions """
@@ -61,31 +60,33 @@ def api_root():
     conn._cur_.execute('select utm_name from usertags_meta')
     data = [r[0] for r in conn._cur_]
     del conn
-
     return render_template('index.html', cohort_data=data)
 
-@app.route('/about')
+@app.route('/about/')
 def about():
     return render_template('about.html')
 
-@app.route('/contact')
+@app.route('/contact/')
 def contact():
     return render_template('contact.html')
 
-@app.route('/tag_definitions')
-def tag_definitions():
-    """ View for tag definitions where cohort meta dat can be reviewed """
+@app.route('/tags/')
+def tags():
+    """ View for tag definitions where cohort meta data can be reviewed """
 
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('select * from usertags_meta')
 
     f = dl.DataLoader().cast_elems_to_string
-    usertag_meta_data = [escape(", ".join(f(r))) for r in conn._cur_]
+    utm = list()
+    utm.append(Markup('<tbody\n<tr><td>'))
+    utm.append(Markup('</td><td>'.join(f(r)) for r in conn._cur_))
+    utm.append(Markup('</td></tr>\n</tbody>'))
 
     del conn
-    return render_template('tag_definitions.html', data=usertag_meta_data)
+    return render_template('tags.html', procs=utm)
 
-@app.route('/cohorts')
+@app.route('/cohorts/')
 def cohorts():
     """ View for listing and selecting cohorts """
     conn = dl.Connector(instance='slave')
@@ -158,7 +159,7 @@ def output(cohort, metric):
         else:
             return redirect(url_for('job_queue') + '?error=0')
 
-@app.route('/job_queue')
+@app.route('/job_queue/')
 def job_queue():
     """ View for listing current jobs working """
 
