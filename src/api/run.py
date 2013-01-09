@@ -10,6 +10,8 @@
         * 'failure' - The result has finished processing but dailed to expose results
 """
 
+import sys
+sys.path.insert(0,"/Users/dartar/git/E3_analysis")
 from flask import Flask, render_template, Markup, jsonify, \
     redirect, url_for, make_response, request, escape
 
@@ -61,6 +63,14 @@ def api_root():
     del conn
 
     return render_template('index.html', cohort_data=data)
+
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
+@app.route('/contact')
+def contact():
+    return render_template('contact.html')
 
 @app.route('/tag_definitions')
 def tag_definitions():
@@ -159,8 +169,15 @@ def job_queue():
         except KeyError: pass
         except ValueError: pass
 
+    def error_class(em):
+    	return {
+        	'failure': 'error',
+        	'pending': 'warning',
+        	'success': 'success'
+        	}.get(em, '') 
+
     p_list = list()
-    p_list.append(Markup('<u><b>is_alive , PID, url, status</b></u><br>'))
+    p_list.append(Markup('<thead><tr><th>is_alive</th><th>PID</th><th>url</th><th>status</th></tr></thead>\n<tbody>\n'))
     for p in processQ:
         try:
 
@@ -187,8 +204,13 @@ def job_queue():
 
         # Log the status of the job
         response_url = "".join(['<a href="', request.url_root, p.url + '">', p.url, '</a>'])
-        p_list.append(" , ".join([str(p.process.is_alive()), str(p.process.pid),
+	
+        p_list.append(Markup('<tr class="'+ error_class(p.status[0])+'"><td>'))
+        p_list.append("</td><td>".join([str(p.process.is_alive()), str(p.process.pid),
                                   escape(Markup(response_url)), p.status[0]]))
+        p_list.append(Markup('</td></tr>'))
+
+    p_list.append(Markup('\n</tbody>'))
 
     if error:
         return render_template('queue.html', procs=p_list, error=error)
