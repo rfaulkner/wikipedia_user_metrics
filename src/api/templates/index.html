@@ -1,12 +1,21 @@
 {% extends "layout.html" %}
 {% block body %}
-<h1>Wikimedia User Metrics API</h1>
 {% if error %}<p class="text-warning"><strong>Warning:</strong> {{ error }}</p>{% endif %}
 
-    Welcome to the Wikimedia Foundation's user metrics API homepage. To use this API you can choose a
-    user cohort, select a specific metric, supply optional parameters, then fire off a new job.
+<div class="hero-unit">
+<h1>User Metrics API</h1>
+  <p>Welcome to the Wikimedia Foundation's user metrics API homepage. This API allows you to select a
+    user cohort, specify a set of metrics to be computed for all users in the cohort, provide optional parameters, then fire off a new job.</p>
+  <p>
+    <a class="btn btn-primary btn-large" href="/about/">
+      Learn more
+    </a>
+  </p>
+</div>
 
-    <h4>List of Cohorts</h4>
+<div class="row-fluid">
+  <div class="span4">
+    <h4>List of cohorts</h4>
         <form action="/cohorts" method="get" class="form-inline">
 		<select>
                 {% for cohort in cohort_data %}
@@ -15,8 +24,9 @@
             	</select>
 		<input type="submit" value="Next" class="btn btn-primary" />
         </form>
-
-    <h4>List of <a href="https://meta.wikimedia.org/wiki/Research:Metrics">Metrics</a></h4>
+  </div>
+  <div class="span4">
+    <h4>List of available <a href="https://meta.wikimedia.org/wiki/Research:Metrics">metrics</a></h4>
             <ul>
                 <li>Threshold - threshold</li>
                 <li>Revert Rate - revert_rate</li>
@@ -26,9 +36,16 @@
                 <li>Time to Threshold - time_to_threshold</li>
                 <li>Blocks - blocks</li>
             </ul>
-
+  </div>
+  <div class="span4">
     <h4>Additional parameters</h4>
-    <p>Foo</p>
+          <ul>
+                <li>Date start - date_start</li>
+                <li>Date end - date_end</li>
+                <li>Aggregator function - aggregator</li>
+            </ul>
+  </div>
+</div>
 
 <div class="embed_p">
     Choose a <a href="{{ url_for('cohorts') }}">Cohort</a>.<div class="v_space_sm"></div>

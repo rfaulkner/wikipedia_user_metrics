@@ -1,11 +1,12 @@
 {% extends "layout.html" %}
 {% block body %}
-<div class="underline"><h2>Metrics</h2></div>
-<div class="v_space_sm"></div>
+<h2>Metrics</h2>
 {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
-<div class="para_courier">
-    {% for metric in m_list %}
-    <a href="{{ url_for('metrics') + '/' + c_str + '/' + metric }}">{{ metric }}</a><br>
-    {% endfor %}
-</div>
+<table class="table table-striped">
+<tbody>
+{% for metric in m_list %}
+<tr><td><a href="{{ url_for('metrics') + '/' + c_str + '/' + metric }}">{{ metric }}</a></td><//tr>
+{% endfor %}
+</tbody>
+</table>
 {% endblock %}
