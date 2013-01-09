@@ -81,7 +81,7 @@ def tags():
     utm = [escape(", ".join(f(r))) for r in conn._cur_]
 
     del conn
-    return render_template('tags.html', procs=utm)
+    return render_template('tags.html', data=utm)
 
 @app.route('/cohorts/')
 def cohorts():
