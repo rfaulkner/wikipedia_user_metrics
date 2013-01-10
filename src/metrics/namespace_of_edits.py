@@ -158,7 +158,6 @@ def namespace_edits_sum(metric):
     for ns in NamespaceEdits.VALID_NAMESPACES:
         summed_results[1][str(ns)] = 0
     for r in metric.__iter__():
-        print r
         try:
             for ns in NamespaceEdits.VALID_NAMESPACES:
                 summed_results[1][str(ns)] += r[1][str(ns)]
