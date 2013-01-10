@@ -58,8 +58,8 @@ processQ = list()
 QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
 
 # Define the standard variable names in the query string - store in named tuple
-QUERY_VARIABLE_NAMES = collections.namedtuple('QVarNames', 'date_start date_end time_series')(
-    'date_start', 'date_end', 'time_series')
+QUERY_VARIABLE_NAMES = collections.namedtuple('QVarNames', 'date_start date_end time_series aggregator interval')(
+    'date_start', 'date_end', 'time_series', 'aggregator', 'inteval')
 
 DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
@@ -136,12 +136,16 @@ def output(cohort, metric):
             if int(arg_dict['refresh']): refresh = True
         except ValueError: pass
 
-    aggregator = arg_dict['aggregator'] if 'aggregator' in arg_dict else ''
+    aggregator = arg_dict[QUERY_VARIABLE_NAMES.aggregator] if QUERY_VARIABLE_NAMES.aggregator in arg_dict else ''
     aggregator_key = mm.get_agg_key(aggregator, metric)
     if mm.aggregator_dict.has_key(aggregator_key):
-        extra_params.append('aggregator')
+        extra_params.append(QUERY_VARIABLE_NAMES.aggregator)
 
-    if 'time_series' in arg_dict: extra_params.extend(['time_series', 'date_start', 'date_end', 'interval'])
+    if QUERY_VARIABLE_NAMES.time_series in arg_dict: extra_params.extend([
+        QUERY_VARIABLE_NAMES.time_series,
+        QUERY_VARIABLE_NAMES.date_start,
+        QUERY_VARIABLE_NAMES.date_end,
+        QUERY_VARIABLE_NAMES.interval])
 
     # Format the query string
     metric_params = mm.get_param_types(metric)
