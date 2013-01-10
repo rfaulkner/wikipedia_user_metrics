@@ -54,6 +54,9 @@ processQ = list()
 # Class defining all objects contained on the processQ
 QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
 
+# Define the standard variable names in the query string - store in named tuple
+QUERY_VARIABLE_NAMES = collections.namedtuple('QVarNames', 'date_start date_start time_series')(
+    'date_start', 'date_start', 'time_series')
 
 @app.route('/')
 def api_root():
