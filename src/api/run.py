@@ -22,10 +22,12 @@ from urlparse import urlparse
 import config.settings as settings
 import multiprocessing as mp
 import collections
+from dateutil.parser import parse as date_parse
+from datetime import timedelta, datetime
 
 import src.etl.data_loader as dl
 import src.metrics.metrics_manager as mm
-from src.api import COHORT_REGEX, parse_cohorts
+from src.api import COHORT_REGEX, parse_cohorts, MetricsAPIError
 
 app = Flask(__name__)
 
@@ -44,7 +46,8 @@ queue_data = dict()
 # Error codes for web requests
 global error_codes
 error_codes = {
-    0 : 'Job already running.'
+    0 : 'Job already running.',
+    1 : 'Badly Formatted timestamp',
 }
 
 # Queue for storing all active processes
@@ -55,8 +58,19 @@ processQ = list()
 QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
 
 # Define the standard variable names in the query string - store in named tuple
-QUERY_VARIABLE_NAMES = collections.namedtuple('QVarNames', 'date_start date_start time_series')(
-    'date_start', 'date_start', 'time_series')
+QUERY_VARIABLE_NAMES = collections.namedtuple('QVarNames', 'date_start date_end time_series')(
+    'date_start', 'date_end', 'time_series')
+
+DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
+
+def get_errors(request_args):
+    error = ''
+    if 'error' in request_args:
+        try:
+            error = error_codes[int(request_args['error'])]
+        except KeyError: pass
+        except ValueError: pass
+    return error
 
 @app.route('/')
 def api_root():
@@ -84,12 +98,15 @@ def tag_definitions():
 @app.route('/cohorts')
 def cohorts():
     """ View for listing and selecting cohorts """
+
+    error = get_errors(request.args)
+
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('select distinct utm_name from usertags_meta')
     o = [r[0] for r in conn._cur_]
 
     del conn
-    return render_template('cohorts.html', data=o)
+    return render_template('cohorts.html', data=o, error=error)
 
 @app.route('/metrics')
 @app.route('/metrics/<string:cohort>')
@@ -128,7 +145,11 @@ def output(cohort, metric):
 
     # Format the query string
     metric_params = mm.get_param_types(metric)
-    url = strip_query_string(url, metric_params['init'].keys() + metric_params['process'].keys() + extra_params)
+
+    try:
+        url = strip_query_string(url, metric_params['init'].keys() + metric_params['process'].keys() + extra_params)
+    except MetricsAPIError as e:
+        return redirect(url_for('cohorts') + '?error=' + e.message)
 
     if url in pkl_data and not refresh:
         return pkl_data[url]
@@ -158,12 +179,7 @@ def output(cohort, metric):
 def job_queue():
     """ View for listing current jobs working """
 
-    error = ''
-    if 'error' in request.args:
-        try:
-            error = error_codes[int(request.args['error'])]
-        except KeyError: pass
-        except ValueError: pass
+    error = get_errors(request.args)
 
     p_list = list()
     p_list.append(Markup('<u><b>is_alive , PID, url, status</b></u><br>'))
@@ -213,6 +229,9 @@ def all_urls():
 def strip_query_string(url, valid_items):
     """ Strips the query string down to the relevant items defined by the list of string objects `valid_items` """
 
+    today = datetime.now()
+    yesterday = today + timedelta(days=-1)
+
     # parse the url then remove the query string
     url_obj = urlparse(url)
     url = url.split('?')[0]
@@ -227,11 +246,31 @@ def strip_query_string(url, valid_items):
         except IndexError: pass
 
     # Hardcode time series var if it is included
-    q_params['time_series'] = 'True'
+    q_params[QUERY_VARIABLE_NAMES.time_series] = 'True'
+
+    # Provide defaults for datetime fields - these are mandatory parameters
+    if not q_params.has_key(QUERY_VARIABLE_NAMES.date_start):
+        q_params[QUERY_VARIABLE_NAMES.date_start] = today.strftime(DATETIME_STR_FORMAT)[:8] + '000000'
+    if not q_params.has_key(QUERY_VARIABLE_NAMES.date_end):
+        q_params[QUERY_VARIABLE_NAMES.date_end] = yesterday.strftime(DATETIME_STR_FORMAT)[:8] + '000000'
 
     # Filter the parameters
     for item in valid_items:
-        if q_params.has_key(item): new_q_params.append(item+'='+q_params[item])
+
+        # Format dates
+        if item == QUERY_VARIABLE_NAMES.date_start or item == QUERY_VARIABLE_NAMES.date_end:
+            try:
+                formatted_datetime = date_parse(q_params[item][:8] + '000000') # Resolve datetime string to nearest day
+            except ValueError:
+                raise MetricsAPIError('1') # Pass the value of the error code in `error_codes`
+
+            if item == QUERY_VARIABLE_NAMES.date_end: formatted_datetime += timedelta(days=1)
+            formatted_datetime_str = formatted_datetime.strftime(DATETIME_STR_FORMAT)
+            q_params[item] = formatted_datetime_str
+
+        # Build assignment strings
+        if item in q_params:
+            new_q_params.append(item+'='+q_params[item])
 
     # synthesize and return the new url
     if new_q_params:
