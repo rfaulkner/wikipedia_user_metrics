@@ -85,33 +85,43 @@ def get_errors(request_args):
         except ValueError: pass
     return error
 
-def process_request_params(url, valid_items):
+def split_url_for_processing(url, valid_items):
+        # parse the url then remove the query string
+        url_obj = urlparse(url)
+        url_root = url.split('?')[0]
+
+        all_items = dict()
+
+        # Compile the query string elements
+        for assign_str in url_obj.query.split('&'):
+            k = assign_str.split('=')
+            try: all_items[k[0]] = k[1]
+            except IndexError: pass
+        print  all_items
+        new_q_params = process_request_params(all_items, valid_items)
+
+        # synthesize and return the new url
+        if new_q_params:
+            return url_root.split('?')[0] + '?' + "&".join(new_q_params)
+        else:
+            return url_root
+
+def process_request_params(all_items, valid_items):
     """ Strips the query string down to the relevant items defined by the list of string objects `valid_items` """
 
     today = datetime.now()
     yesterday = today + timedelta(days=-1)
 
-    # parse the url then remove the query string
-    url_obj = urlparse(url)
-    url = url.split('?')[0]
-
-    q_params = dict()
     new_q_params = list()
 
-    # Compile the query string elements
-    for q_items in url_obj.query.split('&'):
-        k = q_items.split('=')
-        try: q_params[k[0]] = k[1]
-        except IndexError: pass
-
     # Hardcode time series var if it is included
-    q_params[QUERY_VARIABLE_NAMES.time_series] = 'True'
+    all_items[QUERY_VARIABLE_NAMES.time_series] = 'True'
 
     # Provide defaults for datetime fields - these are mandatory parameters
-    if not q_params.has_key(QUERY_VARIABLE_NAMES.date_start):
-        q_params[QUERY_VARIABLE_NAMES.date_start] = today.strftime(DATETIME_STR_FORMAT)[:8] + '000000'
-    if not q_params.has_key(QUERY_VARIABLE_NAMES.date_end):
-        q_params[QUERY_VARIABLE_NAMES.date_end] = yesterday.strftime(DATETIME_STR_FORMAT)[:8] + '000000'
+    if not all_items.has_key(QUERY_VARIABLE_NAMES.date_start):
+        all_items[QUERY_VARIABLE_NAMES.date_start] = today.strftime(DATETIME_STR_FORMAT)[:8] + '000000'
+    if not all_items.has_key(QUERY_VARIABLE_NAMES.date_end):
+        all_items[QUERY_VARIABLE_NAMES.date_end] = yesterday.strftime(DATETIME_STR_FORMAT)[:8] + '000000'
 
     # Filter the parameters
     for item in valid_items:
@@ -119,23 +129,17 @@ def process_request_params(url, valid_items):
         # Format dates
         if item == QUERY_VARIABLE_NAMES.date_start or item == QUERY_VARIABLE_NAMES.date_end:
             try:
-                formatted_datetime = date_parse(q_params[item][:8] + '000000') # Resolve datetime string to nearest day
+                formatted_datetime = date_parse(all_items[item][:8] + '000000') # Resolve datetime string to nearest day
             except ValueError:
                 raise MetricsAPIError('1') # Pass the value of the error code in `error_codes`
 
             if item == QUERY_VARIABLE_NAMES.date_end: formatted_datetime += timedelta(days=1)
             formatted_datetime_str = formatted_datetime.strftime(DATETIME_STR_FORMAT)
-            q_params[item] = formatted_datetime_str
+            all_items[item] = formatted_datetime_str
 
         # Build assignment strings
-        if item in q_params:
-            new_q_params.append(item+'='+q_params[item])
-
-    # synthesize and return the new url
-    if new_q_params:
-        return url.split('?')[0] + '?' + "&".join(new_q_params)
-    else:
-        return url
+        if item in all_items:
+            new_q_params.append(item+'='+all_items[item])
 
 def process_metrics(url, cohort, metric, aggregator, p, args):
     """ Worker process for requests - this will typically operate in a forked process """
@@ -256,7 +260,7 @@ def output(cohort, metric):
     metric_params = mm.get_param_types(metric)
 
     try:
-        url = process_request_params(url, metric_params['init'].keys() + metric_params['process'].keys() + extra_params)
+        url = split_url_for_processing(url, metric_params['init'].keys() + metric_params['process'].keys() + extra_params)
     except MetricsAPIError as e:
         return redirect(url_for('cohorts') + '?error=' + e.message)
 
