@@ -183,12 +183,10 @@ def _process_help(args):
         try:
             ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) + timedelta(hours=thread_args.t))
             id = long(r[0])
-            print sql % {'project' : thread_args.project, 'ts' : ts,
-                         'ns' : ns_cond, 'id' : id}
             conn._cur_.execute(sql % {'project' : thread_args.project, 'ts' : ts,
                                       'ns' : ns_cond, 'id' : id})
             count = int(conn._cur_.fetchone()[0])
-            print count
+
         except IndexError: continue
         except ValueError: continue
 
