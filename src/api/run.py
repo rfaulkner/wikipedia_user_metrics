@@ -81,7 +81,7 @@ import multiprocessing as mp
 import collections
 from dateutil.parser import parse as date_parse
 from datetime import timedelta, datetime
-from src.utils.autovivification import AutoVivification
+from collections import OrderedDict
 
 import src.etl.data_loader as dl
 import src.metrics.metrics_manager as mm
@@ -101,7 +101,7 @@ global_id = 0
 
 # Stores cached requests (this should eventually be replaced with a proper cache)
 global pkl_data
-pkl_data = AutoVivification()
+pkl_data = OrderedDict()
 
 # stores data in Queue objects that are active
 global queue_data
@@ -131,7 +131,7 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric, time_series, a
         interval, t, n)
 
 REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'date_start', 'date_end', 'interval', 't', 'n']
-
+REQUEST_META_BASE = ['cohort_expr', 'cohort_gen_timestamp', 'metric']
 
 # Datetime string format to be used throughout the API
 DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
@@ -248,6 +248,58 @@ def get_cohort_refresh_datetime(utm_id):
 
     del conn
     return utm_touched.strftime(DATETIME_STR_FORMAT)
+
+def get_data(request_meta):
+    """ Extract data from the global hash given a request object """
+
+    global pkl_data
+
+    data_ref = pkl_data
+    for key_name in REQUEST_META_BASE + REQUEST_META_QUERY_STR:
+        key = getattr(request_meta,key_name)
+        if hasattr(data_ref, 'haskey') and data_ref.haskey(key):
+            data_ref = data_ref[key]
+        else:
+            return None
+
+    # Ensure that an interface that does not rely on keyed values is returned
+    # all data must be in interfaces resembling lists
+    if not hasattr(data_ref, 'has_key') and hasattr(data_ref, '__iter__'):
+        return data_ref
+    else:
+        return None
+
+def set_data(request_meta, data):
+    """ Given request meta-data and a dataset create a key path in the global hash to store the data """
+
+    global pkl_data
+
+    key_sig = list()
+
+    # Build the key signature
+    for key_name in REQUEST_META_BASE: # These keys must exist
+        key = getattr(request_meta, key_name)
+        if key:
+            key_sig.append(key)
+        else:
+            logging.error(__name__ + '::Request must include %s. Cannot set data %s.' % (key_name, str(request_meta)))
+            return
+
+    for key_name in REQUEST_META_QUERY_STR: # These keys may optionally exist
+        key = getattr(request_meta, key_name)
+        if key: key_sig.append(key)
+
+    # For each key in the key signature add a nested key to the hash
+    pkl_data_ref = pkl_data
+    last_item = key_sig[len(key_sig) - 1]
+    for key in key_sig:
+        if key != last_item:
+            if not (hasattr(pkl_data_ref[key], 'has_key') and pkl_data_ref[key].has_key(key)):
+                pkl_data_ref[key] = OrderedDict()
+            pkl_data_ref = pkl_data_ref[key]
+        else:
+            pkl_data_ref[key] = data
+
 
 ######
 #
