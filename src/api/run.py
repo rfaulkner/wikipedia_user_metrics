@@ -119,7 +119,7 @@ global processQ
 processQ = list()
 
 # Class defining all objects contained on the processQ
-QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
+QStructClass = collections.namedtuple('QStruct', 'id process request url queue status')
 
 # Define the standard variable names in the query string - store in named tuple
 RequestMeta = recordtype('RequestMeta', 'cohort_expr cohort_gen_timestamp metric time_series ' + \
@@ -131,7 +131,7 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric, time_series, a
         interval, t, n)
 
 REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'date_start', 'date_end', 'interval', 't', 'n']
-REQUEST_META_BASE = ['cohort_expr', 'cohort_gen_timestamp', 'metric']
+REQUEST_META_BASE = ['cohort_expr', 'metric']
 
 # Datetime string format to be used throughout the API
 DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
@@ -151,8 +151,12 @@ def get_errors(request_args):
         except ValueError: pass
     return error
 
-def process_request_params(request_meta, metric):
-    """ Applies defaults and consistency to RequestMeta data """
+def process_request_params(request_meta):
+    """
+        Applies defaults and consistency to RequestMeta data
+
+            request_meta - RequestMeta recordtype.  Stores the request data.
+    """
 
     DEFAULT_INTERVAL = 1
     TIME_STR = '000000'
@@ -178,8 +182,9 @@ def process_request_params(request_meta, metric):
         request_meta.date_end = end.strftime(DATETIME_STR_FORMAT)[:8] + TIME_STR
 
     request_meta.time_series = True if request_meta.time_series else None
-    if not (request_meta.aggregator or mm.aggregator_dict.has_key(request_meta.aggregator + metric)):
-        request_meta.aggregator = None
+
+    agg_key = mm.get_agg_key(request_meta.metric, request_meta.aggregator)
+    request_meta.aggregator = agg_key if agg_key else None
 
 def process_metrics(p, rm):
     """ Worker process for requests - this will typically operate in a forked process """
@@ -188,7 +193,7 @@ def process_metrics(p, rm):
     logging.info(__name__ + '::START JOB %s (PID = %s)' % (str(rm), os.getpid()))
 
     # process metrics
-    users = get_users(rm.cohort_exp)
+    users = get_users(rm.cohort_expr)
     args = { attr : getattr(rm, attr) for attr in REQUEST_META_QUERY_STR} # unpack RequestMeta into dict
     results = mm.process_data_request(rm.metric, users, **args)
 
@@ -196,17 +201,17 @@ def process_metrics(p, rm):
     del conn
     logging.info(__name__ + '::END JOB %s (PID = %s)' % (str(rm), os.getpid()))
 
-def get_users(cohort_exp):
+def get_users(cohort_expr):
     """ get users from cohort """
 
-    if search(COHORT_REGEX, cohort_exp):
+    if search(COHORT_REGEX, cohort_expr):
         logging.info(__name__ + '::Processing cohort by expression.')
-        users = [user for user in parse_cohorts(cohort_exp)]
+        users = [user for user in parse_cohorts(cohort_expr)]
     else:
         logging.info(__name__ + '::Processing cohort by tag name.')
         conn = dl.Connector(instance='slave')
         try:
-            conn._cur_.execute('select utm_id from usertags_meta where utm_name = "%s"' % str(cohort_exp))
+            conn._cur_.execute('select utm_id from usertags_meta where utm_name = "%s"' % str(cohort_expr))
             res = conn._cur_.fetchone()[0]
             conn._cur_.execute('select ut_user from usertags where ut_tag = "%s"' % res)
         except IndexError:
@@ -259,14 +264,15 @@ def get_data(request_meta):
     data_ref = pkl_data
     for key_name in REQUEST_META_BASE + REQUEST_META_QUERY_STR:
         key = getattr(request_meta,key_name)
-        if hasattr(data_ref, 'haskey') and data_ref.haskey(key):
+        if not key: continue  # Only process keys that have been set
+        if hasattr(data_ref, 'has_key') and data_ref.has_key(key):
             data_ref = data_ref[key]
         else:
             return None
 
     # Ensure that an interface that does not rely on keyed values is returned
     # all data must be in interfaces resembling lists
-    if not hasattr(data_ref, 'has_key') and hasattr(data_ref, '__iter__'):
+    if not hasattr(data_ref, '__iter__'):
         return data_ref
     else:
         return None
@@ -296,7 +302,7 @@ def set_data(request_meta, data):
     last_item = key_sig[len(key_sig) - 1]
     for key in key_sig:
         if key != last_item:
-            if not (hasattr(pkl_data_ref[key], 'has_key') and pkl_data_ref[key].has_key(key)):
+            if not (hasattr(pkl_data_ref, 'has_key') and pkl_data_ref.has_key(key)):
                 pkl_data_ref[key] = OrderedDict()
             pkl_data_ref = pkl_data_ref[key]
         else:
@@ -364,16 +370,18 @@ def output(cohort, metric):
     # Check for refresh flag
     refresh = True if 'refresh' in request.args else False
 
-    cohort_refresh_ts = get_cohort_refresh_datetime(cohort)
+    cid = get_cohort_id(cohort)
+    cohort_refresh_ts = get_cohort_refresh_datetime(cid)
     rm = RequestMetaFactory(cohort, cohort_refresh_ts, metric, None, None, None, None)
     for param in REQUEST_META_QUERY_STR:
         if param in request.args: setattr(rm, param, request.args[param])
 
     try:
-        process_request_params(rm, metric)
+        process_request_params(rm)
     except MetricsAPIError as e:
         return redirect(url_for('cohorts') + '?error=' + e.message)
 
+    # Determine if the request maps to an existing repsonse.  If so return it.  Otherwise compute.
     data = get_data(rm)
     if data and not refresh:
         return data
@@ -382,7 +390,7 @@ def output(cohort, metric):
         # Ensure that the job for this url is not already running
         is_pending_job = False
         for p in processQ:
-            if not cmp(url, p.url) and p.status[0] == 'pending': is_pending_job = True
+            if not cmp(rm, p.request) and p.status[0] == 'pending': is_pending_job = True
 
         if not is_pending_job: # Queue the job
 
@@ -392,10 +400,10 @@ def output(cohort, metric):
 
             global_id += 1
 
-            logging.info(__name__ + '::Appending request %s to the queue...' % url)
-            processQ.append(QStructClass(global_id,p,url,q,['pending']))
+            logging.info(__name__ + '::Appending request %s to the queue...' % rm)
+            processQ.append(QStructClass(global_id,p,rm,url,q,['pending']))
 
-            return render_template('processing.html', url_str=url)
+            return render_template('processing.html', url_str=str(rm))
         else:
             return redirect(url_for('job_queue') + '?error=0')
 
@@ -422,7 +430,7 @@ def job_queue():
             if not p.process.is_alive() and p.status[0] == 'pending':
                 q_response = make_response(jsonify(queue_data[p.id]))
                 del queue_data[p.id]
-                pkl_data[p.url] = q_response
+                set_data(p.request, q_response)
 
                 p.status[0] = 'success'
                 logging.info(__name__ + '::Completed request %s.' % p.url)
