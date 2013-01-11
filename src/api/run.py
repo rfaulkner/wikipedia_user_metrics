@@ -4,10 +4,22 @@
 """
     Entry point for flask web server implementin Wikimedia Metrics API.
 
-    Process states: ::
+    Job Queue and Processing
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+
+    As requests are issued via http to the API a process queue will store all active jobs. Processes will be created
+    and assume one of the following states throughout their existence: ::
+
         * 'pending' - The request has yet to be fully processed and exposed but is underway
         * 'success' - The request has finished processing and is exposed at the url
         * 'failure' - The result has finished processing but dailed to expose results
+
+    When a process a request is received and a job is created to service that request it enters the 'pending' state.
+    If the job returns without exception it enters the 'success' state, otherwise it enters the 'failure' state.  The
+    jpb remains in either of these states until it is cleared from the process queue.
+
+    Response Data
+    ^^^^^^^^^^^^^
 
     As requests are made to the API the data generated and formatted as JSON.  The definition of is as follows: ::
 
@@ -30,6 +42,28 @@
         data := list(tuple), set of data points
 
     Request data is mapped to a query via metric objects and hashed in the dictionary `pkl_data`.
+
+    Cohort Data
+    ^^^^^^^^^^^
+
+    Cohort data is maintained in the host s1-analytics-slave.eqiad.wmnet under the `staging` database in the `usertags`
+    and `usertags_meta` tables: ::
+
+        +---------+-----------------+------+-----+---------+-------+
+        | Field   | Type            | Null | Key | Default | Extra |
+        +---------+-----------------+------+-----+---------+-------+
+        | ut_user | int(5) unsigned | NO   | PRI | NULL    |       |
+        | ut_tag  | int(4) unsigned | NO   | PRI | NULL    |       |
+        +---------+-----------------+------+-----+---------+-------+
+
+        +-------------+-----------------+------+-----+---------+----------------+
+        | Field       | Type            | Null | Key | Default | Extra          |
+        +-------------+-----------------+------+-----+---------+----------------+
+        | utm_id      | int(5) unsigned | NO   | PRI | NULL    | auto_increment |
+        | utm_name    | varchar(255)    | NO   |     |         |                |
+        | utm_notes   | varchar(255)    | YES  |     | NULL    |                |
+        | utm_touched | datetime        | YES  |     | NULL    |                |
+        +-------------+-----------------+------+-----+---------+----------------+
 
 """
 
@@ -196,6 +230,7 @@ def get_users(cohort_exp):
         users = [r[0] for r in conn._cur_]
         del conn
     return users
+
 
 ######
 #
