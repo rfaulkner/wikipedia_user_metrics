@@ -152,7 +152,7 @@ def get_errors(request_args):
     return error
 
 def process_request_params(request_meta, metric):
-    """ Applies """
+    """ Applies defaults and consistency to RequestMeta data """
 
     DEFAULT_INTERVAL = 1
     TIME_STR = '000000'
@@ -181,19 +181,20 @@ def process_request_params(request_meta, metric):
     if not (request_meta.aggregator or mm.aggregator_dict.has_key(request_meta.aggregator + metric)):
         request_meta.aggregator = None
 
-def process_metrics(url, cohort, metric, aggregator, p, args):
+def process_metrics(p, rm):
     """ Worker process for requests - this will typically operate in a forked process """
 
     conn = dl.Connector(instance='slave')
-    logging.info(__name__ + '::START JOB %s (PID = %s)' % (url, os.getpid()))
+    logging.info(__name__ + '::START JOB %s (PID = %s)' % (str(rm), os.getpid()))
 
     # process metrics
-    users = get_users(cohort)
-    results = mm.process_data_request(metric, users, agg_handle=aggregator, **args)
+    users = get_users(rm.cohort_exp)
+    args = { attr : getattr(rm, attr) for attr in REQUEST_META_QUERY_STR} # unpack RequestMeta into dict
+    results = mm.process_data_request(rm.metric, users, **args)
 
     p.put(jsonify(results))
     del conn
-    logging.info(__name__ + '::END JOB %s (PID = %s)' % (url, os.getpid()))
+    logging.info(__name__ + '::END JOB %s (PID = %s)' % (str(rm), os.getpid()))
 
 def get_users(cohort_exp):
     """ get users from cohort """
@@ -254,6 +255,7 @@ def get_data(request_meta):
 
     global pkl_data
 
+    # Traverse the hash key structure to find data
     data_ref = pkl_data
     for key_name in REQUEST_META_BASE + REQUEST_META_QUERY_STR:
         key = getattr(request_meta,key_name)
@@ -372,8 +374,9 @@ def output(cohort, metric):
     except MetricsAPIError as e:
         return redirect(url_for('cohorts') + '?error=' + e.message)
 
-    if url in pkl_data and not refresh:
-        return pkl_data[url]
+    data = get_data(rm)
+    if data and not refresh:
+        return data
     else:
 
         # Ensure that the job for this url is not already running
@@ -384,7 +387,7 @@ def output(cohort, metric):
         if not is_pending_job: # Queue the job
 
             q = mp.Queue()
-            p = mp.Process(target=process_metrics, args=(url, cohort, metric, aggregator, q, arg_dict))
+            p = mp.Process(target=process_metrics, args=(q, rm))
             p.start()
 
             global_id += 1
