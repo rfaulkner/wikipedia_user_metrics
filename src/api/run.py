@@ -8,6 +8,29 @@
         * 'pending' - The request has yet to be fully processed and exposed but is underway
         * 'success' - The request has finished processing and is exposed at the url
         * 'failure' - The result has finished processing but dailed to expose results
+
+    As requests are made to the API the data generated and formatted as JSON.  The definition of is as follows: ::
+
+        {   header : header_list,
+            cohort_expr : cohort_gen_timestamp : metric : timeseries : aggregator : date_start :
+                date_end : [ metric_param : ]* : data
+        }
+
+    Where each component is defined: ::
+
+        header_str := list(str), list of header values
+        cohort_expr := str, cohort ID expression
+        cohort_gen_timestamp := str, cohort generation timestamp (earliest of all cohorts in expression)
+        metric := str, user metric handle
+        timeseries := boolean, indicates if this is a timeseries
+        aggregator := str, aggregator used
+        date_start := str, start datetime of request
+        date_end := str, end datetime of request
+        metric_param := -, optional metric parameters
+        data := list(tuple), set of data points
+
+    Request data is mapped to a query via metric objects and hashed in the dictionary `pkl_data`.
+
 """
 
 from flask import Flask, render_template, Markup, jsonify, \
@@ -97,7 +120,7 @@ def split_url_for_processing(url, valid_items):
             k = assign_str.split('=')
             try: all_items[k[0]] = k[1]
             except IndexError: pass
-        print  all_items
+
         new_q_params = process_request_params(all_items, valid_items)
 
         # synthesize and return the new url
@@ -173,7 +196,6 @@ def get_users(cohort_exp):
         users = [r[0] for r in conn._cur_]
         del conn
     return users
-
 
 ######
 #
