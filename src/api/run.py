@@ -231,6 +231,41 @@ def get_users(cohort_exp):
         del conn
     return users
 
+def get_cohort_id(utm_name):
+    """ Pull cohort ids from cohort handles """
+    conn = dl.Connector(instance='slave')
+    conn._cur_.execute('SELECT utm_id FROM usertags_meta WHERE utm_name = "%s"' % str(escape(utm_name)))
+
+    utm_id = None
+    try: utm_id = conn._cur_.fetchone()[0]
+    except ValueError: pass
+
+    # Ensure the field was retrieved
+    if not utm_id:
+        logging.error(__name__ + '::Missing utm_id for cohort %s.' % str(utm_name))
+        utm_id = -1
+
+    del conn
+    return utm_id
+
+def get_cohort_refresh_datetime(utm_id):
+    """ Get the latest refresh datetime of a cohort.  Returns current time formatted as a
+     string if the field is not found. """
+    conn = dl.Connector(instance='slave')
+    conn._cur_.execute('SELECT utm_touched FROM usertags_meta WHERE utm_id = %s' % str(escape(utm_id)))
+
+    utm_touched = None
+    try: utm_touched = conn._cur_.fetchone()[0]
+    except ValueError: pass
+
+    # Ensure the field was retrieved
+    if not utm_touched:
+        logging.error(__name__ + '::Missing utm_touched for cohort %s.' % str(utm_id))
+        utm_touched = datetime.now()
+
+    del conn
+    return utm_touched.strftime(DATETIME_STR_FORMAT)
+
 
 ######
 #
