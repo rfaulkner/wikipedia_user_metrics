@@ -75,7 +75,7 @@ from re import search
 from config import logging
 import os
 import json
-from urlparse import urlparse
+from src.utils.record_type import *
 import config.settings as settings
 import multiprocessing as mp
 import collections
@@ -121,11 +121,19 @@ processQ = list()
 QStructClass = collections.namedtuple('QStruct', 'id process url queue status')
 
 # Define the standard variable names in the query string - store in named tuple
-QUERY_VARIABLE_NAMES = collections.namedtuple('QVarNames', 'date_start date_end time_series aggregator interval')(
-    'date_start', 'date_end', 'time_series', 'aggregator', 'inteval')
+RequestMeta = recordtype('RequestMeta', 'cohort_expr cohort_gen_timestamp metric time_series ' + \
+                                                           'aggregator date_start date_end interval t n')
 
+def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric, time_series, aggregator, date_start, date_end,
+                       interval=None, t=None, n=None):
+    return RequestMeta(cohort_expr, cohort_gen_timestamp, metric, time_series, aggregator, date_start, date_end,
+        interval, t, n)
+
+REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'date_start', 'date_end', 'interval', 't', 'n']
+
+
+# Datetime string format to be used throughout the API
 DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
-
 
 ######
 #
@@ -142,61 +150,35 @@ def get_errors(request_args):
         except ValueError: pass
     return error
 
-def split_url_for_processing(url, valid_items):
-        # parse the url then remove the query string
-        url_obj = urlparse(url)
-        url_root = url.split('?')[0]
+def process_request_params(request_meta, metric):
+    """ Applies """
 
-        all_items = dict()
+    DEFAULT_INTERVAL = 1
+    TIME_STR = '000000'
 
-        # Compile the query string elements
-        for assign_str in url_obj.query.split('&'):
-            k = assign_str.split('=')
-            try: all_items[k[0]] = k[1]
-            except IndexError: pass
+    end = datetime.now()
+    start= end + timedelta(days=-DEFAULT_INTERVAL)
 
-        new_q_params = process_request_params(all_items, valid_items)
+    # Handle any datetime fields passed - raise an exception if the formatting is incorrect
+    if request_meta.date_start:
+        try:
+            request_meta.date_start = date_parse(request_meta.date_start).strftime(DATETIME_STR_FORMAT)[:8] + TIME_STR
+        except ValueError:
+            raise MetricsAPIError('1') # Pass the value of the error code in `error_codes`
+    else:
+        request_meta.date_start = start.strftime(DATETIME_STR_FORMAT)[:8] + TIME_STR
 
-        # synthesize and return the new url
-        if new_q_params:
-            return url_root.split('?')[0] + '?' + "&".join(new_q_params)
-        else:
-            return url_root
+    if request_meta.date_end:
+        try:
+            request_meta.date_end = date_parse(request_meta.date_end[:8]).strftime(DATETIME_STR_FORMAT) + TIME_STR
+        except ValueError:
+            raise MetricsAPIError('1') # Pass the value of the error code in `error_codes`
+    else:
+        request_meta.date_end = end.strftime(DATETIME_STR_FORMAT)[:8] + TIME_STR
 
-def process_request_params(all_items, valid_items):
-    """ Strips the query string down to the relevant items defined by the list of string objects `valid_items` """
-
-    today = datetime.now()
-    yesterday = today + timedelta(days=-1)
-
-    new_q_params = list()
-
-    # Hardcode time series var if it is included
-    all_items[QUERY_VARIABLE_NAMES.time_series] = 'True'
-
-    # Provide defaults for datetime fields - these are mandatory parameters
-    if not all_items.has_key(QUERY_VARIABLE_NAMES.date_start):
-        all_items[QUERY_VARIABLE_NAMES.date_start] = today.strftime(DATETIME_STR_FORMAT)[:8] + '000000'
-    if not all_items.has_key(QUERY_VARIABLE_NAMES.date_end):
-        all_items[QUERY_VARIABLE_NAMES.date_end] = yesterday.strftime(DATETIME_STR_FORMAT)[:8] + '000000'
-
-    # Filter the parameters
-    for item in valid_items:
-
-        # Format dates
-        if item == QUERY_VARIABLE_NAMES.date_start or item == QUERY_VARIABLE_NAMES.date_end:
-            try:
-                formatted_datetime = date_parse(all_items[item][:8] + '000000') # Resolve datetime string to nearest day
-            except ValueError:
-                raise MetricsAPIError('1') # Pass the value of the error code in `error_codes`
-
-            if item == QUERY_VARIABLE_NAMES.date_end: formatted_datetime += timedelta(days=1)
-            formatted_datetime_str = formatted_datetime.strftime(DATETIME_STR_FORMAT)
-            all_items[item] = formatted_datetime_str
-
-        # Build assignment strings
-        if item in all_items:
-            new_q_params.append(item+'='+all_items[item])
+    request_meta.time_series = True if request_meta.time_series else None
+    if not (request_meta.aggregator or mm.aggregator_dict.has_key(request_meta.aggregator + metric)):
+        request_meta.aggregator = None
 
 def process_metrics(url, cohort, metric, aggregator, p, args):
     """ Worker process for requests - this will typically operate in a forked process """
@@ -323,36 +305,18 @@ def output(cohort, metric):
     """ View corresponding to a data request - all of the setup and execution for a request happens here. """
 
     global global_id
-    extra_params = list()   # stores extra query parameters that may be valid outside of metric parameters
-
     url = request.url.split(request.url_root)[1]
 
-    # GET - parse query string
-    arg_dict = dict()
-    for key in request.args: arg_dict[key] = request.args[key]
+    # Check for refresh flag
+    refresh = True if 'refresh' in request.args else False
 
-    refresh = False
-    if 'refresh' in arg_dict:
-        try:
-            if int(arg_dict['refresh']): refresh = True
-        except ValueError: pass
-
-    aggregator = arg_dict[QUERY_VARIABLE_NAMES.aggregator] if QUERY_VARIABLE_NAMES.aggregator in arg_dict else ''
-    aggregator_key = mm.get_agg_key(aggregator, metric)
-    if mm.aggregator_dict.has_key(aggregator_key):
-        extra_params.append(QUERY_VARIABLE_NAMES.aggregator)
-
-    if QUERY_VARIABLE_NAMES.time_series in arg_dict: extra_params.extend([
-        QUERY_VARIABLE_NAMES.time_series,
-        QUERY_VARIABLE_NAMES.date_start,
-        QUERY_VARIABLE_NAMES.date_end,
-        QUERY_VARIABLE_NAMES.interval])
-
-    # Format the query string
-    metric_params = mm.get_param_types(metric)
+    cohort_refresh_ts = get_cohort_refresh_datetime(cohort)
+    rm = RequestMetaFactory(cohort, cohort_refresh_ts, metric, None, None, None, None)
+    for param in REQUEST_META_QUERY_STR:
+        if param in request.args: setattr(rm, param, request.args[param])
 
     try:
-        url = split_url_for_processing(url, metric_params['init'].keys() + metric_params['process'].keys() + extra_params)
+        process_request_params(rm, metric)
     except MetricsAPIError as e:
         return redirect(url_for('cohorts') + '?error=' + e.message)
 
