@@ -60,12 +60,13 @@ def get_agg_key(agg_handle, metric_handle):
     except TypeError:
         return ''
 
-def process_data_request(metric_handle, users, agg_handle='', **kwargs):
+def process_data_request(metric_handle, users, **kwargs):
 
     # create shorthand method refs
     to_string = dl.DataLoader().cast_elems_to_string
     get_timestamp = um.UserMetric._get_timestamp
 
+    aggregator = kwargs['aggregator'] if 'aggrgator' in kwargs else None
     start = get_timestamp(kwargs['date_start']) if 'date_start' in kwargs else get_timestamp(datetime.now() + timedelta(days=-1))
     end = get_timestamp(kwargs['date_end']) if 'date_end' in kwargs else get_timestamp(datetime.now())
     kwargs['date_start'] = start
@@ -84,7 +85,7 @@ def process_data_request(metric_handle, users, agg_handle='', **kwargs):
     # Get the aggregator if there is one
     aggregator_func = None
 
-    aggregator_key = get_agg_key(agg_handle, metric_handle)
+    aggregator_key = get_agg_key(aggregator, metric_handle)
     if aggregator_key in aggregator_dict.keys():
         aggregator_func = aggregator_dict[aggregator_key]
 
