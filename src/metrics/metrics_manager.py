@@ -52,7 +52,13 @@ aggregator_dict = {
 
 def get_metric_names(): return metric_dict.keys()
 def get_param_types(metric_handle): return metric_dict[metric_handle]()._param_types
-def get_agg_key(agg_handle, metric_handle): return '+'.join([agg_handle, metric_handle])
+
+def get_agg_key(agg_handle, metric_handle):
+    """ Compose the metric dependent aggregator handle """
+    try:
+        return '+'.join([agg_handle, metric_handle])
+    except TypeError:
+        return ''
 
 def process_data_request(metric_handle, users, agg_handle='', **kwargs):
 
