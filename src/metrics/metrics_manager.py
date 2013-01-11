@@ -56,7 +56,11 @@ def get_param_types(metric_handle): return metric_dict[metric_handle]()._param_t
 def get_agg_key(agg_handle, metric_handle):
     """ Compose the metric dependent aggregator handle """
     try:
-        return '+'.join([agg_handle, metric_handle])
+        agg_key = '+'.join([agg_handle, metric_handle])
+        if aggregator_dict.has_key(agg_key):
+            return agg_key
+        else:
+            return ''
     except TypeError:
         return ''
 
