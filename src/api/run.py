@@ -81,6 +81,7 @@ import multiprocessing as mp
 import collections
 from dateutil.parser import parse as date_parse
 from datetime import timedelta, datetime
+from src.utils.autovivification import AutoVivification
 
 import src.etl.data_loader as dl
 import src.metrics.metrics_manager as mm
@@ -100,7 +101,7 @@ global_id = 0
 
 # Stores cached requests (this should eventually be replaced with a proper cache)
 global pkl_data
-pkl_data = dict()
+pkl_data = AutoVivification()
 
 # stores data in Queue objects that are active
 global queue_data
@@ -247,7 +248,6 @@ def get_cohort_refresh_datetime(utm_id):
 
     del conn
     return utm_touched.strftime(DATETIME_STR_FORMAT)
-
 
 ######
 #
