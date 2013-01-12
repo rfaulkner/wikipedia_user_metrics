@@ -150,6 +150,8 @@ def process_metrics(p, rm):
     del conn
     logging.info(__name__ + '::END JOB %s (PID = %s)' % (str(rm), os.getpid()))
 
+def build_url_from_request(request): pass
+
 
 ######
 #
@@ -291,15 +293,40 @@ def job_queue():
     else:
         return render_template('queue.html', procs=p_list)
 
-@app.route('/all_urls')
+@app.route('/all_requests')
 def all_urls():
     """ View for listing all requests """
 
+    # Build a tree containing nested key values
+    tree = build_key_tree(pkl_data)
+    key_sigs = list()
+
+    # Depth first traversal - get the key signatures
+    for node in tree:
+        stack_trace = [node]
+        while stack_trace:
+            if stack_trace[-1]:
+                ptr = stack_trace[-1][1]
+                try: stack_trace.append(ptr.next())
+                except StopIteration: stack_trace.pop() # no more children
+            else:
+                key_sigs.append([elem[0] for elem in stack_trace[:-1]])
+                stack_trace.pop()
+
+    # Compose urls from key sigs
     url_list = list()
-    for url in pkl_data.keys():
+    for key_sig in key_sigs:
+        url = get_url_from_keys(key_sig)
         url_list.append("".join(['<a href="', request.url_root, url + '">', url, '</a>']))
     return render_template('all_urls.html', urls=url_list)
 
+
+def build_key_tree(nested_dict):
+    """ Builds a tree of key values from a nested dict """
+    if hasattr(nested_dict, 'keys'):
+        for key in nested_dict.keys(): yield (key, build_key_tree(nested_dict[key]))
+    else:
+        yield None
 
 ######
 #
@@ -345,7 +372,6 @@ class APIMethods(object):
             logging.error(__name__ + '::Could not pickle data.')
         finally:
             if hasattr(pkl_file, 'close'): pkl_file.close()
-
 
 ######
 #
