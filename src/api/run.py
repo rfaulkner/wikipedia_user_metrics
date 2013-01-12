@@ -66,7 +66,8 @@
         +-------------+-----------------+------+-----+---------+----------------+
 
 """
-
+import sys
+sys.path.insert(0,"/Users/dartar/git/E3_analysis")
 from flask import Flask, render_template, Markup, jsonify, \
     redirect, url_for, make_response, request, escape
 
