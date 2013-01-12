@@ -11,8 +11,8 @@
 <div class="row-fluid">
   <div class="span4">
     <h4>List of <a href="{{url_for('all_cohorts')}}">cohorts</a></h4>
-        <form action="/cohorts" method="get" class="form-inline">
-		<select>
+        <form action="{{url_for('all_cohorts')}}" method="post" class="form-inline">
+		<select name="selectCohort">
                 {% for cohort in cohort_data %}
 	  	<option value="{{cohort}}">{{cohort}}</option>
                 {% endfor %}

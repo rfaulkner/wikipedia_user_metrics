@@ -199,18 +199,20 @@ def metric(metric=''):
     """ Display single metric documentation """
     return render_template('metric.html')
 
-@app.route('/cohorts/')
+@app.route('/cohorts/', methods=['POST', 'GET'])
 def all_cohorts():
     """ View for listing and selecting cohorts """
-
     error = get_errors(request.args)
 
-    conn = dl.Connector(instance='slave')
-    conn._cur_.execute('select distinct utm_name from usertags_meta')
-    o = [r[0] for r in conn._cur_]
-
-    del conn
-    return render_template('all_cohorts.html', data=o)
+    if request.method == 'POST':
+	#@@@ TODO  validate form input against existing cohorts
+        return cohort(request.form['selectCohort'])
+    else:
+        conn = dl.Connector(instance='slave')
+        conn._cur_.execute('select distinct utm_name from usertags_meta')
+        o = [r[0] for r in conn._cur_]
+        del conn
+        return render_template('all_cohorts.html', data=o)
 
 @app.route('/cohorts/<string:cohort>')
 def cohort(cohort=''):
