@@ -22,15 +22,18 @@
   </div>
   <div class="span4">
     <h4>List of available <a href="{{url_for('all_metrics')}}">metrics</a></h4>
-            <ul>
-                <li>Threshold - threshold</li>
-                <li>Revert Rate - revert_rate</li>
-                <li>Bytes Added - bytes_added</li>
-                <li>Survival - survival</li>
-                <li>Edit Rate - edit_rate</li>
-                <li>Time to Threshold - time_to_threshold</li>
-                <li>Blocks - blocks</li>
-            </ul>
+       <form action="{{url_for('all_metrics')}}" method="post" class="form-inline">
+                <select name="selectMetric">
+                <option value="threshold">threshold</option>
+                <option value="revert_rate">revert rate</option>
+                <option value="bytes_added">bytes added</option>
+                <option value="survival">survival</option>
+                <option value="edit_rate">edit rate</option>
+                <option value="time_to_threshold">time to threshold</option>
+                <option value="blocks">blocks</option>
+                </select>
+                <input type="submit" value="Next" class="btn btn-primary" />
+        </form>
   </div>
   <div class="span4">
     <h4>Additional parameters</h4>
