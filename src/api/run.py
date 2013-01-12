@@ -67,6 +67,8 @@
 
 """
 
+import sys
+sys.path.insert(0,"/Users/dartar/git/E3_analysis")
 from flask import Flask, render_template, Markup, jsonify, \
     redirect, url_for, make_response, request, escape
 
@@ -119,7 +121,6 @@ processQ = list()
 # Class defining all objects contained on the processQ
 QStructClass = collections.namedtuple('QStruct', 'id process request url queue status')
 
-
 ######
 #
 # Define Decorators and helper methods
@@ -166,24 +167,41 @@ def api_root():
     conn._cur_.execute('select utm_name from usertags_meta')
     data = [r[0] for r in conn._cur_]
     del conn
-
     return render_template('index.html', cohort_data=data)
 
-@app.route('/tag_definitions')
-def tag_definitions():
-    """ View for tag definitions where cohort meta dat can be reviewed """
+@app.route('/about/')
+def about():
+    return render_template('about.html')
+
+@app.route('/contact/')
+def contact():
+    return render_template('contact.html')
+
+@app.route('/tags/')
+def tags():
+    """ View for tag definitions where cohort meta data can be reviewed """
 
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('select * from usertags_meta')
 
     f = dl.DataLoader().cast_elems_to_string
-    usertag_meta_data = [escape(", ".join(f(r))) for r in conn._cur_]
+    utm = [escape(", ".join(f(r))) for r in conn._cur_]
 
     del conn
-    return render_template('tag_definitions.html', data=usertag_meta_data)
+    return render_template('tags.html', data=utm)
 
-@app.route('/cohorts')
-def cohorts():
+@app.route('/metrics/')
+def all_metrics():
+    """ Display a list of available metrics """
+    return render_template('all_metrics.html')
+
+@app.route('/metrics/<string:metric>')
+def metric(metric=''):
+    """ Display single metric documentation """
+    return render_template('metric.html')
+
+@app.route('/cohorts/')
+def all_cohorts():
     """ View for listing and selecting cohorts """
 
     error = get_errors(request.args)
@@ -193,18 +211,17 @@ def cohorts():
     o = [r[0] for r in conn._cur_]
 
     del conn
-    return render_template('cohorts.html', data=o, error=error)
+    return render_template('all_cohorts.html', data=o)
 
-@app.route('/metrics')
-@app.route('/metrics/<string:cohort>')
-def metrics(cohort=''):
-    """ View for listing and selecting metrics """
+@app.route('/cohorts/<string:cohort>')
+def cohort(cohort=''):
+    """ View single cohort page """
     if not cohort:
-        return redirect(url_for('cohorts'))
+        return redirect(url_for('all_cohorts'))
     else:
-        return render_template('metrics.html', c_str=cohort, m_list=mm.get_metric_names())
+        return render_template('cohort.html', c_str=cohort, m_list=mm.get_metric_names())
 
-@app.route('/metrics/<string:cohort>/<string:metric>')
+@app.route('/cohorts/<string:cohort>/<string:metric>')
 def output(cohort, metric):
     """ View corresponding to a data request - all of the setup and execution for a request happens here. """
 
@@ -251,14 +268,21 @@ def output(cohort, metric):
         else:
             return redirect(url_for('job_queue') + '?error=0')
 
-@app.route('/job_queue')
+@app.route('/job_queue/')
 def job_queue():
     """ View for listing current jobs working """
 
     error = get_errors(request.args)
 
+    def error_class(em):
+    	return {
+        	'failure': 'error',
+        	'pending': 'warning',
+        	'success': 'success'
+        	}.get(em, '') 
+
     p_list = list()
-    p_list.append(Markup('<u><b>is_alive , PID, url, status</b></u><br>'))
+    p_list.append(Markup('<thead><tr><th>is_alive</th><th>PID</th><th>url</th><th>status</th></tr></thead>\n<tbody>\n'))
     for p in processQ:
         try:
 
@@ -285,8 +309,13 @@ def job_queue():
 
         # Log the status of the job
         response_url = "".join(['<a href="', request.url_root, p.url + '">', p.url, '</a>'])
-        p_list.append(" , ".join([str(p.process.is_alive()), str(p.process.pid),
+	
+        p_list.append(Markup('<tr class="'+ error_class(p.status[0])+'"><td>'))
+        p_list.append("</td><td>".join([str(p.process.is_alive()), str(p.process.pid),
                                   escape(Markup(response_url)), p.status[0]]))
+        p_list.append(Markup('</td></tr>'))
+
+    p_list.append(Markup('\n</tbody>'))
 
     if error:
         return render_template('queue.html', procs=p_list, error=error)
@@ -383,7 +412,7 @@ if __name__ == '__main__':
 
     a = APIMethods() # initialize API data - get the instance
     try:
-        app.run()
+        app.run(debug=True)
     finally:
         del a
 

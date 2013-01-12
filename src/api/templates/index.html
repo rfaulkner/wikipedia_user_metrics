@@ -1,38 +1,27 @@
 {% extends "layout.html" %}
 {% block body %}
-{% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
-<h3>Welcome to the user metrics API!</h3>
+{% if error %}<p class="text-warning"><strong>Warning:</strong> {{ error }}</p>{% endif %}
 
-<div class=para_courier>
-    This is the Wikimedia Foundation's user metrics API homepage.  To get produce a set of metrics you are free to choose
-    user cohorts, mix those with a metric type, supply some parameters in the query string, then fire off a new job.
+<div class="hero-unit">
+<h1>User Metrics API</h1>
+  <p class="margin-top:2em">Welcome to the Wikimedia Foundation's user metrics API homepage. This API allows you to select a user cohort <span class="muted">(for example, the list of <a href="">Moodbar posters</a>)</span>, specify a metric to be computed for each of these users <span class="muted">(for example, their <a href="#">7-day revert rate</a>)</span>, provide optional parameters <span class="muted">(for example, a <a href="#">registration time range</a>)</span> and retrieve the response in JSON format.</p><p>You can also retrieve an aggregate response for the entire cohort <span class="muted">(like its <a href="#">median revert rate</a>)</span.</p>
+    <p class="margin-top:1em"><a class="btn btn-primary btn-large" href="/about/">Learn more</a></p>
+</div>
 
-    <div class="v_space"></div>
-    Here are a few examples:
-    <div class="embed_p"><ol>
-        <li>http://127.0.0.1:5000/metrics/e3_acux1_control/blocks?date_start=20110201000005&namespace=0</li>
-        <li>http://127.0.0.1:5000/metrics/e3_acux1_acux/bytes_added</li>
-    </ol></div>
-
-    <div class="v_space"></div>
-    <div class="underline">To build your own request:</div>
-    <div class="embed_p">
-        http://127.0.0.1:5000/metrics/"user_cohort"/"metric"?"extra_params"<br>
-    </div>
-    <div class="embed_p">
-        List of Cohorts:
-        <div class="embed_p">
-            <ul>
+<div class="row-fluid">
+  <div class="span4">
+    <h4>List of <a href="{{url_for('all_cohorts')}}">cohorts</a></h4>
+        <form action="/cohorts" method="get" class="form-inline">
+		<select>
                 {% for cohort in cohort_data %}
-                <li>{{ cohort }}</li>
+	  	<option value="{{cohort}}">{{cohort}}</option>
                 {% endfor %}
-            </ul>
-        </div>
-    </div>
-
-    <div class="embed_p">
-        List of <a href="https://meta.wikimedia.org/wiki/Research:Metrics">Metrics</a>:
-        <div class="embed_p">
+            	</select>
+		<input type="submit" value="Next" class="btn btn-primary" />
+        </form>
+  </div>
+  <div class="span4">
+    <h4>List of available <a href="{{url_for('all_metrics')}}">metrics</a></h4>
             <ul>
                 <li>Threshold - threshold</li>
                 <li>Revert Rate - revert_rate</li>
@@ -42,14 +31,21 @@
                 <li>Time to Threshold - time_to_threshold</li>
                 <li>Blocks - blocks</li>
             </ul>
-        </div>
-    </div>
+  </div>
+  <div class="span4">
+    <h4>Additional parameters</h4>
+          <ul>
+                <li>Date start - date_start</li>
+                <li>Date end - date_end</li>
+                <li>Aggregator function - aggregator</li>
+            </ul>
+  </div>
 </div>
 
 <div class="embed_p">
-    Choose a <a href="{{ url_for('cohorts') }}">Cohort</a>.<div class="v_space_sm"></div>
+    Choose a <a href="{{ url_for('all_cohorts') }}">Cohort</a>.<div class="v_space_sm"></div>
     Check the <a href="{{ url_for('job_queue') }}">Job Queue</a>.<div class="v_space_sm"></div>
     See all generated <a href="{{ url_for('all_urls') }}">requests</a>.<div class="v_space_sm"></div>
-    View the <a href="{{ url_for('tag_definitions') }}">tag definitions</a> for cohorts.
+    View the <a href="{{ url_for('tags') }}">tag definitions</a> for cohorts.
 </div>
 {% endblock %}

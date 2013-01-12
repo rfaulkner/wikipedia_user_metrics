@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block body %}
+<h2>Cohort</h2>
+{% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+<p>This page will include cohort description/metadata as well as a metric selector</p>
+<table class="table table-striped">
+<tbody>
+{% for metric in m_list %}
+<tr><td><a href="{{ url_for('all_cohorts') + c_str + '/' + metric }}">{{ metric }}</a></td><//tr>
+{% endfor %}
+</tbody>
+</table>
+{% endblock %}

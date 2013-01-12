@@ -1,11 +1,43 @@
 <!doctype html>
+<html lang="en">
+<head>
 <title>Wikimedia Metrics API</title>
-<link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
-<div class=page>
-  <h1>Wikimedia Metrics API</h1>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.css') }}">
+<style>
+      body {
+        padding-top: 60px;
+        padding-bottom: 60px;
+      }
+</style>
+<script src="{{ url_for('static', filename='js/bootstrap.js') }}"></script>
+</head>
+<body>
+    <div class="navbar navbar-inverse navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </a>
+          <a class="brand" href="/">User Metrics API</a>
+          <div class="nav-collapse collapse">
+            <ul class="nav">
+              <li><a href="{{ url_for('all_cohorts') }}">Cohorts</a></li>
+              <li><a href="{{ url_for('all_metrics') }}">Metrics</a></li>
+              <li><a href="{{ url_for('job_queue') }}">Jobs</a></li>
+              <li><a href="{{ url_for('about') }}">About</a></li>
+              <li><a href="{{ url_for('contact') }}">Contact</a></li>
+            </ul>
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div>
+<div class="container">
   {% for message in get_flashed_messages() %}
     <div class=flash>{{ message }}</div>
   {% endfor %}
   {% block body %}{% endblock %}
 </div>
-
+</body>
+</html>
