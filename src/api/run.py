@@ -83,26 +83,35 @@ def tags():
     del conn
     return render_template('tags.html', data=utm)
 
+@app.route('/metrics/')
+def all_metrics():
+    """ Display a list of available metrics """
+    return render_template('all_metrics.html')
+
+@app.route('/metrics/<string:metric>')
+def metric(metric=''):
+    """ Display single metric documentation """
+    return render_template('metric.html')
+
 @app.route('/cohorts/')
-def cohorts():
+def all_cohorts():
     """ View for listing and selecting cohorts """
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('select distinct utm_name from usertags_meta')
     o = [r[0] for r in conn._cur_]
 
     del conn
-    return render_template('cohorts.html', data=o)
+    return render_template('all_cohorts.html', data=o)
 
-@app.route('/metrics')
-@app.route('/metrics/<string:cohort>')
-def metrics(cohort=''):
-    """ View for listing and selecting metrics """
+@app.route('/cohorts/<string:cohort>')
+def cohort(cohort=''):
+    """ View single cohort page """
     if not cohort:
-        return redirect(url_for('cohorts'))
+        return redirect(url_for('all_cohorts'))
     else:
-        return render_template('metrics.html', c_str=cohort, m_list=mm.get_metric_names())
+        return render_template('cohort.html', c_str=cohort, m_list=mm.get_metric_names())
 
-@app.route('/metrics/<string:cohort>/<string:metric>')
+@app.route('/cohorts/<string:cohort>/<string:metric>')
 def output(cohort, metric):
     """ View corresponding to a data request - all of the setup and execution for a request happens here. """
 
@@ -281,7 +290,7 @@ def get_users(cohort_exp):
             res = conn._cur_.fetchone()[0]
             conn._cur_.execute('select ut_user from usertags where ut_tag = "%s"' % res)
         except IndexError:
-            redirect(url_for('cohorts'))
+            redirect(url_for('all_cohorts'))
         users = [r[0] for r in conn._cur_]
         del conn
     return users
@@ -328,7 +337,7 @@ if __name__ == '__main__':
 
     a = APIMethods() # initialize API data
     try:
-        app.run()
+        app.run(debug=True)
     finally:
         del a
 

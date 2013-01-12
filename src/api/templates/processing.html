@@ -3,6 +3,6 @@
 {% if error %}<p class="text-warning"><strong>Warning:</strong> {{ error }}</p>{% endif %}
 <h2>Processing</h2>
 Processing request for {{ usr_str }} ...
-<br><br>Back to <a href="{{ url_for('cohorts') }}">Cohorts</a>.
+<br><br>Back to <a href="{{ url_for('all_cohorts') }}">Cohorts</a>.
 <br><br>Check the <a href="{{ url_for('job_queue') }}">Job Queue</a>.
 {% endblock %}

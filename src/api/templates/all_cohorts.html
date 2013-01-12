@@ -1,12 +1,12 @@
 {% extends "layout.html" %}
 {% block body %}
-<h2>Metrics</h2>
+<h2>Cohorts</h2>
 {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
 <table class="table table-striped">
-<tbody>
-{% for metric in m_list %}
-<tr><td><a href="{{ url_for('metrics') + '/' + c_str + '/' + metric }}">{{ metric }}</a></td><//tr>
-{% endfor %}
-</tbody>
+    <tbody>
+    {% for cohort in data %}
+    <tr><td><a href="{{ url_for('all_cohorts') +  cohort }}">{{ cohort }}</td></tr>
+    {% endfor %}
+    </tbody>
 </table>
 {% endblock %}
