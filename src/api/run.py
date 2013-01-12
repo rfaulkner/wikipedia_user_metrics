@@ -189,15 +189,20 @@ def tags():
     del conn
     return render_template('tags.html', data=utm)
 
-@app.route('/metrics/')
+@app.route('/metrics/', methods=['POST', 'GET'])
 def all_metrics():
     """ Display a list of available metrics """
-    return render_template('all_metrics.html')
+    if request.method == 'POST':
+        #@@@ TODO  validate form input against existing cohorts
+        return metric(request.form['selectMetric'])
+    else:
+        return render_template('all_metrics.html')
 
 @app.route('/metrics/<string:metric>')
 def metric(metric=''):
     """ Display single metric documentation """
-    return render_template('metric.html')
+    #@@@ TODO validate metric against existing metrics
+    return render_template('metric.html', m_str=metric)
 
 @app.route('/cohorts/', methods=['POST', 'GET'])
 def all_cohorts():
