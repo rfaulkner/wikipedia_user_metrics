@@ -31,6 +31,8 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric, time_series, a
 REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'date_start', 'date_end', 'interval', 't', 'n']
 REQUEST_META_BASE = ['cohort_expr', 'metric']
 
+HASH_KEY_DELIMETER = " <==> " # This is used to separate key meta and key strings for hash table data e.g. "metric <==> blocks"
+
 # Datetime string format to be used throughout the API
 DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
@@ -131,8 +133,10 @@ def get_data(request_meta, hash_table_ref):
     for key_name in REQUEST_META_BASE + REQUEST_META_QUERY_STR:
         key = getattr(request_meta,key_name)
         if not key: continue  # Only process keys that have been set
-        if hasattr(hash_table_ref, 'has_key') and hash_table_ref.has_key(key):
-            hash_table_ref = hash_table_ref[key]
+
+        full_key = key_name + HASH_KEY_DELIMETER + key
+        if hasattr(hash_table_ref, 'has_key') and hash_table_ref.has_key(full_key):
+            hash_table_ref = hash_table_ref[full_key]
         else:
             return None
 
@@ -152,14 +156,14 @@ def set_data(request_meta, data, hash_table_ref):
     for key_name in REQUEST_META_BASE: # These keys must exist
         key = getattr(request_meta, key_name)
         if key:
-            key_sig.append(key)
+            key_sig.append(key_name + HASH_KEY_DELIMETER + key)
         else:
             logging.error(__name__ + '::Request must include %s. Cannot set data %s.' % (key_name, str(request_meta)))
             return
 
     for key_name in REQUEST_META_QUERY_STR: # These keys may optionally exist
         key = getattr(request_meta, key_name)
-        if key: key_sig.append(key)
+        if key: key_sig.append(key_name + HASH_KEY_DELIMETER + key)
 
     # For each key in the key signature add a nested key to the hash
     last_item = key_sig[len(key_sig) - 1]
