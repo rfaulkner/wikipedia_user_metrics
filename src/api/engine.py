@@ -60,7 +60,7 @@ def process_request_params(request_meta):
 
     if request_meta.date_end:
         try:
-            request_meta.date_end = date_parse(request_meta.date_end[:8]).strftime(DATETIME_STR_FORMAT) + TIME_STR
+            request_meta.date_end = date_parse(request_meta.date_end).strftime(DATETIME_STR_FORMAT)[:8] + TIME_STR
         except ValueError:
             raise MetricsAPIError('1') # Pass the value of the error code in `error_codes`
     else:
