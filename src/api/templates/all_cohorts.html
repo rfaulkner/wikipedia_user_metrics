@@ -2,6 +2,7 @@
 {% block body %}
 <h2>Cohorts</h2>
 {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+<p>This is a list of currently available cohorts:</p>
 <table class="table table-striped">
     <tbody>
     {% for cohort in data %}

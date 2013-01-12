@@ -10,7 +10,7 @@
 
 <div class="row-fluid">
   <div class="span4">
-    <h4>List of cohorts</h4>
+    <h4>List of <a href="{{url_for('all_cohorts')}}">cohorts</a></h4>
         <form action="/cohorts" method="get" class="form-inline">
 		<select>
                 {% for cohort in cohort_data %}
@@ -21,7 +21,7 @@
         </form>
   </div>
   <div class="span4">
-    <h4>List of available <a href="https://meta.wikimedia.org/wiki/Research:Metrics">metrics</a></h4>
+    <h4>List of available <a href="{{url_for('all_metrics')}}">metrics</a></h4>
             <ul>
                 <li>Threshold - threshold</li>
                 <li>Revert Rate - revert_rate</li>
