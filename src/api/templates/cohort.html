@@ -4,7 +4,7 @@
   <li><a href="{{ url_for('all_cohorts') }}">Cohorts</a> <span class="divider">/</span></li>
   <li class="active">{{c_str}}</li>
 </ul>
-<h2>Cohort: {{c_str}}</h2>
+<h2>{{c_str|safe}}</h2>
 {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
 <p>This page will include cohort description/metadata as well as a metric selector</p>
 <table class="table table-striped">
