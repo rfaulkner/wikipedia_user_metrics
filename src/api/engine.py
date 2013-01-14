@@ -43,7 +43,7 @@ def process_request_params(request_meta):
             request_meta - RequestMeta recordtype.  Stores the request data.
     """
 
-    DEFAULT_INTERVAL = 1
+    DEFAULT_INTERVAL = 14
     TIME_STR = '000000'
 
     end = datetime.now()
