@@ -144,6 +144,11 @@ class UserMetric(object):
             for k,v in class_ref._param_types['init'].iteritems(): self.__class__._param_types['init'][k] = v
             for k,v in class_ref._param_types['process'].iteritems(): self.__class__._param_types['process'][k] = v
 
+    @property
+    def date_start(self): return self._start_ts_
+    @property
+    def date_end(self): return self._end_ts_
+
     @classmethod
     def _construct_data_point(cls): return namedtuple(cls.__name__, cls.header())
 

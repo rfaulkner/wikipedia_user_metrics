@@ -8,7 +8,6 @@ __date__ = "12/28/2012"
 __license__ = "GPL (version 2 or later)"
 
 import re
-from datetime import datetime, timedelta
 from dateutil.parser import parse as date_parse
 
 import user_metric as um
@@ -68,18 +67,18 @@ def process_data_request(metric_handle, users, **kwargs):
 
     # create shorthand method refs
     to_string = dl.DataLoader().cast_elems_to_string
-    get_timestamp = um.UserMetric._get_timestamp
 
     aggregator = kwargs['aggregator'] if 'aggrgator' in kwargs else None
-    start = get_timestamp(kwargs['date_start']) if 'date_start' in kwargs else get_timestamp(datetime.now() + timedelta(days=-1))
-    end = get_timestamp(kwargs['date_end']) if 'date_end' in kwargs else get_timestamp(datetime.now())
-    kwargs['date_start'] = start
-    kwargs['date_end'] = end
 
     # Initialize the results
     results = dict()
+
     metric_class = metric_dict[metric_handle]
     metric_obj = metric_class(**kwargs)
+
+    start = metric_obj.date_start
+    end = metric_obj.date_end
+
     results['header'] = " ".join(metric_obj.header())
     for key in metric_obj.__dict__:
         if re.search(r'_.*_', key):
