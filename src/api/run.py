@@ -215,9 +215,12 @@ def all_cohorts():
     """ View for listing and selecting cohorts """
     error = get_errors(request.args)
 
+    #@@@ TODO  form validation against existing cohorts and metrics
     if request.method == 'POST':
-	#@@@ TODO  validate form input against existing cohorts
-        return cohort(request.form['selectCohort'])
+        if (request.form['metric'] and request.form['cohortFromMetric']):
+            return redirect(url_for('all_cohorts') + request.form['cohortFromMetric'] + '/' + request.form['metric'])
+        elif (request.form['selectCohort']):
+            return cohort(request.form['selectCohort'])
     else:
         #@@@ TODO make tag list generation a dedicated method
         conn = dl.Connector(instance='slave')

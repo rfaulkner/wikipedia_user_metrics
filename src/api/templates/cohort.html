@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block body %}
 <ul class="breadcrumb">
-  <li><a href="{{ url_for('all_cohorts') }}">Cohorts</a> <span class="divider">/</span></li>
+  <li><a href="{{ url_for('all_cohorts') }}">cohorts</a> <span class="divider">/</span></li>
   <li class="active">{{c_str}}</li>
 </ul>
 <h2>{{c_str|safe}}</h2>
