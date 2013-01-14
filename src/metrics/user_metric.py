@@ -104,7 +104,7 @@ class UserMetric(object):
         """ Apply parameter defaults where necessary """
         if hasattr(kwargs, '__iter__') and arg_type in self._param_types:
             for k in self._param_types[arg_type]:
-                if not k in kwargs: kwargs[k] = self._param_types[arg_type][k][2]
+                if not k in kwargs or not kwargs[k]: kwargs[k] = self._param_types[arg_type][k][2]
 
     def __init__(self, **kwargs):
 
