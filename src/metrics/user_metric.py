@@ -85,8 +85,9 @@ def aggregator(agg_method, metric, data_header):
 
 class UserMetric(object):
 
-    ALL_NAMESPACES = 'all_namespaces'
-    DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
+    ALL_NAMESPACES =        'all_namespaces'
+    DATETIME_STR_FORMAT =   "%Y%m%d%H%M%S"
+    DEFAULT_DATA_RANGE =    14                  # Default number of days for a metric computation
 
     _data_model_meta = dict()
     _agg_indices = dict()
@@ -110,7 +111,7 @@ class UserMetric(object):
 
         self.apply_default_kwargs(kwargs,'init')
         self._data_source_ = dl.Connector(instance='slave')
-        self._results = list()      # Stores results of a process reqeust
+        self._results = list()      # Stores results of a process request
 
         self._project_ = kwargs['project']
         namespace = kwargs['namespace']
