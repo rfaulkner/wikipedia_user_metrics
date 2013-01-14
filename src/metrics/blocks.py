@@ -5,6 +5,8 @@ __license__ = "GPL (version 2 or later)"
 
 import user_metric as um
 
+from config import logging
+
 class Blocks(um.UserMetric):
     """
         Adapted from Aaron Hafaker's implementation -- uses the logging table to count blocks.  This is a user quality
@@ -40,6 +42,7 @@ class Blocks(um.UserMetric):
         },
         'process' : {
             'is_id' : ['bool', 'Are user ids or names being passed.', True],
+            'log_progress' : ['bool', 'Enable logging for processing.',False],
         }
     }
 
@@ -84,6 +87,8 @@ class Blocks(um.UserMetric):
         self.apply_default_kwargs(kwargs,'process')
         rowValues = {}
 
+        log = bool(kwargs['log_progress'])
+
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
         users = um.dl.DataLoader().cast_elems_to_string(user_handle)
 
@@ -101,6 +106,8 @@ class Blocks(um.UserMetric):
         for r in cursor: user_dict[r[1]] = r[0] # keys username on userid
         user_handle_str = um.dl.DataLoader().format_comma_separated_list(user_dict.keys())
 
+        # Get blocks from the logging table
+        if log: logging.info(__name__ + '::Processing blocks for %s users.' % len(user_handle))
         sql = """
 				SELECT
 				    log_title as user,
@@ -124,6 +131,7 @@ class Blocks(um.UserMetric):
         sql = " ".join(sql.strip().split())
         cursor.execute(sql)
 
+        # Process rows - extract block and ban events
         for row in cursor:
 
             userid = str(user_dict[row[0]])
