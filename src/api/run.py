@@ -208,7 +208,7 @@ def all_cohorts():
     error = get_errors(request.args)
 
     if request.method == 'POST':
-	#@@@ TODO  validate form input against existing cohorts
+        #@@@ TODO  validate form input against existing cohorts
         return cohort(request.form['selectCohort'])
     else:
         conn = dl.Connector(instance='slave')
@@ -279,9 +279,9 @@ def job_queue():
     error = get_errors(request.args)
 
     def error_class(em):
-    	return {
-        	'failure': 'error',
-        	'pending': 'warning',
+        return {
+            'failure': 'error',
+            'pending': 'warning',
         	'success': 'success'
         	}.get(em, '') 
 
