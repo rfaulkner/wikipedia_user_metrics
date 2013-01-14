@@ -5,8 +5,9 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 from dateutil.parser import parse as date_parse
-import datetime
 import user_metric as um
+
+from config import logging
 
 LAST_EDIT = -1
 REGISTRATION = 0
@@ -65,17 +66,18 @@ class TimeToThreshold(um.UserMetric):
 
         # Add the parameter definitions from the threshold type
         self.append_params(self.__threshold_types[kwargs['threshold_type_class']])
-        self.apply_default_kwargs(kwargs,'init')
+        # self.apply_default_kwargs(kwargs,'init')
+
+#        try:
+#            self._threshold_obj_ = self.__threshold_types[kwargs['threshold_type_class']](**kwargs)
+#            bad = False
+#        except NameError: bad = True
+#        except KeyError: bad = True
 
         try:
-            self._threshold_obj_ = self.__threshold_types[kwargs['threshold_type_class']](**kwargs)
-            bad = False
-        except NameError: bad = True
-        except KeyError: bad = True
-
-        if bad:
             self._threshold_obj_ = self.EditCountThreshold(**kwargs)
-            print str(datetime.datetime.now()) + ' - Invalid threshold class. Using default (EditCountThreshold).'
+        except NameError:
+            logging.info(__name__ + '::Invalid threshold class. Using default (EditCountThreshold).')
 
     @staticmethod
     def header(): return ['user_id', 'minutes_diff']
@@ -178,3 +180,7 @@ class TimeToThreshold(um.UserMetric):
             return int(time_diff.seconds / 60) + abs(time_diff.days) * 24
 
     __threshold_types = { 'edit_count_threshold' : EditCountThreshold }
+
+if __name__ == "__main__":
+    for i in TimeToThreshold(threshold_type_class='edit_count_threshold',
+        first_edit=0, threshold_edit=1).process([13234584]): print i
