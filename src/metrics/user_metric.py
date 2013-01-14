@@ -49,6 +49,7 @@ import src.etl.data_loader as dl
 import MySQLdb
 from collections import namedtuple
 from dateutil.parser import parse as date_parse
+from datetime import datetime, timedelta
 
 def pre_metrics_init(init_f):
     """ Decorator function for subclassed metrics __init__ """
@@ -95,6 +96,10 @@ class UserMetric(object):
     # Structure that defines parameters for UserMetric class
     _param_types = {
         'init' : {
+            'date_start' : ['str|datetime', 'Earliest date metric is measured.',
+                            datetime.now() + timedelta(DEFAULT_DATA_RANGE)],
+            'date_end' : ['str|datetime', 'Latest date metric is measured.', datetime.now()],
+
             'project' : ['str', 'The project (language) being inspected.', 'enwiki'],
             'namespace' : ['int|set', 'The namespace over which the metric is computed.', ALL_NAMESPACES],
             },
@@ -109,9 +114,12 @@ class UserMetric(object):
 
     def __init__(self, **kwargs):
 
-        self.apply_default_kwargs(kwargs,'init')
         self._data_source_ = dl.Connector(instance='slave')
         self._results = list()      # Stores results of a process request
+
+        # Set metric time bounds
+        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
+        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
 
         self._project_ = kwargs['project']
         namespace = kwargs['namespace']

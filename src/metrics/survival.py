@@ -3,7 +3,6 @@ __author__ = "Ryan Faulkner"
 __date__ = "December 6th, 2012"
 __license__ = "GPL (version 2 or later)"
 
-import datetime
 import user_metric as um
 import threshold as th
 
@@ -32,8 +31,6 @@ class Survival(um.UserMetric):
     # Structure that defines parameters for Survival class
     _param_types = {
         'init' : {
-            'date_start' : ['str|datatime', 'Earliest date a block is measured.','2001-01-01 00:00:00'],
-            'date_end' : ['str|datatime', 'Latest date a block is measured.', datetime.datetime.now()],
             't' : ['int', 'The time in minutes registration after which survival is measured.',24],
             },
         'process' : {
@@ -59,11 +56,7 @@ class Survival(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-
         um.UserMetric.__init__(self, **kwargs)
-
-        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
-        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
         self._t_ = kwargs['t']
 
     @staticmethod

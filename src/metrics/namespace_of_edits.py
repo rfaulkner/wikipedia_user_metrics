@@ -5,7 +5,6 @@ __date__ = "January 6th, 2013"
 __license__ = "GPL (version 2 or later)"
 
 import user_metric as um
-from datetime import datetime, timedelta
 import src.utils.multiprocessing_wrapper as mpw
 from src.etl.data_loader import Connector, DataLoader
 from collections import namedtuple, OrderedDict
@@ -45,10 +44,7 @@ class NamespaceEdits(um.UserMetric):
 
     # Structure that defines parameters for RevertRate class
     _param_types = {
-        'init' : {
-            'date_start' : ['str|datetime', 'Earliest date a block is measured.', datetime.now() + timedelta(days=-7)],
-            'date_end' : ['str|datetime', 'Latest date a block is measured.', datetime.now()],
-            },
+        'init' : {},
         'process' : {
             'log' : ['bool', 'Enable logging for processing.',False],
             'num_threads' : ['int', 'Number of worker processes over users.',1],
@@ -70,11 +66,7 @@ class NamespaceEdits(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-
         um.UserMetric.__init__(self, **kwargs)
-
-        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
-        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
 
     @staticmethod
     def header(): return ['user_id', 'revision_data_by_namespace', ]

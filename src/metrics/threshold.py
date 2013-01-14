@@ -3,7 +3,7 @@ __author__ = "Ryan Faulkner"
 __date__ = "December 6th, 2012"
 __license__ = "GPL (version 2 or later)"
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 import collections
 import os
 import src.utils.multiprocessing_wrapper as mpw
@@ -36,8 +36,6 @@ class Threshold(um.UserMetric):
     # Structure that defines parameters for Threshold class
     _param_types = {
         'init' : {
-            'date_start' : ['str|datetime', 'Earliest date a block is measured.',datetime.now() + timedelta(days=-30)],
-            'date_end' : ['str|datetime', 'Latest date a block is measured.',datetime.now()],
             't' : ['int', 'The time in minutes until the threshold.',24],
             'n' : ['int', 'Revision threshold that is to be exceeded in time `t`.',1],
             },
@@ -66,10 +64,7 @@ class Threshold(um.UserMetric):
     @um.pre_metrics_init
     def __init__(self, **kwargs):
         um.UserMetric.__init__(self, **kwargs)
-
-        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
-        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
-        self._t_ =int(kwargs['t']) if 't' in kwargs else 1440
+        self._t_ = int(kwargs['t']) if 't' in kwargs else 1440
         self._n_ = int(kwargs['n']) if 'n' in kwargs else 1
 
     @staticmethod

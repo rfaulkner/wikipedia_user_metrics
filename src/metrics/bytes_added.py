@@ -4,7 +4,6 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import collections
-from datetime import datetime, timedelta
 import user_metric as um
 import os
 import src.etl.aggregator as agg
@@ -43,10 +42,7 @@ class BytesAdded(um.UserMetric):
 
     # Structure that defines parameters for BytesAdded class
     _param_types = {
-        'init' : {
-            'date_start' : ['str|datetime', 'Earliest date a block is measured.', datetime.now() + timedelta(days=-7)],
-            'date_end' : ['str|datetime', 'Latest date a block is measured.', datetime.now()],
-        },
+        'init' : {},
         'process' : {
             'is_id' : ['bool', 'Are user ids or names being passed.', True],
             'log_progress' : ['bool', 'Enable logging for processing.', False],
@@ -70,11 +66,7 @@ class BytesAdded(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-
         um.UserMetric.__init__(self, **kwargs)
-
-        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
-        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
 
     @staticmethod
     def header(): return ['user_id', 'bytes_added_net', 'bytes_added_absolute',

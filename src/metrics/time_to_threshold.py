@@ -65,19 +65,14 @@ class TimeToThreshold(um.UserMetric):
         um.UserMetric.__init__(self, **kwargs)
 
         # Add the parameter definitions from the threshold type
-        self.append_params(self.__threshold_types[kwargs['threshold_type_class']])
-        # self.apply_default_kwargs(kwargs,'init')
-
-#        try:
-#            self._threshold_obj_ = self.__threshold_types[kwargs['threshold_type_class']](**kwargs)
-#            bad = False
-#        except NameError: bad = True
-#        except KeyError: bad = True
+        # self.append_params(self.__threshold_types[kwargs['threshold_type_class']])
+        self.apply_default_kwargs(kwargs,'init')
 
         try:
-            self._threshold_obj_ = self.EditCountThreshold(**kwargs)
+            self._threshold_obj_ = self.__threshold_types[kwargs['threshold_type_class']](**kwargs)
         except NameError:
-            logging.info(__name__ + '::Invalid threshold class. Using default (EditCountThreshold).')
+            logging.error(__name__ + '::Invalid threshold class. Using default (EditCountThreshold).')
+            self._threshold_obj_ = self.EditCountThreshold(**kwargs)
 
     @staticmethod
     def header(): return ['user_id', 'minutes_diff']

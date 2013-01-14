@@ -37,9 +37,7 @@ class Blocks(um.UserMetric):
 
     # Structure that defines parameters for Blocks class
     _param_types = {
-        'init' : {
-            'date_start' : ['str|datetime', 'Earliest date a block is measured.', '2010-01-01 00:00:00'],
-        },
+        'init' : {},
         'process' : {
             'is_id' : ['bool', 'Are user ids or names being passed.', True],
             'log_progress' : ['bool', 'Enable logging for processing.',False],
@@ -61,12 +59,7 @@ class Blocks(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-
         um.UserMetric.__init__(self, **kwargs)
-
-        self._date_start_ = um.UserMetric._get_timestamp(kwargs['date_start'])
-
-
 
     @staticmethod
     def header(): return ['user_id', 'block_count', 'block_first', 'block_last', 'ban']
@@ -123,7 +116,7 @@ class Blocks(um.UserMetric):
 				GROUP BY 1, 2
 			""" % {
             'user_str' : user_handle_str,
-            'timestamp': self._date_start_,
+            'timestamp': self._start_ts_,
             'user_cond': user_handle_str,
             'wiki' : self._project_
             }

@@ -3,7 +3,6 @@ __author__ = "Ryan Faulkner"
 __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
-import datetime
 from dateutil.parser import parse as date_parse
 import user_metric as um
 import edit_count as ec
@@ -28,8 +27,6 @@ class EditRate(um.UserMetric):
     # Structure that defines parameters for EditRate class
     _param_types = {
         'init' : {
-            'date_start' : ['str|datetime', 'Earliest date a block is measured.', '2010-01-01 00:00:00'],
-            'date_end' : ['str|datetime', 'Latest date a block is measured.', datetime.datetime.now()],
             'time_unit' : ['int', 'Type of time unit to normalize by (HOUR=0, DAY=1).', DAY],
             'time_unit_count' : ['int', 'Number of time units to normalize by (e.g. per two days).', 1],
             },
@@ -53,14 +50,9 @@ class EditRate(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-
         um.UserMetric.__init__(self, **kwargs)
-
         self._time_unit_count_ = kwargs['time_unit_count']
         self._time_unit_ = kwargs['time_unit']
-        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
-        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
-
 
     @staticmethod
     def header(): return ['user_id', 'edit_rate', 'start_time', 'period_len']

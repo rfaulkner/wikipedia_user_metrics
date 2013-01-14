@@ -6,11 +6,12 @@ __license__ = "GPL (version 2 or later)"
 
 import user_metric as um
 import src.etl.data_loader as dl
-import datetime
 import collections
 import os
 import src.utils.multiprocessing_wrapper as mpw
 from src.etl.aggregator import decorator_builder
+
+from config import logging
 
 # Definition of persistent state for RevertRate objects
 RevertRateArgsClass = collections.namedtuple('RevertRateArgs', 'project log_progress '
@@ -49,8 +50,6 @@ class RevertRate(um.UserMetric):
     # Structure that defines parameters for RevertRate class
     _param_types = {
         'init' : {
-            'date_start' : ['str|datetime', 'Earliest date a block is measured.','2010-01-01 00:00:00'],
-            'date_end' : ['str|datetime', 'Latest date a block is measured.',datetime.datetime.now()],
             'look_ahead' : ['int', 'Number of revisions to look ahead when computing revert.',15],
             'look_back' : ['int', 'Number of revisions to look back when computing revert.',15],
         },
@@ -77,13 +76,9 @@ class RevertRate(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-
         um.UserMetric.__init__(self, **kwargs)
-
         self.look_back = kwargs['look_back']
         self.look_ahead = kwargs['look_ahead']
-        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
-        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
 
     @staticmethod
     def header(): return ['user_id', 'revert_rate', 'total_revisions']
@@ -172,8 +167,8 @@ def _process_help(args):
     conn = dl.Connector(instance='slave')
 
     if thread_args.log_progress:
-        print str(datetime.datetime.now()) + ' - Computing reverts on %s users in thread %s.' % (len(user_data),
-                                                                                            str(os.getpid()))
+        logging.info(__name__ + '::Computing reverts on %s users in thread %s.' % (len(user_data),
+                                                                                            str(os.getpid())))
     results_agg = list()
     for user in user_data:
         conn._cur_.execute(
@@ -208,7 +203,7 @@ def _process_help(args):
         else:
             results_agg.append([user, total_reverts / total_revisions, total_revisions])
 
-    if thread_args.log_progress: print str(datetime.datetime.now()) +  'PID %s complete.' % (str(os.getpid()))
+    if thread_args.log_progress: logging.info(__name__ + '::PID %s complete.' % (str(os.getpid())))
     return results_agg
 
 def _revision_proc(args):
