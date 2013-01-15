@@ -90,7 +90,7 @@ class Connector(object):
                     logging.error(__name__ + '::Connection dropped.  Reopening MySQL connection.  '
                                              '%s retries left' % retries)
                     retries -= 1
-            if not retries: raise Exception('Could not establish connection.')
+            if not retries: raise ConnectorError()
 
             self._cur_ = self._db_.cursor()
 
@@ -509,3 +509,13 @@ class DataLoader(object):
         create_stmt = create_stmt[:-1] + ") ENGINE=MyISAM DEFAULT CHARSET=binary"
         conn.execute_SQL(create_stmt)
 
+
+class DataLoaderError(Exception):
+    """ Basic exception class for UserMetric types """
+    def __init__(self, message="Could not perform data operation."):
+        Exception.__init__(self, message)
+
+class ConnectorError(Exception):
+    """ Basic exception class for UserMetric types """
+    def __init__(self, message="Could not establish a connection."):
+        Exception.__init__(self, message)
