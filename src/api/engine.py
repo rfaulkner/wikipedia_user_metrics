@@ -68,7 +68,7 @@ def process_request_params(request_meta):
 
     request_meta.time_series = True if request_meta.time_series else None
 
-    agg_key = mm.get_agg_key(request_meta.metric, request_meta.aggregator)
+    agg_key = mm.get_agg_key(request_meta.aggregator, request_meta.metric)
     request_meta.aggregator = agg_key if agg_key else None
 
 
@@ -177,7 +177,7 @@ def set_data(request_meta, data, hash_table_ref):
 
 def get_url_from_keys(keys):
     """ Compose a url from a set of keys """
-    path = 'metrics'
+    path = 'cohorts'
     query_str = ''
     for key in keys:
         parts = key.split(HASH_KEY_DELIMETER)
