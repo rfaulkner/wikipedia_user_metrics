@@ -98,20 +98,20 @@ class RevertRate(um.UserMetric):
 
         return self
 
-def __revert(conn, rev_id, page_id, sha1, user_text, metric_args):
+def __revert(rev_id, page_id, sha1, user_text, metric_args):
     """ Returns the revision corresponding to a revision if it exists. """
     history = {}
-    for rev in __history(conn._db_, rev_id, page_id, metric_args.look_back, project=metric_args.project):
+    for rev in __history(rev_id, page_id, metric_args.look_back, project=metric_args.project):
         history[rev[RevertRate.REV_SHA1_IDX]] = rev
 
-    for rev in __future(conn._db_, rev_id, page_id, metric_args.look_ahead, project=metric_args.project):
+    for rev in __future(rev_id, page_id, metric_args.look_ahead, project=metric_args.project):
         if rev[RevertRate.REV_SHA1_IDX] in history and rev[RevertRate.REV_SHA1_IDX] != sha1:
             if user_text == rev[RevertRate.REV_USER_TEXT_IDX]:
                 return None
             else:
                 return rev
 
-def __history(conn, rev_id, page_id, n, project='enwiki'):
+def __history(rev_id, page_id, n, project='enwiki'):
     """ Produce the n revisions on a page before a given revision """
     conn = dl.Connector(instance='slave')
     conn._cur_.execute(
@@ -132,9 +132,8 @@ def __history(conn, rev_id, page_id, n, project='enwiki'):
 
     for row in conn._cur_:
         yield row
-    del conn
 
-def __future(conn, rev_id, page_id, n, project='enwiki'):
+def __future(rev_id, page_id, n, project='enwiki'):
     """ Produce the n revisions on a page after a given revision """
     conn = dl.Connector(instance='slave')
     conn._cur_.execute(
@@ -155,7 +154,6 @@ def __future(conn, rev_id, page_id, n, project='enwiki'):
 
     for row in conn._cur_:
         yield row
-    del conn
 
 def _process_help(args):
     """ Used by Threshold::process() for forking.  Should not be called externally. """
@@ -192,6 +190,7 @@ def _process_help(args):
 
         revisions = [rev for rev in conn._cur_]
         del conn
+
         results_thread = mpw.build_thread_pool(revisions,_revision_proc,thread_args.rev_threads,state)
 
         for r in results_thread:
@@ -218,7 +217,7 @@ def _revision_proc(args):
     revision_count = 0.0
     revert_count = 0.0
     for rev in rev_data:
-        if __revert(conn, rev[0], rev[1], rev[2], rev[3], thread_args):
+        if __revert(rev[0], rev[1], rev[2], rev[3], thread_args):
             revert_count += 1.0
         revision_count += 1.0
     return [(revision_count, revert_count)]
