@@ -177,22 +177,21 @@ def set_data(request_meta, data, hash_table_ref):
         else:
             hash_table_ref[key] = data
 
-def get_url_from_keys(keys):
+def get_url_from_keys(keys, path_root):
     """ Compose a url from a set of keys """
-    path = 'cohorts'
     query_str = ''
     for key in keys:
         parts = key.split(HASH_KEY_DELIMETER)
         if parts[0] in REQUEST_META_BASE:
-            path += '/' + parts[1]
+            path_root += '/' + parts[1]
         elif parts[0] in REQUEST_META_QUERY_STR:
             query_str += parts[0] + '=' + parts[1] + '&'
 
-    if not path: raise MetricsAPIError
+    if not path_root: raise MetricsAPIError
     if query_str:
-        url = path + '?' + query_str[:-1]
+        url = path_root + '?' + query_str[:-1]
     else:
-        url = path
+        url = path_root
     return url
 
 def build_key_tree(nested_dict):
