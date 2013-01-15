@@ -56,7 +56,7 @@ class RevertRate(um.UserMetric):
         'process' : {
             'is_id' : ['bool', 'Are user ids or names being passed.',True],
             'log_progress' : ['bool', 'Enable logging for processing.',False],
-            'num_threads' : ['int', 'Number of worker processes over users.',0],
+            'num_threads' : ['int', 'Number of worker processes over users.',1],
             'rev_threads' : ['int', 'Number of worker processes over revisions.',1],
         }
     }
@@ -94,10 +94,7 @@ class RevertRate(um.UserMetric):
 
         # Multiprocessing vs. single processing execution
         args = [self._project_, log_progress, self.look_ahead, self.look_back, self._start_ts_, self._end_ts_, k_r]
-        if k:
-            self._results = mpw.build_thread_pool(user_handle,_process_help,k,args)
-        else:
-            self._results = _process_help([user_handle, args])
+        self._results = mpw.build_thread_pool(user_handle,_process_help,k,args)
 
         return self
 
