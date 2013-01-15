@@ -33,7 +33,7 @@ MAX_THREADS = 10
 metric_dict = {
     'threshold' : th.Threshold,
     'survival' : Survival,
-    'revert' : rr.RevertRate,
+    'revert_rate' : rr.RevertRate,
     'bytes_added' : BytesAdded,
     'blocks' : Blocks,
     'time_to_threshold' : TimeToThreshold,
