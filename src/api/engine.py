@@ -66,10 +66,12 @@ def process_request_params(request_meta):
     else:
         request_meta.date_end = end.strftime(DATETIME_STR_FORMAT)[:8] + TIME_STR
 
+    # set the time series if it has been included as a parameter
     request_meta.time_series = True if request_meta.time_series else None
 
+    # set the aggregator if there is one
     agg_key = mm.get_agg_key(request_meta.aggregator, request_meta.metric)
-    request_meta.aggregator = agg_key if agg_key else None
+    request_meta.aggregator = request_meta.aggregator if agg_key else None
 
 
 def get_users(cohort_expr):

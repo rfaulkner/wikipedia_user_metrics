@@ -68,7 +68,8 @@ def process_data_request(metric_handle, users, **kwargs):
     # create shorthand method refs
     to_string = dl.DataLoader().cast_elems_to_string
 
-    aggregator = kwargs['aggregator'] if 'aggrgator' in kwargs else None
+    aggregator = kwargs['aggregator'] if 'aggregator' in kwargs else None
+    agg_key = get_agg_key(aggregator, metric_handle) if aggregator else None
 
     # Initialize the results
     results = dict()
@@ -85,21 +86,17 @@ def process_data_request(metric_handle, users, **kwargs):
             results[str(key[1:-1])] = str(metric_obj.__dict__[key])
     results['metric'] = dict()
 
-    # Get the aggregator if there is one
+    # Parse the aggregator
     aggregator_func = None
+    if agg_key in aggregator_dict.keys():
+        aggregator_func = aggregator_dict[agg_key]
 
-    aggregator_key = get_agg_key(aggregator, metric_handle)
-    if aggregator_key in aggregator_dict.keys():
-        aggregator_func = aggregator_dict[aggregator_key]
-
-    time_series = True if 'time_series' in kwargs else False
+    # Parse the time series flag
+    time_series = True if 'time_series' in kwargs and kwargs['time_series'] else False
 
     if aggregator_func:
-
         if time_series:
-
             interval = int(kwargs['interval'])      # interval length in hours
-
             total_intervals = (date_parse(end) - date_parse(start)).total_seconds() / (3600 * interval)
             num_threads = min(MAX_THREADS, int(total_intervals / INTERVALS_PER_THREAD))
 
