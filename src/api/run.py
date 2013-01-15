@@ -235,12 +235,20 @@ def output(cohort, metric):
     # Check for refresh flag
     refresh = True if 'refresh' in request.args else False
 
-    cid = get_cohort_id(cohort)
-    cohort_refresh_ts = get_cohort_refresh_datetime(cid)
+    # Get the refresh date of the cohort
+    try:
+        cid = get_cohort_id(cohort)
+        cohort_refresh_ts = get_cohort_refresh_datetime(cid)
+    except Exception:
+        cohort_refresh_ts = None
+        logging.error(__name__ + '::Could not retrieve refresh time of cohort.')
+
+    # Build a request. Populate with request parameters from query args.
     rm = RequestMetaFactory(cohort, cohort_refresh_ts, metric, None, None, None, None)
     for param in REQUEST_META_QUERY_STR:
         if param in request.args: setattr(rm, param, request.args[param])
 
+    # Process defaults for request parameters
     try:
         process_request_params(rm)
     except MetricsAPIError as e:
