@@ -14,7 +14,6 @@ from datetime import timedelta, datetime
 from re import search
 from collections import OrderedDict
 
-import src.metrics.user_metric as um
 import src.etl.data_loader as dl
 import src.metrics.metrics_manager as mm
 
@@ -25,7 +24,7 @@ RequestMeta = recordtype('RequestMeta', 'cohort_expr cohort_gen_timestamp metric
                                         'aggregator project namespace date_start date_end interval t n')
 
 def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric, time_series, aggregator, date_start, date_end,
-                       project='enwiki', namespace=um.UserMetric.ALL_NAMESPACES,  interval=None, t=None, n=None):
+                       project=None, namespace=None,  interval=None, t=None, n=None):
     return RequestMeta(cohort_expr, cohort_gen_timestamp, metric, time_series, aggregator, project,
         namespace, date_start, date_end, interval, t, n)
 
