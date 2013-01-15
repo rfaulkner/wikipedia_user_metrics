@@ -69,7 +69,7 @@ class Connector(object):
     def __init__(self, **kwargs):
         self.set_connection(**kwargs)
 
-    def set_connection(self, **kwargs):
+    def set_connection(self, retries=20, **kwargs):
         """
             Establishes a database connection.
 
@@ -82,7 +82,16 @@ class Connector(object):
             for key in projSet.connections[kwargs['instance']]:
                 mysql_kwargs[key] = projSet.connections[kwargs['instance']][key]
 
-            self._db_ = MySQLdb.connect(**mysql_kwargs)
+            while retries:
+                try:
+                    self._db_ = MySQLdb.connect(**mysql_kwargs)
+                    break
+                except MySQLdb.OperationalError:
+                    logging.error(__name__ + '::Connection dropped.  Reopening MySQL connection.  '
+                                             '%s retries left' % retries)
+                    retries -= 1
+            if not retries: raise Exception('Could not establish connection.')
+
             self._cur_ = self._db_.cursor()
 
     def close_db(self):
