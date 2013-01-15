@@ -109,6 +109,7 @@ global error_codes
 error_codes = {
     0 : 'Job already running.',
     1 : 'Badly Formatted timestamp',
+    2 : 'Could not locate stored request.'
 }
 
 # Queue for storing all active processes
@@ -357,9 +358,32 @@ def all_urls():
     # Compose urls from key sigs
     url_list = list()
     for key_sig in key_sigs:
-        url = get_url_from_keys(key_sig)
+        url = get_url_from_keys(key_sig, 'stored')
         url_list.append("".join(['<a href="', request.url_root, url + '">', url, '</a>']))
     return render_template('all_urls.html', urls=url_list)
+
+@app.route('/stored/<string:cohort>/<string:metric>')
+def stored_requests(cohort, metric):
+    """ View for processing stored requests """
+    global pkl_data
+    hash_ref = pkl_data
+    try:
+        print cohort + ' ' + metric
+        print hash_ref
+        hash_ref = hash_ref[cohort][metric]
+        for param in REQUEST_META_QUERY_STR:
+            if param in request.args:
+                print param
+                hash_ref = [request.args[param]]
+    except Exception:
+        logging.error(__name__ + '::Request not found for: %s' % request.url)
+        return redirect(url_for('cohorts') + '?error=2')
+
+    if hasattr(hash_ref, 'status_code'): # Ensure that that the data is a HTTP response object
+        return hash_ref
+    else:
+        return redirect(url_for('cohorts') + '?error=2')
+
 
 ######
 #
