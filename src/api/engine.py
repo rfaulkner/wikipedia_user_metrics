@@ -14,6 +14,7 @@ from datetime import timedelta, datetime
 from re import search
 from collections import OrderedDict
 
+import src.metrics.user_metric as um
 import src.etl.data_loader as dl
 import src.metrics.metrics_manager as mm
 
@@ -21,14 +22,15 @@ from config import logging
 
 # Define the standard variable names in the query string - store in named tuple
 RequestMeta = recordtype('RequestMeta', 'cohort_expr cohort_gen_timestamp metric time_series ' +\
-                                        'aggregator date_start date_end interval t n')
+                                        'aggregator project namespace date_start date_end interval t n')
 
 def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric, time_series, aggregator, date_start, date_end,
-                       interval=None, t=None, n=None):
-    return RequestMeta(cohort_expr, cohort_gen_timestamp, metric, time_series, aggregator, date_start, date_end,
-        interval, t, n)
+                       project='enwiki', namespace=um.UserMetric.ALL_NAMESPACES,  interval=None, t=None, n=None):
+    return RequestMeta(cohort_expr, cohort_gen_timestamp, metric, time_series, aggregator, project,
+        namespace, date_start, date_end, interval, t, n)
 
-REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'date_start', 'date_end', 'interval', 't', 'n']
+REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace', 'date_start', 'date_end',
+                          'interval', 't', 'n']
 REQUEST_META_BASE = ['cohort_expr', 'metric']
 
 HASH_KEY_DELIMETER = " <==> " # This is used to separate key meta and key strings for hash table data e.g. "metric <==> blocks"
