@@ -113,8 +113,8 @@ def __revert(conn, rev_id, page_id, sha1, user_text, metric_args):
 
 def __history(conn, rev_id, page_id, n, project='enwiki'):
     """ Produce the n revisions on a page before a given revision """
-    cursor = conn.cursor()
-    cursor.execute(
+    conn = dl.Connector(instance='slave')
+    conn._cur_.execute(
         """
             SELECT rev_id, rev_user_text, rev_sha1
             FROM %(project)s.revision
@@ -130,13 +130,14 @@ def __history(conn, rev_id, page_id, n, project='enwiki'):
         }
     )
 
-    for row in cursor:
+    for row in conn._cur_:
         yield row
+    del conn
 
 def __future(conn, rev_id, page_id, n, project='enwiki'):
     """ Produce the n revisions on a page after a given revision """
-    cursor = conn.cursor()
-    cursor.execute(
+    conn = dl.Connector(instance='slave')
+    conn._cur_.execute(
         """
             SELECT rev_id, rev_user_text, rev_sha1
             FROM %(project)s.revision
@@ -152,8 +153,9 @@ def __future(conn, rev_id, page_id, n, project='enwiki'):
         }
     )
 
-    for row in cursor:
+    for row in conn._cur_:
         yield row
+    del conn
 
 def _process_help(args):
     """ Used by Threshold::process() for forking.  Should not be called externally. """
@@ -161,13 +163,13 @@ def _process_help(args):
     state = args[1]
     thread_args = RevertRateArgsClass(state[0],state[1],state[2],state[3],state[4],state[5],state[6])
     user_data = args[0]
-    conn = dl.Connector(instance='slave')
 
     if thread_args.log_progress:
         logging.info(__name__ + '::Computing reverts on %s users in thread %s.' % (len(user_data),
                                                                                             str(os.getpid())))
     results_agg = list()
     for user in user_data:
+        conn = dl.Connector(instance='slave')
         conn._cur_.execute(
             """
            select
@@ -189,6 +191,7 @@ def _process_help(args):
         total_reverts = 0.0
 
         revisions = [rev for rev in conn._cur_]
+        del conn
         results_thread = mpw.build_thread_pool(revisions,_revision_proc,thread_args.rev_threads,state)
 
         for r in results_thread:
