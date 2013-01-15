@@ -101,7 +101,7 @@ class UserMetric(object):
             'date_end' : ['str|datetime', 'Latest date metric is measured.', datetime.now()],
 
             'project' : ['str', 'The project (language) being inspected.', 'enwiki'],
-            'namespace' : ['int|set', 'The namespace over which the metric is computed.', ALL_NAMESPACES],
+            'namespace' : ['int|set', 'The namespace over which the metric is computed.', 0],
             },
         'process' : {}
     }
