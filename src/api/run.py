@@ -77,6 +77,7 @@ import config.settings as settings
 import multiprocessing as mp
 import collections
 from collections import OrderedDict
+from re import sub
 
 import src.etl.data_loader as dl
 import src.metrics.metrics_manager as mm
@@ -241,8 +242,10 @@ def output(cohort, metric):
     global global_id
     url = request.url.split(request.url_root)[1]
 
-    # Check for refresh flag
+    # Check for refresh flag - drop from url
     refresh = True if 'refresh' in request.args else False
+    if refresh:
+        url = sub(r'refresh=[^&]*[&]|\?refresh=[^&]*$','', url)
 
     # Get the refresh date of the cohort
     try:
