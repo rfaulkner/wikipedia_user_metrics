@@ -13,11 +13,11 @@ from config import logging
 from os import getpid
 
 # Definition of persistent state for RevertRate objects
-NamespaceEditsArgsClass = namedtuple('RevertRateArgs', 'project log date_start date_end')
+NamespaceEditsArgsClass = namedtuple('NamespaceEditsArgs', 'project log date_start date_end')
 
 class NamespaceEdits(um.UserMetric):
     """
-        Skeleton class for "RevertRate" metric:
+        Skeleton class for "namespace of edits" metric:
 
             `https://meta.wikimedia.org/wiki/Research:Metrics/revert_rate`
 
@@ -31,13 +31,16 @@ class NamespaceEdits(um.UserMetric):
         For example to produce the above datapoint for a user id one could call: ::
 
             >>> from src.metrics.namespace_of_edits import NamespaceEdits
-            >>> n = NamespaceEdits(date_start='2008-01-01 00:00:00', date_end='2008-05-01 00:00:00')
-            >>> for r in r.process('156171',num_threads=0,rev_threads=10, log_progress=True): print r
-            ['156171', 0.0, 210.0]
+            >>> users = ['17792132', '17797320', '17792130', '17792131', '17792136', 13234584, 156171]
+            >>> n = NamespaceEdits(date_start='20110101000000')
+            >>> for r in r.process(users, log=True): print r
+            Jan-15 15:25:29 INFO     __main__::parameters = {'num_threads': 1, 'log': True}
+            Jan-15 15:25:30 INFO     __main__::Computing namespace edits. (PID = 20102)
+            Jan-15 15:25:30 INFO     __main__::From 20110101000000 to 20130115152529. (PID = 20102)
+            ['namespace_edits_sum', OrderedDict([('-1', 0), ('-2', 0), ('0', 227), ('1', 11), ('2', 158), ('3', 38),
+            ('4', 578), ('5', 27), ('6', 1), ('7', 0), ('8', 0), ('9', 0), ('10', 13), ('11', 8), ('12', 0), ('13', 0),
+            ('14', 5), ('15', 0), ('100', 1), ('101', 2), ('108', 0), ('109', 0)])]
 
-        In this call `look_ahead` and `look_back` indicate how many revisions in the past and in the future for a given
-        article we are willing to look for a revert.  The identification of reverts is done by matching sha1 checksum values
-        over revision history.
     """
 
     VALID_NAMESPACES = [-1,-2] + range(16) + [100, 101, 108, 109] # namespaces or which counts are gathered
