@@ -160,6 +160,7 @@ def build_url_from_request(request): pass
 @app.route('/')
 def api_root():
     """ View for root url - API instructions """
+    #@@@ TODO make tag list generation a dedicated method
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('select utm_name from usertags_meta')
     data = [r[0] for r in conn._cur_]
@@ -177,7 +178,7 @@ def contact():
 @app.route('/tags/')
 def tags():
     """ View for tag definitions where cohort meta data can be reviewed """
-
+    #@@@ TODO make tag list generation a dedicated method
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('select * from usertags_meta')
 
@@ -199,18 +200,25 @@ def all_metrics():
 @app.route('/metrics/<string:metric>')
 def metric(metric=''):
     """ Display single metric documentation """
-    #@@@ TODO validate metric against existing metrics
-    return render_template('metric.html', m_str=metric)
+    #@@@ TODO make tag list generation a dedicated method
+    conn = dl.Connector(instance='slave')
+    conn._cur_.execute('select utm_name from usertags_meta')
+    data = [r[0] for r in conn._cur_]
+    del conn
+    #@@@ TODO validate user input against list of existing metrics
+    return render_template('metric.html', m_str=metric, cohort_data=data)
 
 @app.route('/cohorts/', methods=['POST', 'GET'])
 def all_cohorts():
     """ View for listing and selecting cohorts """
     error = get_errors(request.args)
 
+    #@@@ TODO  form validation against existing cohorts and metrics
     if request.method == 'POST':
         #@@@ TODO  validate form input against existing cohorts
         return cohort(request.form['selectCohort'])
     else:
+        #@@@ TODO make tag list generation a dedicated method
         conn = dl.Connector(instance='slave')
         conn._cur_.execute('select distinct utm_name from usertags_meta')
         o = [r[0] for r in conn._cur_]
