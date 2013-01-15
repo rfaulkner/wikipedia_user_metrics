@@ -41,7 +41,7 @@ class Threshold(um.UserMetric):
             },
         'process' : {
             'log_progress' : ['bool', 'Enable logging for processing.',False],
-            'num_threads' : ['int', 'Number of worker processes over users.',0],
+            'num_threads' : ['int', 'Number of worker processes over users.',1],
             'survival' : ['bool', 'Indicates whether this is to be processed as the survival metric.',False],
             'restrict' : ['bool', 'Restrict threshold calculations to those users registered between'
                                   '`date_start` and `date_end`',False],
@@ -126,13 +126,10 @@ class Threshold(um.UserMetric):
         }
         self._data_source_._cur_.execute(" ".join(sql.strip().split('\n')))
 
-        # Multiprocessing vs. single processing execution
+        # Process results
         user_data = [r for r in self._data_source_._cur_]
         args = [self._project_, self._namespace_, self._n_, self._t_, log_progress, survival]
-        if k:
-            self._results = mpw.build_thread_pool(user_data,_process_help,k,args)
-        else:
-            self._results = _process_help([user_data, args])
+        self._results = mpw.build_thread_pool(user_data,_process_help,k,args)
 
         return self
 
