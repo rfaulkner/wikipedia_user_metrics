@@ -353,14 +353,6 @@ def all_urls():
         url_list.append("".join(['<a href="', request.url_root, url + '">', url, '</a>']))
     return render_template('all_urls.html', urls=url_list)
 
-
-def build_key_tree(nested_dict):
-    """ Builds a tree of key values from a nested dict """
-    if hasattr(nested_dict, 'keys'):
-        for key in nested_dict.keys(): yield (key, build_key_tree(nested_dict[key]))
-    else:
-        yield None
-
 ######
 #
 # Define Custom Classes

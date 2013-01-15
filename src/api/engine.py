@@ -192,3 +192,10 @@ def get_url_from_keys(keys):
     else:
         url = path
     return url
+
+def build_key_tree(nested_dict):
+    """ Builds a tree of key values from a nested dict. """
+    if hasattr(nested_dict, 'keys'):
+        for key in nested_dict.keys(): yield (key, build_key_tree(nested_dict[key]))
+    else:
+        yield None
