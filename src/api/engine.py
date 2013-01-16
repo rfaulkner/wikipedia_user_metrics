@@ -32,6 +32,25 @@ REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace', '
                           'interval', 't', 'n']
 REQUEST_META_BASE = ['cohort_expr', 'metric']
 
+# Defines the query parameters accepted by each metric request.  This is a dict keyed on metric that stores a list
+# of tuples.  Each tuple defines (<name of allowable query string var>, <name of corresponding metric param>)
+
+common_params = [('date_start','date_start') , ('date_end','date_end'),
+    ('project','project'), ('namespace','namespace')]
+
+QUERY_PARAMS_BY_METRIC = {
+    'blocks' : common_params,
+    'bytes_added' : common_params,
+    'edit_count' : common_params,
+    'edit_rate' : common_params + [('time_unit','time_unit'), ('time_unit_count','time_unit_count'),],
+    'live_account' : common_params + [('t','t'),],
+    'namespace_of_edits' : common_params,
+    'revert_rate' : common_params + [('look_back','look_back'),('look_ahead','look_ahead'),],
+    'survival' : common_params + [('t','t'),],
+    'threshold' : common_params + [('t','t'), ('n','n'),],
+    'time_to_threshold' : common_params + [('threshold_type','threshold_type_class'),],
+    }
+
 HASH_KEY_DELIMETER = " <==> " # This is used to separate key meta and key strings for hash table data e.g. "metric <==> blocks"
 
 # Datetime string format to be used throughout the API
