@@ -12,7 +12,7 @@ from src.api import COHORT_REGEX, parse_cohorts, MetricsAPIError
 from dateutil.parser import parse as date_parse
 from datetime import timedelta, datetime
 from re import search
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 
 import src.etl.data_loader as dl
 import src.metrics.metrics_manager as mm
@@ -29,29 +29,37 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric, time_series, a
         namespace, date_start, date_end, interval, t, n)
 
 REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace', 'date_start', 'date_end',
-                          'interval', 't', 'n']
+                          'interval', 't', 'n',]
 REQUEST_META_BASE = ['cohort_expr', 'metric']
 
-# Defines the query parameters accepted by each metric request.  This is a dict keyed on metric that stores a list
-# of tuples.  Each tuple defines (<name of allowable query string var>, <name of corresponding metric param>)
 
-common_params = [('date_start','date_start') , ('date_end','date_end'),
-    ('project','project'), ('namespace','namespace')]
+# Using the MEDIATOR model :: Defines the query parameters accepted by each metric request.  This is a dict keyed on
+# metric that stores a list of tuples.  Each tuple defines:
+#
+#       (<name of allowable query string var>, <name of corresponding metric param>)
+
+varMapping = namedtuple("VarMapping", "query_var metric_var") # defines a tuple for mapped variable names
+
+common_params = [varMapping('date_start','date_start'), varMapping('date_end','date_end'),
+                 varMapping('project','project'), varMapping('namespace','namespace')]
 
 QUERY_PARAMS_BY_METRIC = {
     'blocks' : common_params,
     'bytes_added' : common_params,
     'edit_count' : common_params,
-    'edit_rate' : common_params + [('time_unit','time_unit'), ('time_unit_count','time_unit_count'),],
-    'live_account' : common_params + [('t','t'),],
+    'edit_rate' : common_params + [varMapping('time_unit','time_unit'),
+                                   varMapping('time_unit_count','time_unit_count'),],
+    'live_account' : common_params + [varMapping('t','t'),],
     'namespace_of_edits' : common_params,
-    'revert_rate' : common_params + [('look_back','look_back'),('look_ahead','look_ahead'),],
-    'survival' : common_params + [('t','t'),],
-    'threshold' : common_params + [('t','t'), ('n','n'),],
-    'time_to_threshold' : common_params + [('threshold_type','threshold_type_class'),],
+    'revert_rate' : common_params + [varMapping('look_back','look_back'),
+                                     varMapping('look_ahead','look_ahead'),],
+    'survival' : common_params + [varMapping('t','t'),],
+    'threshold' : common_params + [varMapping('t','t'), varMapping('n','n'),],
+    'time_to_threshold' : common_params + [varMapping('threshold_type','threshold_type_class'),],
     }
 
-HASH_KEY_DELIMETER = " <==> " # This is used to separate key meta and key strings for hash table data e.g. "metric <==> blocks"
+# This is used to separate key meta and key strings for hash table data e.g. "metric <==> blocks"
+HASH_KEY_DELIMETER = " <==> "
 
 # Datetime string format to be used throughout the API
 DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"

@@ -141,9 +141,14 @@ def process_metrics(p, rm):
     conn = dl.Connector(instance='slave')
     logging.info(__name__ + '::START JOB %s (PID = %s)' % (str(rm), os.getpid()))
 
-    # process metrics
+    # obtain user list
     users = get_users(rm.cohort_expr)
-    args = { attr : getattr(rm, attr) for attr in REQUEST_META_QUERY_STR} # unpack RequestMeta into dict
+
+    # unpack RequestMeta into dict using MEDIATOR
+    args = { attr.metric_var : getattr(rm, attr.query_var) for attr in QUERY_PARAMS_BY_METRIC[rm.metric] }
+    logging.info(__name__ + '::Calling %s with args = %s.' % (rm.metric, str(args)))
+
+    # process request
     results = mm.process_data_request(rm.metric, users, **args)
 
     p.put(jsonify(results))
