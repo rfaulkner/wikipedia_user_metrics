@@ -6,7 +6,8 @@ __license__ = "GPL (version 2 or later)"
 
 import user_metric as um
 import src.utils.multiprocessing_wrapper as mpw
-from collections import namedtuple, OrderedDict
+from src.etl.data_loader import Connector
+from collections import namedtuple
 from config import logging
 from os import getpid
 
@@ -76,15 +77,66 @@ class LiveAccount(um.UserMetric):
         if log: logging.info(__name__ + "::parameters = " + str(kwargs))
 
         # Multiprocessing vs. single processing execution
-        args = [self._project_, log, self._start_ts_, self._end_ts_]
+        args = [self._project_, self._namespace_, log, self._start_ts_, self._end_ts_, self._t_]
         self._results = mpw.build_thread_pool(user_handle,_process_help,k,args)
 
         return self
 
 def _process_help(args):
-    return []
+
+    # Unpack args
+    state = args[1]
+    thread_args = LiveAccountArgsClass(state[0],state[1],state[2],state[3],state[4],state[5])
+    user_data = args[0]
+    conn = Connector(instance='slave')
+
+    # Log progress
+    if thread_args.log:
+        logging.info(__name__ + '::Computing live account. (PID = %s)' % getpid())
+        logging.info(__name__ + '::From %s to %s. (PID = %s)' % (
+            str(thread_args.date_start), str(thread_args.date_end), getpid()))
+
+    # Extract edit button click from edit_page_tracking table (namespace, article title, timestamp) of first click and
+    # registration timestamps (join on logging table)
+    #
+    # Query will return: (user id, time of registration, time of first edit button click)
+
+    # Setup conditions on query
+    user_cond = um.dl.DataLoader().format_condition_in('ept_user', user_data)
+    ns_cond = ''
+    if thread_args.namespace != um.UserMetric.ALL_NAMESPACES:
+        ns_cond = um.dl.DataLoader().format_condition_in('page_namespace', thread_args.namespace)
+
+    where_clause = 'log_action = "create"'
+    if user_cond: where_clause += ' AND ' + user_cond
+    if ns_cond: where_clause += ' AND ' + ns_cond
+
+    from_clause = '%(project)s.edit_page_tracking AS e RIGHT JOIN %(project)s.logging AS l ON e.ept_user = l.log_user'
+    from_clause = from_clause % {"project" : thread_args.project}
+    if ns_cond:
+        from_clause += " LEFT JOIN %(project)s.page as p ON e.ept_title = p.page_title" % {"project" : thread_args.project}
+
+    sql = """
+            SELECT
+                e.ept_user,
+                MIN(e.ept_timestamp) as first_click,
+                MIN(l.log_timestamp) as registration
+            FROM %(from_clause)s
+            WHERE %(where_clause)s
+            GROUP BY 1
+        """ % {
+            "from_clause" : from_clause,
+            "where_clause" : where_clause,
+            }
+    conn._cur_.execute(" ".join(sql.split('\n')))
+
+    # Iterate over results to determine boolean indicating whether account is "live"
+    results = list()
+    for row in conn._cur_: print row
+
+    return results
 
 if __name__ == "__main__":
     users = ['17792132', '17797320', '17792130', '17792131', '17792136', 13234584, 156171]
-    la = LiveAccount(date_start='20110101000000')
-    for r in la.process(users,log=True): print r
+    la = LiveAccount()
+    for r in la.process(users,log=True): pass
