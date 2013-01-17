@@ -10,6 +10,7 @@ from src.etl.data_loader import Connector
 from collections import namedtuple
 from config import logging
 from os import getpid
+from dateutil.parser import parse as date_parse
 
 # Definition of persistent state for RevertRate objects
 LiveAccountArgsClass = namedtuple('LiveAccountArgs', 'project namespace log date_start date_end t')
@@ -33,7 +34,19 @@ class LiveAccount(um.UserMetric):
             >>> users = ['17792132', '17797320', '17792130', '17792131', '17792136', 13234584, 156171]
             >>> la = LiveAccount(date_start='20110101000000')
             >>> for r in r.process(users,log=True): print r
+            ('17792130', -1)
+            ('17792131', -1)
+            ('17792132', -1)
+            ('17797320', -1)
+            ('156171', -1)
+            ('17792136', 1)
+            ('13234584', -1)
 
+        Here the follow outcomes may follow: ::
+
+            -1  - The edit button was not clicked after registration
+            0   - The edit button was clicked more than `t` minutes after registration
+            1   - The edit button was clicked `t` minutes within registration
     """
 
     # Structure that defines parameters for RevertRate class
@@ -119,8 +132,8 @@ def _process_help(args):
     sql = """
             SELECT
                 e.ept_user,
-                MIN(e.ept_timestamp) as first_click,
-                MIN(l.log_timestamp) as registration
+                MIN(l.log_timestamp) as registration,
+                MIN(e.ept_timestamp) as first_click
             FROM %(from_clause)s
             WHERE %(where_clause)s
             GROUP BY 1
@@ -131,12 +144,22 @@ def _process_help(args):
     conn._cur_.execute(" ".join(sql.split('\n')))
 
     # Iterate over results to determine boolean indicating whether account is "live"
-    results = list()
-    for row in conn._cur_: print row
+    results = { long(user) : -1 for user in user_data}
+    for row in conn._cur_:
+        try:
+            diff = (date_parse(row[2]) - date_parse(row[1])).total_seconds()
+            diff /= 60 # get the difference in minutes
+        except Exception:
+            continue
 
-    return results
+        if diff <= thread_args.t:
+            results[row[0]] = 1
+        else:
+            results[row[0]] = 0
+
+    return [(str(key), results[key]) for key in results]
 
 if __name__ == "__main__":
     users = ['17792132', '17797320', '17792130', '17792131', '17792136', 13234584, 156171]
     la = LiveAccount()
-    for r in la.process(users,log=True): pass
+    for r in la.process(users,log=True): print r
