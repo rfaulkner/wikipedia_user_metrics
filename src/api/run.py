@@ -428,7 +428,7 @@ class APIMethods(object):
             pkl_data = cPickle.load(pkl_file)
             pkl_file.close()
 
-    def __del__(self):
+    def close(self):
         """  When the instance is deleted store the pickled data """
         global pkl_data
 
@@ -453,7 +453,4 @@ if __name__ == '__main__':
     try:
         app.run(debug=True)
     finally:
-        del a
-
-
-
+        a.close()
