@@ -60,6 +60,16 @@ def read_file(file_path_name):
     content = map(lambda s: s.strip(), content) # strip any leading/trailing whitespace
     return " ".join(content)
 
+class DataLoaderError(Exception):
+    """ Basic exception class for UserMetric types """
+    def __init__(self, message="Could not perform data operation."):
+        Exception.__init__(self, message)
+
+class ConnectorError(Exception):
+    """ Basic exception class for UserMetric types """
+    def __init__(self, message="Could not establish a connection."):
+        Exception.__init__(self, message)
+
 class Connector(object):
     """ This class implements the connection logic to MySQL """
 
@@ -537,12 +547,3 @@ class DataLoader(object):
             }
         return ts_cond
 
-class DataLoaderError(Exception):
-    """ Basic exception class for UserMetric types """
-    def __init__(self, message="Could not perform data operation."):
-        Exception.__init__(self, message)
-
-class ConnectorError(Exception):
-    """ Basic exception class for UserMetric types """
-    def __init__(self, message="Could not establish a connection."):
-        Exception.__init__(self, message)
