@@ -23,10 +23,25 @@ from config import logging
 RequestMeta = recordtype('RequestMeta', 'cohort_expr cohort_gen_timestamp metric time_series ' +\
                                         'aggregator project namespace date_start date_end interval t n')
 
-def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric, time_series, aggregator, date_start, date_end,
-                       project=None, namespace=None,  interval=None, t=None, n=None):
-    return RequestMeta(cohort_expr, cohort_gen_timestamp, metric, time_series, aggregator, project,
-        namespace, date_start, date_end, interval, t, n)
+def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric):
+    """
+        Dynamically builds a record type given a metric handle
+
+        All args must be strings representing a cohort, last updated timestamp, and metric respectively.
+    """
+    default_params = 'cohort_expr cohort_gen_timestamp metric '
+    additional_params = ''
+    for val in QUERY_PARAMS_BY_METRIC[metric]: additional_params += val.query_var + ' '
+    additional_params = additional_params[:-1]
+    params = default_params + additional_params
+
+    arg_list = ['cohort_expr', 'cohort_gen_timestamp', 'metric'] + ['None'] * len(QUERY_PARAMS_BY_METRIC[metric])
+    arg_str = "(" + ",".join(arg_list) + ")"
+
+    rt = recordtype("RequestMeta", params)
+    print 'rt' + arg_str
+    return eval('rt' + arg_str)
+
 
 REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace', 'date_start', 'date_end',
                           'interval', 't', 'n','time_unit','time_unit_count', 'look_ahead', 'look_back',
@@ -42,7 +57,9 @@ REQUEST_META_BASE = ['cohort_expr', 'metric']
 varMapping = namedtuple("VarMapping", "query_var metric_var") # defines a tuple for mapped variable names
 
 common_params = [varMapping('date_start','date_start'), varMapping('date_end','date_end'),
-                 varMapping('project','project'), varMapping('namespace','namespace')]
+                 varMapping('project','project'), varMapping('namespace','namespace'),
+                 varMapping('interval','interval'), varMapping('time_series','time_series'),
+                 varMapping('aggregator','aggregator')]
 
 QUERY_PARAMS_BY_METRIC = {
     'blocks' : common_params,
@@ -161,9 +178,12 @@ def get_data(request_meta, hash_table_ref):
     """ Extract data from the global hash given a request object """
 
     # Traverse the hash key structure to find data
+    # @TODO rather than iterate through REQUEST_META_BASE & REQUEST_META_QUERY_STR look only at existing attributes
     for key_name in REQUEST_META_BASE + REQUEST_META_QUERY_STR:
-        key = getattr(request_meta,key_name)
-        if not key: continue  # Only process keys that have been set
+        if hasattr(request_meta, key_name) and getattr(request_meta, key_name):
+            key = getattr(request_meta, key_name)
+        else:
+            continue
 
         full_key = key_name + HASH_KEY_DELIMETER + key
         if hasattr(hash_table_ref, 'has_key') and hash_table_ref.has_key(full_key):
@@ -193,8 +213,9 @@ def set_data(request_meta, data, hash_table_ref):
             return
 
     for key_name in REQUEST_META_QUERY_STR: # These keys may optionally exist
-        key = getattr(request_meta, key_name)
-        if key: key_sig.append(key_name + HASH_KEY_DELIMETER + key)
+        if hasattr(request_meta,key_name):
+            key = getattr(request_meta, key_name)
+            if key: key_sig.append(key_name + HASH_KEY_DELIMETER + key)
 
     # For each key in the key signature add a nested key to the hash
     last_item = key_sig[len(key_sig) - 1]
