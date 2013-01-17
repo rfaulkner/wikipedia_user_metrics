@@ -509,6 +509,33 @@ class DataLoader(object):
         create_stmt = create_stmt[:-1] + ") ENGINE=MyISAM DEFAULT CHARSET=binary"
         conn.execute_SQL(create_stmt)
 
+    def format_condition_in(self, field_name, item_list, include_quotes=False):
+        """ Formats a SQL "in" condition """
+        if hasattr(item_list, '__iter__'):
+            list_str = self.format_comma_separated_list(self.cast_elems_to_string(item_list), include_quotes=include_quotes)
+            list_cond = "%s in (%s)" % (field_name, list_str)
+            return list_cond
+        else:
+            logging.error(__name__ + '::format_condition_in - item_list must implement the iterable interface.')
+            return ''
+
+    def format_condition_between(self, field_name, val_1, val_2, include_quotes=False):
+        """ Formats a SQL "between" condition """
+
+        # Cast operands to string.  Add quoatation if specified
+        val_1 = str(val_1)
+        val_2 = str(val_2)
+        if include_quotes:
+            val_1 = '"' + val_1 + '"'
+            val_2 = '"' + val_2 + '"'
+
+        # Format clause
+        ts_cond = '%(field_name)s BETWEEN %(val_1)s AND %(val_2)s' % {
+            'field_name' : field_name,
+            'val_1' : val_1,
+            'val_2' : val_2,
+            }
+        return ts_cond
 
 class DataLoaderError(Exception):
     """ Basic exception class for UserMetric types """
