@@ -261,9 +261,9 @@ def output(cohort, metric):
         logging.error(__name__ + '::Could not retrieve refresh time of cohort.')
 
     # Build a request. Populate with request parameters from query args.
-    rm = RequestMetaFactory(cohort, cohort_refresh_ts, metric, None, None, None, None)
+    rm = RequestMetaFactory(cohort, cohort_refresh_ts, metric)
     for param in REQUEST_META_QUERY_STR:
-        if param in request.args: setattr(rm, param, request.args[param])
+        if param in request.args and hasattr(rm, param): setattr(rm, param, request.args[param])
 
     # Process defaults for request parameters
     try:
@@ -271,7 +271,7 @@ def output(cohort, metric):
     except MetricsAPIError as e:
         return redirect(url_for('cohorts') + '?error=' + e.message)
 
-    # Determine if the request maps to an existing repsonse.  If so return it.  Otherwise compute.
+    # Determine if the request maps to an existing response.  If so return it.  Otherwise compute.
     data = get_data(rm, pkl_data)
     if data and not refresh:
         return data
@@ -389,7 +389,6 @@ def stored_requests(cohort, metric):
         hash_ref = hash_ref[cohort][metric]
         for param in REQUEST_META_QUERY_STR:
             if param in request.args:
-                print param
                 hash_ref = [request.args[param]]
     except Exception:
         logging.error(__name__ + '::Request not found for: %s' % request.url)
