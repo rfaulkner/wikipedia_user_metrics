@@ -19,6 +19,7 @@ import revert_rate as rr
 from time_to_threshold import TimeToThreshold
 from edit_rate import EditRate
 from namespace_of_edits import NamespaceEdits, namespace_edits_sum
+from live_account import LiveAccount
 
 import src.etl.data_loader as dl
 import src.etl.aggregator as agg
@@ -39,6 +40,7 @@ metric_dict = {
     'time_to_threshold' : TimeToThreshold,
     'edit_rate' : EditRate,
     'namespace_edits' : NamespaceEdits,
+    'live_account' : LiveAccount,
     }
 
 aggregator_dict = {
@@ -122,7 +124,7 @@ def process_data_request(metric_handle, users, **kwargs):
                 'end' : str(end),
                 })
 
-            metric_obj.process(users, num_threads=20, rev_threads=50, **kwargs)
+            metric_obj.process(users, num_threads=30, rev_threads=50, **kwargs)
             r = um.aggregator(aggregator_func, metric_obj, metric_obj.header())
             results['metric'][r.data[0]] = " ".join(to_string(r.data[1:]))
             results['header'] = " ".join(to_string(r.header))
@@ -134,7 +136,7 @@ def process_data_request(metric_handle, users, **kwargs):
             'start' : str(start),
             'end' : str(end),
             })
-        metric_obj.process(users, num_threads=20, rev_threads=50, log_progress=True, **kwargs)
+        metric_obj.process(users, num_threads=30, rev_threads=50, log_progress=True, **kwargs)
         for m in metric_obj.__iter__():
             results['metric'][m[0]] = " ".join(to_string(m[1:]))
 
