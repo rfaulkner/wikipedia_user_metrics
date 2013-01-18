@@ -383,21 +383,27 @@ def stored_requests(cohort, metric):
     """ View for processing stored requests """
     global pkl_data
     hash_ref = pkl_data
+
+    # Parse the cohort and metric IDs
     try:
-        print cohort + ' ' + metric
-        print hash_ref
-        hash_ref = hash_ref[cohort][metric]
-        for param in REQUEST_META_QUERY_STR:
-            if param in request.args:
-                hash_ref = [request.args[param]]
+        hash_ref = hash_ref['cohort_expr' + HASH_KEY_DELIMETER + cohort]['metric' + HASH_KEY_DELIMETER + metric]
     except Exception:
         logging.error(__name__ + '::Request not found for: %s' % request.url)
         return redirect(url_for('cohorts') + '?error=2')
 
+    # Parse the parameter values
+    for param in REQUEST_META_QUERY_STR:
+        if param in request.args:
+            try:
+                hash_ref = hash_ref[param + HASH_KEY_DELIMETER + request.args[param]]
+            except KeyError:
+                logging.error(__name__ + '::Request not found for: %s' % request.url)
+                return redirect(url_for('cohorts') + '?error=2')
+
     if hasattr(hash_ref, 'status_code'): # Ensure that that the data is a HTTP response object
         return hash_ref
     else:
-        return redirect(url_for('cohorts') + '?error=2')
+        return redirect(url_for('cohort') + '?error=2')
 
 
 ######
