@@ -24,14 +24,9 @@
     <h4>List of available <a href="{{url_for('all_metrics')}}">metrics</a></h4>
        <form action="{{url_for('all_metrics')}}" method="post" class="form-inline">
                 <select name="selectMetric">
-                <option value="threshold">threshold</option>
-                <option value="survival">survival</option>
-                <option value="edit_rate">edit rate</option>
-                <option value="revert_rate">revert rate</option>
-                <option value="bytes_added">bytes added</option>
-                <option value="namespace_edits">namespace edits</option>
-                <option value="time_to_threshold">time to threshold</option>
-                <option value="blocks">blocks</option>
+		{% for metric in m_list %}
+                <option value="{{metric}}">{{metric}}</option>
+		{% endfor %}
                 </select>
                 <input type="submit" value="Next" class="btn btn-primary" />
         </form>
