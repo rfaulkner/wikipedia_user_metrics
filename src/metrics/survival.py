@@ -70,8 +70,6 @@ class Survival(um.UserMetric):
 
             - Parameters:
                 - **user_handle** - String or Integer (optionally lists).  Value or list of values representing user handle(s).
-                - **is_id** - Boolean.  Flag indicating whether user_handle stores user names or user ids
-
         """
 
         self.apply_default_kwargs(kwargs,'process')

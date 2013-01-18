@@ -44,7 +44,6 @@ class BytesAdded(um.UserMetric):
     _param_types = {
         'init' : {},
         'process' : {
-            'is_id' : ['bool', 'Are user ids or names being passed.', True],
             'log_progress' : ['bool', 'Enable logging for processing.', False],
             'log_frequency' : ['int', 'Revision frequency on which to log (ie. log every n revisions)', 1000],
             'num_threads' : ['int',   'Number of worker processes.', 1]
@@ -180,8 +179,6 @@ def _process_help(args):
         - Parameters:
             - **user_handle** - String or Integer (optionally lists).  Value or list of values representing
                                 user handle(s).
-            - **is_id** - Boolean.  Flag indicating whether user_handle stores user names or user ids
-
         - Return:
             - Dictionary. key(string): user handle, value(Float): edit counts
     """

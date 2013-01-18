@@ -23,9 +23,7 @@ class EditCount(um.UserMetric):
     # Structure that defines parameters for EditRate class
     _param_types = {
         'init' : {},
-        'process' : {
-            'is_id' : ['bool', 'Are user ids or names being passed.',True],
-            }
+        'process' : {}
     }
 
     # Define the metrics data model meta
@@ -60,7 +58,6 @@ class EditCount(um.UserMetric):
         """
 
         self.apply_default_kwargs(kwargs,'process')
-        is_id=kwargs['is_id']
 
         edit_count = list()
         ts_condition  = 'and rev_timestamp >= "%s" and rev_timestamp < "%s"' % (self._start_ts_, self._end_ts_)
@@ -68,20 +65,16 @@ class EditCount(um.UserMetric):
         # Escape user_handle for SQL injection
         user_handle = self._escape_var(user_handle)
 
-        # determine the format field
-        field_name = ['rev_user_text','rev_user'][is_id]
-
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
         user_set = um.dl.DataLoader().format_comma_separated_list(user_handle)
         sql = """
                 select
-                    %(field_name)s,
+                    rev_user,
                     count(*)
                 from %(project)s.revision
-                where %(field_name)s in (%(user_set)s) %(ts_condition)s
+                where rev_user in (%(user_set)s) %(ts_condition)s
                 group by 1
                 """ % {
-            'field_name' : field_name,
             'user_set' : user_set,
             'ts_condition' : ts_condition,
             'project' : self._project_}

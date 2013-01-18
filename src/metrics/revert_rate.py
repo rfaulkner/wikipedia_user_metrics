@@ -54,7 +54,6 @@ class RevertRate(um.UserMetric):
             'look_back' : ['int', 'Number of revisions to look back when computing revert.',15],
         },
         'process' : {
-            'is_id' : ['bool', 'Are user ids or names being passed.',True],
             'log_progress' : ['bool', 'Enable logging for processing.',False],
             'num_threads' : ['int', 'Number of worker processes over users.',1],
             'rev_threads' : ['int', 'Number of worker processes over revisions.',1],

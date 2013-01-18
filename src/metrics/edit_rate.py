@@ -30,9 +30,7 @@ class EditRate(um.UserMetric):
             'time_unit' : ['int', 'Type of time unit to normalize by (HOUR=0, DAY=1).', DAY],
             'time_unit_count' : ['int', 'Number of time units to normalize by (e.g. per two days).', 1],
             },
-        'process' : {
-            'is_id' : ['bool', 'Are user ids or names being passed.', True],
-        }
+        'process' : {}
     }
 
     # Define the metrics data model meta
@@ -65,21 +63,19 @@ class EditRate(um.UserMetric):
 
             - Parameters:
                 - **user_handle** - String or Integer (optionally lists).  Value or list of values representing user handle(s).
-                - **is_id** - Boolean.  Flag indicating whether user_handle stores user names or user ids
 
             - Return:
                 - Dictionary. key(string): user handle, value(Float): edit counts
         """
 
         self.apply_default_kwargs(kwargs,'process')
-        is_id = kwargs['is_id']
 
         # Extract edit count for given parameters
         edit_rate = list()
         e = ec.EditCount(date_start = self._start_ts_,
             date_end = self._end_ts_,
             datasource = self._data_source_,
-            namespace=self._namespace_).process(user_handle, is_id=is_id)
+            namespace=self._namespace_).process(user_handle)
 
         try:
             start_ts_obj = date_parse(self._start_ts_)
