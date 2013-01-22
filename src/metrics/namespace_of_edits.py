@@ -160,7 +160,7 @@ def namespace_edits_sum(metric):
         except TypeError: continue
     return summed_results
 setattr(namespace_edits_sum, um.METRIC_AGG_METHOD_FLAG, True)
-setattr(namespace_edits_sum, um.METRIC_AGG_METHOD_NAME, 'reversion_aggregates')
+setattr(namespace_edits_sum, um.METRIC_AGG_METHOD_NAME, 'namespace_edits_aggregates')
 setattr(namespace_edits_sum, um.METRIC_AGG_METHOD_HEAD, ['type', 'total_revs',
                                                        'weighted_rate','total_editors','reverted_editors'])
 
