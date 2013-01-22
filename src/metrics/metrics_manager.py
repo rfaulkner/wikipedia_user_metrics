@@ -14,7 +14,7 @@ import user_metric as um
 import threshold as th
 from blocks import Blocks
 from bytes_added import BytesAdded
-from survival import Survival
+from survival import Survival, survival_editors_agg
 import revert_rate as rr
 from time_to_threshold import TimeToThreshold
 from edit_rate import EditRate
@@ -48,6 +48,7 @@ aggregator_dict = {
     'sum+edit_rate' : agg.list_sum_indices,
     'sum+namespace_edits' : namespace_edits_sum,
     'average+threshold' : th.threshold_editors_agg,
+    'average+survival' : survival_editors_agg,
     'average+revert' : rr.reverted_revs_agg,
     }
 
