@@ -11,6 +11,7 @@ from collections import namedtuple
 from config import logging
 from os import getpid
 from dateutil.parser import parse as date_parse
+from src.etl.aggregator import decorator_builder
 
 # Definition of persistent state for RevertRate objects
 LiveAccountArgsClass = namedtuple('LiveAccountArgs', 'project namespace log date_start date_end t')
@@ -158,6 +159,25 @@ def _process_help(args):
             results[row[0]] = 0
 
     return [(str(key), results[key]) for key in results]
+
+@decorator_builder(LiveAccount.header())
+def live_accounts_agg(metric):
+    """ Computes the fraction of editors that have "live" accounts """
+    total=0
+    pos=0
+    for r in metric.__iter__():
+        try:
+            if r[1]: pos+=1
+            total+=1
+        except IndexError: continue
+        except TypeError: continue
+    if total:
+        return [total, pos, float(pos) / total]
+    else:
+        return [total, pos, 0.0]
+setattr(live_accounts_agg, um.METRIC_AGG_METHOD_FLAG, True)
+setattr(live_accounts_agg, um.METRIC_AGG_METHOD_NAME, 'live_accounts_agg')
+setattr(live_accounts_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users', 'is_live','rate'])
 
 if __name__ == "__main__":
     users = ['17792132', '17797320', '17792130', '17792131', '17792136', 13234584, 156171]

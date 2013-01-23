@@ -19,7 +19,7 @@ import revert_rate as rr
 from time_to_threshold import TimeToThreshold
 from edit_rate import EditRate
 from namespace_of_edits import NamespaceEdits, namespace_edits_sum
-from live_account import LiveAccount
+from live_account import LiveAccount, live_accounts_agg
 
 import src.etl.data_loader as dl
 import src.etl.aggregator as agg
@@ -49,6 +49,7 @@ aggregator_dict = {
     'sum+namespace_edits' : namespace_edits_sum,
     'average+threshold' : th.threshold_editors_agg,
     'average+survival' : survival_editors_agg,
+    'average+live_account' : live_accounts_agg,
     'average+revert' : rr.reverted_revs_agg,
     }
 
