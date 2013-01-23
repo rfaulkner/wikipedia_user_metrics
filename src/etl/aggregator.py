@@ -105,17 +105,18 @@ def list_average_by_group(l, group_index):
     return [d[k][:group_index] + [k] + d[k][group_index:] for k in d]
 
 def cmp_method_default(x): return x > 0
-def boolean_rate(metric, val_idx=1, cmp_method=cmp_method_default):
+def boolean_rate(iter, val_idx=1, cmp_method=cmp_method_default):
     """
-        Computes the fraction of rows with a boolean flag set.  The index
-        containing the boolean value may be passed as a kwarg (`bool_idx`).
+        Computes the fraction of rows meeting a comparison criteria defined
+        by `cmp_method`.  The index containing the value is passed as a kwarg
+        (`bool_idx`).
 
         Useful aggregator for boolean metrics: threshold, survival,
                 live_accounts
     """
     total=0
     pos=0
-    for r in metric.__iter__():
+    for r in iter.__iter__():
         try:
             if cmp_method(r[val_idx]): pos+=1
             total+=1
@@ -126,6 +127,24 @@ def boolean_rate(metric, val_idx=1, cmp_method=cmp_method_default):
     else:
         return [total, pos, 0.0]
 
+def weighted_rate(iter, val_idx=1, weight_idx=2):
+    """
+        Computes a weighted rate over the elements of the iterator.
+    """
+    count=0
+    total_weight=0
+    weighted_sum=0.0
+    for r in iter.__iter__():
+        try:
+            count+=1
+            total_weight+=r[weight_idx]
+            weighted_sum += r[weight_idx] * r[val_idx]
+        except IndexError: continue
+        except TypeError: continue
+    if count:
+        return [count, total_weight, weighted_sum / count]
+    else:
+        return [count, total_weight, 0.0]
 
 class AggregatorException(Exception): pass
 
