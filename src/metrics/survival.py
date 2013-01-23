@@ -5,7 +5,7 @@ __license__ = "GPL (version 2 or later)"
 
 import user_metric as um
 import threshold as th
-from src.etl.aggregator import decorator_builder
+from src.etl.aggregator import decorator_builder, boolean_rate
 
 class Survival(um.UserMetric):
     """
@@ -80,24 +80,13 @@ class Survival(um.UserMetric):
         self._results =  th.Threshold(**kwargs).process(user_handle, **kwargs)._results
         return self
 
-@decorator_builder(Survival.header())
-def survival_editors_agg(metric):
-    """ Computes the fraction of editors reaching a threshold """
-    total=0
-    pos=0
-    for r in metric.__iter__():
-        try:
-            if r[1]: pos+=1
-            total+=1
-        except IndexError: continue
-        except TypeError: continue
-    if total:
-        return [total, pos, float(pos) / total]
-    else:
-        return [total, pos, 0.0]
+# Build "rate" decorator
+survival_editors_agg = boolean_rate
+survival_editors_agg = decorator_builder(Survival.header())(survival_editors_agg)
+
 setattr(survival_editors_agg, um.METRIC_AGG_METHOD_FLAG, True)
-setattr(survival_editors_agg, um.METRIC_AGG_METHOD_NAME, 'survival_aggregates')
-setattr(survival_editors_agg, um.METRIC_AGG_METHOD_HEAD, ['survival_aggregates', 'total_users',
+setattr(survival_editors_agg, um.METRIC_AGG_METHOD_NAME, 'survival_editors_agg')
+setattr(survival_editors_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
                                                            'has_survived','rate'])
 
 # testing

@@ -11,7 +11,7 @@ from collections import namedtuple
 from config import logging
 from os import getpid
 from dateutil.parser import parse as date_parse
-from src.etl.aggregator import decorator_builder
+from src.etl.aggregator import decorator_builder, boolean_rate
 
 # Definition of persistent state for RevertRate objects
 LiveAccountArgsClass = namedtuple('LiveAccountArgs', 'project namespace log date_start date_end t')
@@ -175,6 +175,11 @@ def live_accounts_agg(metric):
         return [total, pos, float(pos) / total]
     else:
         return [total, pos, 0.0]
+
+# Build "rate" decorator
+live_accounts_agg = boolean_rate
+live_accounts_agg = decorator_builder(LiveAccount.header())(live_accounts_agg)
+
 setattr(live_accounts_agg, um.METRIC_AGG_METHOD_FLAG, True)
 setattr(live_accounts_agg, um.METRIC_AGG_METHOD_NAME, 'live_accounts_agg')
 setattr(live_accounts_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users', 'is_live','rate'])

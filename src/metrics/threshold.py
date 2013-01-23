@@ -8,7 +8,7 @@ import collections
 import os
 import src.utils.multiprocessing_wrapper as mpw
 import user_metric as um
-from src.etl.aggregator import decorator_builder
+from src.etl.aggregator import decorator_builder, boolean_rate
 
 from config import logging
 
@@ -190,24 +190,14 @@ def _process_help(args):
 
     return results
 
-@decorator_builder(Threshold.header())
-def threshold_editors_agg(metric):
-    """ Computes the fraction of editors reaching a threshold """
-    total=0
-    pos=0
-    for r in metric.__iter__():
-        try:
-            if r[1]: pos+=1
-            total+=1
-        except IndexError: continue
-        except TypeError: continue
-    if total:
-        return [total, pos, float(pos) / total]
-    else:
-        return [total, pos, 0.0]
+
+# Build "rate" decorator
+threshold_editors_agg = boolean_rate
+threshold_editors_agg = decorator_builder(Threshold.header())(threshold_editors_agg)
+
 setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_FLAG, True)
-setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_NAME, 'threshold_aggregates')
-setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_HEAD, ['threshold_aggregates', 'total_users',
+setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_NAME, 'threshold_editors_agg')
+setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
                                       'threshold_reached','rate'])
 
 # testing
