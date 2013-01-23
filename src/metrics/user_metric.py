@@ -90,9 +90,14 @@ def aggregator(agg_method, metric, data_header):
         METRIC_AGG_METHOD_FLAG):
         # These are metric specific aggregators.  The method must also define
         # the header.
-        agg_header = getattr(agg_method, METRIC_AGG_METHOD_HEAD)
+        agg_header = getattr(agg_method, METRIC_AGG_METHOD_HEAD) if hasattr(
+            agg_method, METRIC_AGG_METHOD_HEAD) else 'No header specified.'
+
+        kwargs = getattr(agg_method,METRIC_AGG_METHOD_KWARGS) if hasattr(
+            agg_method, METRIC_AGG_METHOD_KWARGS) else {}
+
         data = [getattr(agg_method,METRIC_AGG_METHOD_NAME)] + agg_method(
-            metric, agg_method.METRIC_AGG_METHOD_KWARGS)
+            metric, **kwargs)
     else:
         # Generic aggregators that are metric agnostic
         agg_header = ['type'] + [data_header[i] for i in metric._agg_indices[
