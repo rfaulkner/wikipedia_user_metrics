@@ -88,6 +88,7 @@ setattr(survival_editors_agg, um.METRIC_AGG_METHOD_FLAG, True)
 setattr(survival_editors_agg, um.METRIC_AGG_METHOD_NAME, 'survival_editors_agg')
 setattr(survival_editors_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
                                                            'has_survived','rate'])
+setattr(survival_editors_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 1})
 
 # testing
 if __name__ == "__main__":

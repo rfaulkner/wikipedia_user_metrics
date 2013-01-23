@@ -183,6 +183,7 @@ live_accounts_agg = decorator_builder(LiveAccount.header())(live_accounts_agg)
 setattr(live_accounts_agg, um.METRIC_AGG_METHOD_FLAG, True)
 setattr(live_accounts_agg, um.METRIC_AGG_METHOD_NAME, 'live_accounts_agg')
 setattr(live_accounts_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users', 'is_live','rate'])
+setattr(live_accounts_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 1})
 
 if __name__ == "__main__":
     users = ['17792132', '17797320', '17792130', '17792131', '17792136', 13234584, 156171]

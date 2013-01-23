@@ -199,6 +199,7 @@ setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_FLAG, True)
 setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_NAME, 'threshold_editors_agg')
 setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
                                       'threshold_reached','rate'])
+setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 1})
 
 # testing
 if __name__ == "__main__":
