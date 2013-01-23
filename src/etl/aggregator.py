@@ -105,7 +105,7 @@ def list_average_by_group(l, group_index):
     return [d[k][:group_index] + [k] + d[k][group_index:] for k in d]
 
 def cmp_method_default(x): return x > 0
-def boolean_rate(iter, val_idx=1, cmp_method=cmp_method_default):
+def boolean_rate(iter, **kwargs):
     """
         Computes the fraction of rows meeting a comparison criteria defined
         by `cmp_method`.  The index containing the value is passed as a kwarg
@@ -114,6 +114,9 @@ def boolean_rate(iter, val_idx=1, cmp_method=cmp_method_default):
         Useful aggregator for boolean metrics: threshold, survival,
                 live_accounts
     """
+    val_idx = kwargs['val_idx'] if 'val_idx' in kwargs else 1
+    cmp_method = kwargs['cmp_method'] if 'cmp_method' in kwargs else cmp_method_default
+
     total=0
     pos=0
     for r in iter.__iter__():
@@ -127,18 +130,24 @@ def boolean_rate(iter, val_idx=1, cmp_method=cmp_method_default):
     else:
         return [total, pos, 0.0]
 
-def weighted_rate(iter, val_idx=1, weight_idx=2):
+def weight_method_default(x): return 1
+def weighted_rate(iter, **kwargs):
     """
         Computes a weighted rate over the elements of the iterator.
     """
+    weight_idx = kwargs['weight_idx'] if 'weight_idx' in kwargs else 1
+    val_idx = kwargs['val_idx'] if 'val_idx' in kwargs else 1
+    weight_method = kwargs['weight_method'] if 'cmp_method' in kwargs else weight_method_default
+
     count=0
     total_weight=0
     weighted_sum=0.0
     for r in iter.__iter__():
         try:
             count+=1
-            total_weight+=r[weight_idx]
-            weighted_sum += r[weight_idx] * r[val_idx]
+            weight = weight_method(r[weight_idx])
+            total_weight+=weight
+            weighted_sum += weight * r[val_idx]
         except IndexError: continue
         except TypeError: continue
     if count:
