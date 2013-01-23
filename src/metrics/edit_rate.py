@@ -16,19 +16,23 @@ class EditRate(um.UserMetric):
             usage e.g.: ::
 
                 >>> import classes.Metrics as m
-                >>> m.EditRate(date_start='2012-12-12 00:00:00',date_end='2012-12-12 00:00:00', namespace=3).process(123456)
+                >>> m.EditRate(date_start='2012-12-12 00:00:00',
+                    date_end='2012-12-12 00:00:00', namespace=3).process(123456)
                 2.50
     """
 
-    # Constants for denoting the time unit by which to normalize edit counts to produce an edit rate
+    # Constants for denoting the time unit by which to normalize edit counts to
+    # produce an edit rate
     HOUR = 0
     DAY = 1
 
     # Structure that defines parameters for EditRate class
     _param_types = {
         'init' : {
-            'time_unit' : ['int', 'Type of time unit to normalize by (HOUR=0, DAY=1).', DAY],
-            'time_unit_count' : ['int', 'Number of time units to normalize by (e.g. per two days).', 1],
+            'time_unit' : ['int', 'Type of time unit to '
+                                  'normalize by (HOUR=0, DAY=1).', DAY],
+            'time_unit_count' : ['int', 'Number of time units to normalize '
+                                        'by (e.g. per two days).', 1],
             },
         'process' : {}
     }
@@ -43,7 +47,8 @@ class EditRate(um.UserMetric):
         }
 
     _agg_indices = {
-        'list_sum_indices' : _data_model_meta['integer_fields'] + _data_model_meta['float_fields'],
+        'list_sum_indices' : _data_model_meta['integer_fields'] +
+                             _data_model_meta['float_fields'],
         }
 
     @um.pre_metrics_init
@@ -53,16 +58,21 @@ class EditRate(um.UserMetric):
         self._time_unit_ = kwargs['time_unit']
 
     @staticmethod
-    def header(): return ['user_id', 'edit_rate', 'start_time', 'period_len']
+    def header(): return ['user_id', 'edit_count', 'edit_rate', 'start_time',
+                          'period_len']
 
     def process(self, user_handle, **kwargs):
         """
-            Determine the edit rate of user(s).  The parameter *user_handle* can be either a string or an integer or a list of these types.  When the
-            *user_handle* type is integer it is interpreted as a user id, and as a user_name for string input.  If a list of users is passed to the
-            *process* method then a dict object with edit rates keyed by user handles is returned.
+            Determine the edit rate of user(s).  The parameter *user_handle*
+            can be either a string or an integer or a list of these types.
+            When the *user_handle* type is integer it is interpreted as a user
+            id, and as a user_name for string input.  If a list of users is
+            passed to the *process* method then a dict object with edit rates
+            keyed by user handles is returned.
 
             - Parameters:
-                - **user_handle** - String or Integer (optionally lists).  Value or list of values representing user handle(s).
+                - **user_handle** - String or Integer (optionally lists).
+                    Value or list of values representing user handle(s).
 
             - Return:
                 - Dictionary. key(string): user handle, value(Float): edit counts
@@ -85,7 +95,8 @@ class EditRate(um.UserMetric):
         except ValueError:
             raise um.UserMetric.UserMetricError()
 
-        # Compute time difference between datetime objects and get the integer number of seconds
+        # Compute time difference between datetime objects and get the
+        # integer number of seconds
         time_diff_sec = (end_ts_obj - start_ts_obj).total_seconds()
 
         if self._time_unit_ == EditRate.DAY:
@@ -98,7 +109,7 @@ class EditRate(um.UserMetric):
         # Build the list of edit rate metrics
         for i in e.__iter__():
             new_i = i[:]  # Make a copy of the edit count element
-            new_i[1] /= time_diff * self._time_unit_count_
+            new_i.append(new_i[1] / (time_diff * self._time_unit_count_))
             new_i.append(self._start_ts_)
             new_i.append(time_diff)
             edit_rate.append(new_i)
