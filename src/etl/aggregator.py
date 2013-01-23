@@ -104,7 +104,8 @@ def list_average_by_group(l, group_index):
     for k in counts: d[k] = list(array(d[k]) / float(counts[k]))
     return [d[k][:group_index] + [k] + d[k][group_index:] for k in d]
 
-def boolean_rate(metric, bool_idx=1):
+def cmp_method_default(x): return x > 0
+def boolean_rate(metric, val_idx=1, cmp_method=cmp_method_default):
     """
         Computes the fraction of rows with a boolean flag set.  The index
         containing the boolean value may be passed as a kwarg (`bool_idx`).
@@ -116,7 +117,7 @@ def boolean_rate(metric, bool_idx=1):
     pos=0
     for r in metric.__iter__():
         try:
-            if r[bool_idx]: pos+=1
+            if cmp_method(r[val_idx]): pos+=1
             total+=1
         except IndexError: continue
         except TypeError: continue
@@ -124,6 +125,7 @@ def boolean_rate(metric, bool_idx=1):
         return [total, pos, float(pos) / total]
     else:
         return [total, pos, 0.0]
+
 
 class AggregatorException(Exception): pass
 
