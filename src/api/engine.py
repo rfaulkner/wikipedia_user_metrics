@@ -1,5 +1,6 @@
 """
-    The engine for the metrics API.  Stores definitions an backend API operations.
+    The engine for the metrics API.  Stores definitions an backend
+    API operations.
 """
 __author__ = "ryan faulkner"
 __email__ = "rfaulkner@wikimedia.org"
@@ -19,46 +20,55 @@ import src.metrics.metrics_manager as mm
 
 from config import logging
 
-# Define the standard variable names in the query string - store in named tuple
-RequestMeta = recordtype('RequestMeta', 'cohort_expr cohort_gen_timestamp metric time_series ' +\
-                                        'aggregator project namespace date_start date_end interval t n')
+# Define standard variable names in the query string - store in named tuple
+RequestMeta = recordtype('RequestMeta',
+    'cohort_expr cohort_gen_timestamp metric time_series '
+    'aggregator project namespace date_start date_end interval t n')
 
 def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric):
     """
         Dynamically builds a record type given a metric handle
 
-        All args must be strings representing a cohort, last updated timestamp, and metric respectively.
+        All args must be strings representing a cohort, last updated
+        timestamp, and metric respectively.
     """
     default_params = 'cohort_expr cohort_gen_timestamp metric '
     additional_params = ''
-    for val in QUERY_PARAMS_BY_METRIC[metric]: additional_params += val.query_var + ' '
+    for val in QUERY_PARAMS_BY_METRIC[metric]:
+        additional_params += val.query_var + ' '
     additional_params = additional_params[:-1]
     params = default_params + additional_params
 
-    arg_list = ['cohort_expr', 'cohort_gen_timestamp', 'metric'] + ['None'] * len(QUERY_PARAMS_BY_METRIC[metric])
+    arg_list = ['cohort_expr', 'cohort_gen_timestamp', 'metric'] + \
+               ['None'] * len(QUERY_PARAMS_BY_METRIC[metric])
     arg_str = "(" + ",".join(arg_list) + ")"
 
     rt = recordtype("RequestMeta", params)
-    print 'rt' + arg_str
     return eval('rt' + arg_str)
 
 
-REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace', 'date_start', 'date_end',
-                          'interval', 't', 'n','time_unit','time_unit_count', 'look_ahead', 'look_back',
-                          'threshold_type',]
+REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace',
+                          'date_start', 'date_end', 'interval', 't', 'n',
+                          'time_unit','time_unit_count', 'look_ahead',
+                          'look_back', 'threshold_type',]
 REQUEST_META_BASE = ['cohort_expr', 'metric']
 
 
-# Using the MEDIATOR model :: Defines the query parameters accepted by each metric request.  This is a dict keyed on
+# Using the MEDIATOR model :: Defines the query parameters accepted by each
+# metric request.  This is a dict keyed on
 # metric that stores a list of tuples.  Each tuple defines:
 #
 #       (<name of allowable query string var>, <name of corresponding metric param>)
 
-varMapping = namedtuple("VarMapping", "query_var metric_var") # defines a tuple for mapped variable names
+# defines a tuple for mapped variable names
+varMapping = namedtuple("VarMapping", "query_var metric_var")
 
-common_params = [varMapping('date_start','date_start'), varMapping('date_end','date_end'),
-                 varMapping('project','project'), varMapping('namespace','namespace'),
-                 varMapping('interval','interval'), varMapping('time_series','time_series'),
+common_params = [varMapping('date_start','date_start'),
+                 varMapping('date_end','date_end'),
+                 varMapping('project','project'),
+                 varMapping('namespace','namespace'),
+                 varMapping('interval','interval'),
+                 varMapping('time_series','time_series'),
                  varMapping('aggregator','aggregator')]
 
 QUERY_PARAMS_BY_METRIC = {
@@ -66,17 +76,20 @@ QUERY_PARAMS_BY_METRIC = {
     'bytes_added' : common_params,
     'edit_count' : common_params,
     'edit_rate' : common_params + [varMapping('time_unit','time_unit'),
-                                   varMapping('time_unit_count','time_unit_count'),],
+                                   varMapping('time_unit_count',
+                                       'time_unit_count'),],
     'live_account' : common_params + [varMapping('t','t'),],
     'namespace_of_edits' : common_params,
     'revert_rate' : common_params + [varMapping('look_back','look_back'),
                                      varMapping('look_ahead','look_ahead'),],
     'survival' : common_params + [varMapping('t','t'),],
     'threshold' : common_params + [varMapping('t','t'), varMapping('n','n'),],
-    'time_to_threshold' : common_params + [varMapping('threshold_type','threshold_type_class'),],
+    'time_to_threshold' : common_params + [varMapping('threshold_type',
+        'threshold_type_class'),],
     }
 
-# This is used to separate key meta and key strings for hash table data e.g. "metric <==> blocks"
+# This is used to separate key meta and key strings for hash table data
+# e.g. "metric <==> blocks"
 HASH_KEY_DELIMETER = " <==> "
 
 # Datetime string format to be used throughout the API
@@ -95,22 +108,31 @@ def process_request_params(request_meta):
     end = datetime.now()
     start= end + timedelta(days=-DEFAULT_INTERVAL)
 
-    # Handle any datetime fields passed - raise an exception if the formatting is incorrect
+    # Handle any datetime fields passed - raise an exception if the
+    # formatting is incorrect
     if request_meta.date_start:
         try:
-            request_meta.date_start = date_parse(request_meta.date_start).strftime(DATETIME_STR_FORMAT)[:8] + TIME_STR
+            request_meta.date_start = date_parse(
+                request_meta.date_start).strftime(
+                DATETIME_STR_FORMAT)[:8] + TIME_STR
         except ValueError:
-            raise MetricsAPIError('1') # Pass the value of the error code in `error_codes`
+            # Pass the value of the error code in `error_codes`
+            raise MetricsAPIError('1')
     else:
-        request_meta.date_start = start.strftime(DATETIME_STR_FORMAT)[:8] + TIME_STR
+        request_meta.date_start = start.strftime(
+            DATETIME_STR_FORMAT)[:8] + TIME_STR
 
     if request_meta.date_end:
         try:
-            request_meta.date_end = date_parse(request_meta.date_end).strftime(DATETIME_STR_FORMAT)[:8] + TIME_STR
+            request_meta.date_end = date_parse(
+                request_meta.date_end).strftime(
+                DATETIME_STR_FORMAT)[:8] + TIME_STR
         except ValueError:
-            raise MetricsAPIError('1') # Pass the value of the error code in `error_codes`
+            # Pass the value of the error code in `error_codes`
+            raise MetricsAPIError('1')
     else:
-        request_meta.date_end = end.strftime(DATETIME_STR_FORMAT)[:8] + TIME_STR
+        request_meta.date_end = end.strftime(
+            DATETIME_STR_FORMAT)[:8] + TIME_STR
 
     # set the time series if it has been included as a parameter
     request_meta.time_series = True if request_meta.time_series else None
@@ -130,9 +152,11 @@ def get_users(cohort_expr):
         logging.info(__name__ + '::Processing cohort by tag name.')
         conn = dl.Connector(instance='slave')
         try:
-            conn._cur_.execute('select utm_id from usertags_meta where utm_name = "%s"' % str(cohort_expr))
+            conn._cur_.execute('select utm_id from usertags_meta '
+                               'WHERE utm_name = "%s"' % str(cohort_expr))
             res = conn._cur_.fetchone()[0]
-            conn._cur_.execute('select ut_user from usertags where ut_tag = "%s"' % res)
+            conn._cur_.execute('select ut_user from usertags '
+                               'WHERE ut_tag = "%s"' % res)
         except IndexError:
             redirect(url_for('cohorts'))
         users = [r[0] for r in conn._cur_]
@@ -142,7 +166,8 @@ def get_users(cohort_expr):
 def get_cohort_id(utm_name):
     """ Pull cohort ids from cohort handles """
     conn = dl.Connector(instance='slave')
-    conn._cur_.execute('SELECT utm_id FROM usertags_meta WHERE utm_name = "%s"' % str(escape(utm_name)))
+    conn._cur_.execute('SELECT utm_id FROM usertags_meta '
+                       'WHERE utm_name = "%s"' % str(escape(utm_name)))
 
     utm_id = None
     try: utm_id = conn._cur_.fetchone()[0]
@@ -150,17 +175,21 @@ def get_cohort_id(utm_name):
 
     # Ensure the field was retrieved
     if not utm_id:
-        logging.error(__name__ + '::Missing utm_id for cohort %s.' % str(utm_name))
+        logging.error(__name__ + '::Missing utm_id for cohort %s.' %
+                                 str(utm_name))
         utm_id = -1
 
     del conn
     return utm_id
 
 def get_cohort_refresh_datetime(utm_id):
-    """ Get the latest refresh datetime of a cohort.  Returns current time formatted as a
-     string if the field is not found. """
+    """
+        Get the latest refresh datetime of a cohort.  Returns current time
+        formatted as a string if the field is not found.
+    """
     conn = dl.Connector(instance='slave')
-    conn._cur_.execute('SELECT utm_touched FROM usertags_meta WHERE utm_id = %s' % str(escape(utm_id)))
+    conn._cur_.execute('SELECT utm_touched FROM usertags_meta '
+                       'WHERE utm_id = %s' % str(escape(utm_id)))
 
     utm_touched = None
     try: utm_touched = conn._cur_.fetchone()[0]
@@ -168,7 +197,8 @@ def get_cohort_refresh_datetime(utm_id):
 
     # Ensure the field was retrieved
     if not utm_touched:
-        logging.error(__name__ + '::Missing utm_touched for cohort %s.' % str(utm_id))
+        logging.error(__name__ + '::Missing utm_touched for cohort %s.' %
+                                 str(utm_id))
         utm_touched = datetime.now()
 
     del conn
@@ -178,7 +208,8 @@ def get_data(request_meta, hash_table_ref):
     """ Extract data from the global hash given a request object """
 
     # Traverse the hash key structure to find data
-    # @TODO rather than iterate through REQUEST_META_BASE & REQUEST_META_QUERY_STR look only at existing attributes
+    # @TODO rather than iterate through REQUEST_META_BASE &
+    #   REQUEST_META_QUERY_STR look only at existing attributes
     for key_name in REQUEST_META_BASE + REQUEST_META_QUERY_STR:
         if hasattr(request_meta, key_name) and getattr(request_meta, key_name):
             key = getattr(request_meta, key_name)
@@ -186,7 +217,8 @@ def get_data(request_meta, hash_table_ref):
             continue
 
         full_key = key_name + HASH_KEY_DELIMETER + key
-        if hasattr(hash_table_ref, 'has_key') and hash_table_ref.has_key(full_key):
+        if hasattr(hash_table_ref, 'has_key') and hash_table_ref.has_key(
+            full_key):
             hash_table_ref = hash_table_ref[full_key]
         else:
             return None
@@ -199,7 +231,10 @@ def get_data(request_meta, hash_table_ref):
         return None
 
 def set_data(request_meta, data, hash_table_ref):
-    """ Given request meta-data and a dataset create a key path in the global hash to store the data """
+    """
+        Given request meta-data and a dataset create a key path in the global
+        hash to store the data
+    """
 
     key_sig = list()
 
@@ -209,7 +244,9 @@ def set_data(request_meta, data, hash_table_ref):
         if key:
             key_sig.append(key_name + HASH_KEY_DELIMETER + key)
         else:
-            logging.error(__name__ + '::Request must include %s. Cannot set data %s.' % (key_name, str(request_meta)))
+            logging.error(__name__ + '::Request must include %s. '
+                                     'Cannot set data %s.' % (
+                key_name, str(request_meta)))
             return
 
     for key_name in REQUEST_META_QUERY_STR: # These keys may optionally exist
@@ -221,8 +258,11 @@ def set_data(request_meta, data, hash_table_ref):
     last_item = key_sig[len(key_sig) - 1]
     for key in key_sig:
         if key != last_item:
-            if not (hasattr(hash_table_ref, 'has_key') and hash_table_ref.has_key(key)):
+            if not (hasattr(hash_table_ref, 'has_key') and
+                    hash_table_ref.has_key(key) and
+                    hasattr(hash_table_ref[key], 'has_key')):
                 hash_table_ref[key] = OrderedDict()
+
             hash_table_ref = hash_table_ref[key]
         else:
             hash_table_ref[key] = data
