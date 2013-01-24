@@ -17,12 +17,12 @@ def decorator_builder(header):
         data model is exposed by.
     """
     def eval_data_model(f):
-        def wrapper(metric):
+        def wrapper(metric, **kwargs):
             if hasattr(metric,'header'):
                 header_arg = metric.header()
                 if all(header_arg[i] == header[i]
                     for i in range(len(header)-1)):
-                    return f(metric)
+                    return f(metric, **kwargs)
             else:
                 raise AggregatorException(
                     'This aggregator (%s) does not operate on this ' + \
