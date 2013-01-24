@@ -6,6 +6,7 @@ __license__ = "GPL (version 2 or later)"
 from dateutil.parser import parse as date_parse
 import user_metric as um
 import edit_count as ec
+from src.etl.aggregator import weighted_rate, decorator_builder
 
 class EditRate(um.UserMetric):
     """
@@ -13,16 +14,28 @@ class EditRate(um.UserMetric):
 
             `https://meta.wikimedia.org/wiki/Research:Metrics/edit_rate`
 
+        As a UserMetric type this class utilizes the process() function
+        attribute to produce an internal list of metrics by user handle
+        (typically ID but user names may also be specified). The execution
+        of process() produces a nested list that stores in each element:
+
+            * User ID
+            * edit count
+            * edit rate
+            * start time
+            * period length
+
             usage e.g.: ::
 
                 >>> import classes.Metrics as m
                 >>> m.EditRate(date_start='2012-12-12 00:00:00',
-                    date_end='2012-12-12 00:00:00', namespace=3).process(123456)
+                    date_end='2012-12-12 00:00:00', namespace=3).
+                        process(123456)
                 2.50
     """
 
-    # Constants for denoting the time unit by which to normalize edit counts to
-    # produce an edit rate
+    # Constants for denoting the time unit by which to
+    # normalize edit counts to produce an edit rate
     HOUR = 0
     DAY = 1
 
@@ -116,3 +129,17 @@ class EditRate(um.UserMetric):
         self._results = edit_rate
         return self
 
+
+# ==========================
+# DEFINE METRIC AGGREGATORS
+# ==========================
+
+# Build "rate" decorator
+edit_rate_agg = weighted_rate
+edit_rate_agg = decorator_builder(EditRate.header())(edit_rate_agg)
+
+setattr(edit_rate_agg, um.METRIC_AGG_METHOD_FLAG, True)
+setattr(edit_rate_agg, um.METRIC_AGG_METHOD_NAME, 'edit_rate_agg')
+setattr(edit_rate_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
+                                                   'total_weight','rate'])
+setattr(edit_rate_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 2})
