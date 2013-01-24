@@ -127,11 +127,11 @@ class TimeToThreshold(um.UserMetric):
 
             try:
                 self._first_edit_ = int(kwargs['first_edit']) if 'first_edit' \
-                    in kwargs else self._param_types['init']['first_edit']
+                    in kwargs else self._param_types['init']['first_edit'][2]
 
                 self._threshold_edit_ = int(kwargs['threshold_edit']) if \
                     'threshold_edit' in kwargs else \
-                        self._param_types['init']['threshold_edit']
+                        self._param_types['init']['threshold_edit'][2]
 
             except ValueError:
                 raise um.UserMetric.UserMetricError(
