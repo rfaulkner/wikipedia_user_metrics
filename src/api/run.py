@@ -215,6 +215,11 @@ def metric(metric=''):
     #@@@ TODO validate user input against list of existing metrics
     return render_template('metric.html', m_str=metric, cohort_data=data)
 
+@app.route('/user/', methods=['POST', 'GET'])
+def user_request():
+    """ View for requesting metrics for a single user """
+    return redirect(url_for('all_cohorts'))
+
 @app.route('/cohorts/', methods=['POST', 'GET'])
 def all_cohorts():
     """ View for listing and selecting cohorts """
