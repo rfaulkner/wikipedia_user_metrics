@@ -110,7 +110,8 @@ global error_codes
 error_codes = {
     0 : 'Job already running.',
     1 : 'Badly Formatted timestamp',
-    2 : 'Could not locate stored request.'
+    2 : 'Could not locate stored request.',
+    3 : 'Could not find User ID.',
 }
 
 # Queue for storing all active processes
@@ -142,7 +143,7 @@ def process_metrics(p, rm):
     logging.info(__name__ + '::START JOB %s (PID = %s)' % (str(rm), os.getpid()))
 
     # obtain user list - handle the case where a lone user ID is passed
-    if search(UID_REGEX, str(rm.cohort_expr)):
+    if search(MW_UID_REGEX, str(rm.cohort_expr)):
         users = [rm.cohort_expr]
     else:
         users = get_users(rm.cohort_expr)
@@ -216,11 +217,29 @@ def metric(metric=''):
     #@@@ TODO validate user input against list of existing metrics
     return render_template('metric.html', m_str=metric, cohort_data=data)
 
-@app.route('/user/<int:user_id>/<string:metric>')
-def user_request(user_id, metric):
+@app.route('/user/<string:user>/<string:metric>')
+def user_request(user, metric):
     """ View for requesting metrics for a single user """
+
     url = request.url.split(request.url_root)[1]
-    url = sub(r'user','cohorts', url)
+
+    # If it is a user name convert to ID
+    if search(MW_UNAME_REGEX, user):
+        # Extract project from query string
+        # @TODO `project` should match what's in REQUEST_META_QUERY_STR
+        project = request.args['project'] if 'project' in request.args \
+                                                            else 'enwiki'
+        logging.debug(__name__ + '::Getting user id from name.')
+        conn = dl.Connector(instance='slave')
+        conn._cur_.execute('SELECT user_id FROM {0}.user WHERE ' \
+                           'user_name = "{1}"'.format(project, user))
+        try:
+            user_id = str(conn._cur_.fetchone()[0])
+            url = sub(user,user_id, url)
+        except KeyError: redirect(url_for('cohorts') + '?error=3')
+        except TypeError: redirect(url_for('cohorts') + '?error=3')
+
+    url = sub('user','cohorts', url)
     return redirect(url)
 
 @app.route('/cohorts/', methods=['POST', 'GET'])

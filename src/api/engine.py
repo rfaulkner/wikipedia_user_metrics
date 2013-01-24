@@ -21,7 +21,8 @@ import src.metrics.metrics_manager as mm
 from config import logging
 
 # Regex that matches a MediaWiki user ID
-UID_REGEX = r'[0-9]{5}[0-9]*'
+MW_UID_REGEX = r'^[0-9]{5}[0-9]*$'
+MW_UNAME_REGEX = r'[a-zA-Z_\.\+ ]'
 
 # Define standard variable names in the query string - store in named tuple
 RequestMeta = recordtype('RequestMeta',
