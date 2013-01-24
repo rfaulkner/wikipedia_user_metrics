@@ -6,6 +6,7 @@ __license__ = "GPL (version 2 or later)"
 
 from dateutil.parser import parse as date_parse
 import user_metric as um
+from src.etl.aggregator import weighted_rate, decorator_builder
 
 from config import logging
 
@@ -179,6 +180,21 @@ class TimeToThreshold(um.UserMetric):
             return int(time_diff.seconds / 60) + abs(time_diff.days) * 24
 
     __threshold_types = { 'edit_count_threshold' : EditCountThreshold }
+
+# ==========================
+# DEFINE METRIC AGGREGATORS
+# ==========================
+
+# Build "average" aggregator
+ttt_avg_agg = weighted_rate
+ttt_avg_agg = decorator_builder(TimeToThreshold.header())(ttt_avg_agg)
+
+setattr(ttt_avg_agg, um.METRIC_AGG_METHOD_FLAG, True)
+setattr(ttt_avg_agg, um.METRIC_AGG_METHOD_NAME, 'ttt_avg_agg')
+setattr(ttt_avg_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
+                                                   'total_weight', 'average'])
+setattr(ttt_avg_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 1})
+
 
 if __name__ == "__main__":
     for i in TimeToThreshold(threshold_type_class='edit_count_threshold',
