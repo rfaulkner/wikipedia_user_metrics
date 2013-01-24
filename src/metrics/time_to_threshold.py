@@ -110,8 +110,12 @@ class TimeToThreshold(um.UserMetric):
             """
 
             try:
-                self._first_edit_ = int(kwargs['first_edit'])
-                self._threshold_edit_ = int(kwargs['threshold_edit'])
+                self._first_edit_ = int(kwargs['first_edit']) if 'first_edit' \
+                    in kwargs else self._param_types['init']['first_edit']
+
+                self._threshold_edit_ = int(kwargs['threshold_edit']) if \
+                    'threshold_edit' in kwargs else \
+                        self._param_types['init']['threshold_edit']
 
             except ValueError:
                 raise um.UserMetric.UserMetricError(str(self.__class__()) + ': Invalid init params.')
@@ -179,3 +183,5 @@ class TimeToThreshold(um.UserMetric):
 if __name__ == "__main__":
     for i in TimeToThreshold(threshold_type_class='edit_count_threshold',
         first_edit=0, threshold_edit=1).process([13234584]): print i
+
+
