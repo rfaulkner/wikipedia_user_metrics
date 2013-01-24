@@ -15,36 +15,43 @@ REGISTRATION = 0
 
 class TimeToThreshold(um.UserMetric):
     """
-        Produces an integer value representing the number of minutes taken to reach a threshold.
+        Produces an integer value representing the number of minutes taken to
+        reach a threshold.
 
-            `https://meta.wikimedia.org/wiki/Research:Metrics//time_to_threshold`
+            `https://meta.wikimedia.org/wiki/Research:Metrics/time_to_threshold`
 
-        As a UserMetric type this class utilizes the process() function attribute to produce an internal list of metrics by
-        user handle (typically ID but user names may also be specified). The execution of process() produces a nested list that
-        stores in each element:
+        As a UserMetric type this class utilizes the process() function
+        attribute to produce an internal list of metrics by user handle
+        (typically ID but user names may also be specified). The execution of
+        process() produces a nested list that stores in each element:
 
             * User ID
             * Time difference in minutes between events
 
-        Below is an example of how we can generate the time taken to reach the first edit and the last edit from registration : ::
+        Below is an example of how we can generate the time taken to reach the
+        first edit and the last edit from registration : ::
 
             >>> import src.metrics.time_to_threshold as t
-            >>> t.TimeToThreshold(t.TimeToThreshold.EditCountThreshold, first_edit=0, threshold_edit=1).process([13234584]).__iter__().next()
+            >>> t.TimeToThreshold(t.TimeToThreshold.EditCountThreshold,
+                first_edit=0, threshold_edit=1).process([13234584]).
+                    __iter__().next()
             [13234584, 3318]
-            >>> t.TimeToThreshold(t.TimeToThreshold.EditCountThreshold, first_edit=0, threshold_edit=-1).process([13234584]).__iter__().next()
+            >>> t.TimeToThreshold(t.TimeToThreshold.EditCountThreshold,
+                first_edit=0, threshold_edit=-1).process([13234584]).
+                    __iter__().next()
             [13234584, 18906]
 
-        If the termination event never occurs the number of minutes returned is -1.
+        If the termination event never occurs the number of minutes returned
+        is -1.
     """
 
     # Structure that defines parameters for TimeToThreshold class
     _param_types = {
         'init' : {
-            'threshold_type_class' : ['str', 'Type of threshold to use.','edit_count_threshold'],
+            'threshold_type_class' : ['str', 'Type of threshold to use.',
+                                      'edit_count_threshold'],
             },
-        'process' : {
-            'is_id' : ['bool', 'Are user ids or names being passed.',True],
-        },
+        'process' : {},
     }
 
     # Define the metrics data model meta
@@ -57,7 +64,8 @@ class TimeToThreshold(um.UserMetric):
         }
 
     _agg_indices = {
-        'list_sum_indices' : _data_model_meta['integer_fields'] + _data_model_meta['float_fields'],
+        'list_sum_indices' : _data_model_meta['integer_fields'] +
+                             _data_model_meta['float_fields'],
         }
 
     @um.pre_metrics_init
@@ -66,13 +74,14 @@ class TimeToThreshold(um.UserMetric):
         um.UserMetric.__init__(self, **kwargs)
 
         # Add the parameter definitions from the threshold type
-        # self.append_params(self.__threshold_types[kwargs['threshold_type_class']])
         self.apply_default_kwargs(kwargs,'init')
 
         try:
-            self._threshold_obj_ = self.__threshold_types[kwargs['threshold_type_class']](**kwargs)
+            self._threshold_obj_ = self.__threshold_types[
+                                   kwargs['threshold_type_class']](**kwargs)
         except NameError:
-            logging.error(__name__ + '::Invalid threshold class. Using default (EditCountThreshold).')
+            logging.error(__name__ + '::Invalid threshold class. '
+                                     'Using default (EditCountThreshold).')
             self._threshold_obj_ = self.EditCountThreshold(**kwargs)
 
     @staticmethod
@@ -81,24 +90,27 @@ class TimeToThreshold(um.UserMetric):
     def process(self, user_handle, **kwargs):
         """ Wrapper for specific threshold objects """
         self.apply_default_kwargs(kwargs,'process')
-        self._results =  self._threshold_obj_.process(user_handle, self, **kwargs)
+        self._results =  self._threshold_obj_.process(user_handle, self,
+            **kwargs)
         return self
 
     class EditCountThreshold():
         """
-            Nested Class. Objects of this class are to be created by the constructor of TimeToThreshold.  The class has one method,
-            process(), which computes the time, in minutes, taken between making N edits and M edits for a user.  N < M.
+            Nested Class. Objects of this class are to be created by the
+            constructor of TimeToThreshold.  The class has one method,
+            process(), which computes the time, in minutes, taken between
+            making N edits and M edits for a user.  N < M.
         """
 
         # Structure that defines parameters for TimeToThreshold class
         _param_types = {
             'init' : {
-                'first_edit' : ['int', 'Event that initiates measurement period.',REGISTRATION],
+                'first_edit' : ['int',
+                                'Event that initiates measurement period.',
+                                REGISTRATION],
                 'threshold_edit' : ['int', 'Threshold event.',1],
                 },
-            'process' : {
-                'is_id' : ['bool', 'Are user ids or names being passed.',True],
-                }
+            'process' : {}
         }
 
         def __init__(self, **kwargs):
@@ -106,8 +118,11 @@ class TimeToThreshold(um.UserMetric):
                 Object constructor.  There are two required parameters:
 
                     - Parameters:
-                        - **first_edit** - Integer.  The numeric value of the first edit from which to measure the threshold.
-                        - **threshold_edit** - Integer.  The numeric value of the threshold edit from which to measure the threshold
+                        - **first_edit** - Integer.  The numeric value of the
+                            first edit from which to measure the threshold.
+                        - **threshold_edit** - Integer.  The numeric value of
+                            the threshold edit from which to measure the
+                            threshold
             """
 
             try:
@@ -119,44 +134,57 @@ class TimeToThreshold(um.UserMetric):
                         self._param_types['init']['threshold_edit']
 
             except ValueError:
-                raise um.UserMetric.UserMetricError(str(self.__class__()) + ': Invalid init params.')
+                raise um.UserMetric.UserMetricError(
+                    str(self.__class__()) + ': Invalid init params.')
 
         def process(self, user_handle, threshold_obj, **kwargs):
             """
-                First determine if the user has made an adequate number of edits.  If so, compute the number of minutes that passed
+                First determine if the user has made an adequate number of
+                edits.  If so, compute the number of minutes that passed
                 between the Nth and Mth edit.
 
                     - Parameters:
                         - **user_handle** - List(int).  List of user ids.
-                        - **first_edit** - Integer.  The numeric value of the first edit from which to measure the threshold.
-                        - **threshold_edit** - Integer.  The numeric value of the threshold edit from which to measure the threshold
+                        - **first_edit** - Integer.  The numeric value of
+                            the first edit from which to measure the threshold.
+                        - **threshold_edit** - Integer.  The numeric value of
+                            the threshold edit from which to measure the
+                            threshold
             """
 
-            is_id=kwargs['is_id']
             minutes_to_threshold = list()
 
             # Operate on either user ids or names
-            if is_id:
-                user_revs_SQL = 'select rev_timestamp from %(project)s.revision where rev_user = "%(user_handle)s" order by 1 asc'
-            else:
-                user_revs_SQL = 'select rev_timestamp from %(project)s.revision where rev_user_text = "%(user_handle)s" order by 1 asc'
-
-            if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
+            user_revs_SQL = """
+                                SELECT rev_timestamp
+                                FROM %(project)s.revision
+                                WHERE rev_user = "%(user_handle)s"
+                                ORDER BY 1 ASC
+                            """
+            user_revs_SQL = " ".join(user_revs_SQL.strip().splitlines())
+            if not hasattr(user_handle, '__iter__'):
+                user_handle = [user_handle] # ensure the handles are iterable
 
             # For each user gather their revisions
             for user in user_handle:
-                sql = user_revs_SQL % {'user_handle' : str(user), 'project' : threshold_obj._project_}
-                revs = [rev[0] for rev in threshold_obj._data_source_.execute_SQL(sql)]
-                minutes_to_threshold.append([user, self._get_minute_diff_result(revs)])
+                sql = user_revs_SQL % {
+                    'user_handle' : str(user),
+                    'project' : threshold_obj._project_}
+                revs = [rev[0] for rev in threshold_obj.
+                    _data_source_.execute_SQL(sql)]
+                minutes_to_threshold.append(
+                    [user, self._get_minute_diff_result(revs)])
 
             return minutes_to_threshold
 
         def _get_minute_diff_result(self, results):
             """
-                Private method for this class.  This computes the minutes to threshold for the timestamp results.
+                Private method for this class.  This computes the minutes
+                to threshold for the timestamp results.
 
                     - Parameters:
-                        - **results** - list.  list of revision records with timestamp for a given user.
+                        - **results** - list.  list of revision records with
+                            timestamp for a given user.
             """
             if self._threshold_edit_ == REGISTRATION and len(results):
                 dat_obj_end = date_parse(results[0])

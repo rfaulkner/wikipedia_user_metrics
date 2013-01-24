@@ -16,7 +16,7 @@ from blocks import Blocks
 from bytes_added import BytesAdded
 from survival import Survival, survival_editors_agg
 import revert_rate as rr
-from time_to_threshold import TimeToThreshold
+from time_to_threshold import TimeToThreshold, ttt_avg_agg
 from edit_rate import EditRate, edit_rate_agg
 from namespace_of_edits import NamespaceEdits, namespace_edits_sum
 from live_account import LiveAccount, live_accounts_agg
@@ -52,6 +52,7 @@ aggregator_dict = {
     'average+live_account' : live_accounts_agg,
     'average+revert' : rr.reverted_revs_agg,
     'average+edit_rate' : edit_rate_agg,
+    'average+time_to_threshold' : ttt_avg_agg,
     }
 
 def get_metric_names(): return metric_dict.keys()
