@@ -20,6 +20,9 @@ import src.metrics.metrics_manager as mm
 
 from config import logging
 
+# Regex that matches a MediaWiki user ID
+UID_REGEX = r'[0-9]{5}[0-9]*'
+
 # Define standard variable names in the query string - store in named tuple
 RequestMeta = recordtype('RequestMeta',
     'cohort_expr cohort_gen_timestamp metric time_series '

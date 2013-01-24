@@ -77,7 +77,7 @@ import config.settings as settings
 import multiprocessing as mp
 import collections
 from collections import OrderedDict
-from re import sub
+from re import sub, search
 
 import src.etl.data_loader as dl
 import src.metrics.metrics_manager as mm
@@ -141,8 +141,11 @@ def process_metrics(p, rm):
     conn = dl.Connector(instance='slave')
     logging.info(__name__ + '::START JOB %s (PID = %s)' % (str(rm), os.getpid()))
 
-    # obtain user list
-    users = get_users(rm.cohort_expr)
+    # obtain user list - handle the case where a lone user ID is passed
+    if search(UID_REGEX, str(rm.cohort_expr)):
+        users = [rm.cohort_expr]
+    else:
+        users = get_users(rm.cohort_expr)
 
     # unpack RequestMeta into dict using MEDIATOR
     args = { attr.metric_var : getattr(rm, attr.query_var) for attr in QUERY_PARAMS_BY_METRIC[rm.metric] }
@@ -154,8 +157,6 @@ def process_metrics(p, rm):
     p.put(jsonify(results))
     del conn
     logging.info(__name__ + '::END JOB %s (PID = %s)' % (str(rm), os.getpid()))
-
-def build_url_from_request(request): pass
 
 
 ######
@@ -215,10 +216,12 @@ def metric(metric=''):
     #@@@ TODO validate user input against list of existing metrics
     return render_template('metric.html', m_str=metric, cohort_data=data)
 
-@app.route('/user/', methods=['POST', 'GET'])
-def user_request():
+@app.route('/user/<int:user_id>/<string:metric>')
+def user_request(user_id, metric):
     """ View for requesting metrics for a single user """
-    return redirect(url_for('all_cohorts'))
+    url = request.url.split(request.url_root)[1]
+    url = sub(r'user','cohorts', url)
+    return redirect(url)
 
 @app.route('/cohorts/', methods=['POST', 'GET'])
 def all_cohorts():
