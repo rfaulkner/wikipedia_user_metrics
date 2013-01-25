@@ -30,6 +30,9 @@ from config import logging
 INTERVALS_PER_THREAD = 10
 MAX_THREADS = 10
 
+USER_THREADS=100
+REVISION_THREADS=100
+
 # Registered metrics types
 metric_dict = {
     'threshold' : th.Threshold,
@@ -128,7 +131,7 @@ def process_data_request(metric_handle, users, **kwargs):
                 'end' : str(end),
                 })
 
-            metric_obj.process(users, num_threads=30, rev_threads=50, **kwargs)
+            metric_obj.process(users, num_threads=USER_THREADS, rev_threads=REVISION_THREADS, **kwargs)
             r = um.aggregator(aggregator_func, metric_obj, metric_obj.header())
             results['metric'][r.data[0]] = " ".join(to_string(r.data[1:]))
             results['header'] = " ".join(to_string(r.header))
@@ -140,7 +143,7 @@ def process_data_request(metric_handle, users, **kwargs):
             'start' : str(start),
             'end' : str(end),
             })
-        metric_obj.process(users, num_threads=30, rev_threads=50, log_progress=True, **kwargs)
+        metric_obj.process(users, num_threads=USER_THREADS, rev_threads=REVISION_THREADS, log_progress=True, **kwargs)
         for m in metric_obj.__iter__():
             results['metric'][m[0]] = " ".join(to_string(m[1:]))
 
