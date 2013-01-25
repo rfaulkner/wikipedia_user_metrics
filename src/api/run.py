@@ -220,7 +220,11 @@ def metric(metric=''):
 @app.route('/users/', methods=['POST', 'GET'])
 def all_users():
     """ Display landing page for pulling single-user metrics """
-    return render_template('all_users.html')
+    if request.method == 'POST':
+        #@@@ TODO  validate form input
+        return single_user(request.form['selectUser'])
+    else:
+        return render_template('all_users.html')
 
 @app.route('/users/<string:user>', methods=['POST', 'GET'])
 def single_user(user=''):
