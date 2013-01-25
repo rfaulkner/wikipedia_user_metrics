@@ -221,6 +221,7 @@ def metric(metric=''):
 def user_request(user, metric):
     """ View for requesting metrics for a single user """
 
+    user = str(escape(user))
     url = request.url.split(request.url_root)[1]
 
     # If it is a user name convert to ID
@@ -236,8 +237,9 @@ def user_request(user, metric):
         try:
             user_id = str(conn._cur_.fetchone()[0])
             url = sub(user,user_id, url)
-        except KeyError: redirect(url_for('cohorts') + '?error=3')
-        except TypeError: redirect(url_for('cohorts') + '?error=3')
+        except Exception:
+            logging.error(error_codes[3])
+            return redirect(url_for('all_cohorts') + '?error=3')
 
     url = sub('user','cohorts', url)
     return redirect(url)
@@ -257,19 +259,22 @@ def all_cohorts():
         conn._cur_.execute('select distinct utm_name from usertags_meta')
         o = [r[0] for r in conn._cur_]
         del conn
-        return render_template('all_cohorts.html', data=o)
+        return render_template('all_cohorts.html', data=o, error=error)
 
 @app.route('/cohorts/<string:cohort>')
 def cohort(cohort=''):
     """ View single cohort page """
+    error = get_errors(request.args)
     if not cohort:
         return redirect(url_for('all_cohorts'))
     else:
-        return render_template('cohort.html', c_str=cohort, m_list=mm.get_metric_names())
+        return render_template('cohort.html', c_str=cohort,
+            m_list=mm.get_metric_names(), error=error)
 
 @app.route('/cohorts/<string:cohort>/<string:metric>')
 def output(cohort, metric):
-    """ View corresponding to a data request - all of the setup and execution for a request happens here. """
+    """ View corresponding to a data request -
+        All of the setup and execution for a request happens here. """
 
     global global_id
     url = request.url.split(request.url_root)[1]
