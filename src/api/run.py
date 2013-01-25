@@ -217,7 +217,20 @@ def metric(metric=''):
     #@@@ TODO validate user input against list of existing metrics
     return render_template('metric.html', m_str=metric, cohort_data=data)
 
-@app.route('/user/<string:user>/<string:metric>')
+@app.route('/users/', methods=['POST', 'GET'])
+def all_users():
+    """ Display landing page for pulling single-user metrics """
+    return render_template('all_users.html')
+
+@app.route('/users/<string:user>', methods=['POST', 'GET'])
+def single_user(user=''):
+    """ Single user landing page """
+    if not user:
+        return redirect(url_for('all_users'))
+    else:
+        return render_template('user.html', user=user, m_list=mm.get_metric_names())
+
+@app.route('/users/<string:user>/<string:metric>')
 def user_request(user, metric):
     """ View for requesting metrics for a single user """
 
@@ -239,7 +252,7 @@ def user_request(user, metric):
         except KeyError: redirect(url_for('cohorts') + '?error=3')
         except TypeError: redirect(url_for('cohorts') + '?error=3')
 
-    url = sub('user','cohorts', url)
+    url = sub('users','cohorts', url)
     return redirect(url)
 
 @app.route('/cohorts/', methods=['POST', 'GET'])

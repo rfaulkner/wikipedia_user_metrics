@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<title>User Metrics API</title>
+<title>User Metrics</title>
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.css') }}">
 <style>
       body {
@@ -20,11 +20,12 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </a>
-          <a class="brand" href="/">User Metrics API</a>
+          <a class="brand" href="/">User Metrics</a>
           <div class="nav-collapse collapse">
             <ul class="nav">
               <li><a href="{{ url_for('all_cohorts') }}">Cohorts</a></li>
               <li><a href="{{ url_for('all_metrics') }}">Metrics</a></li>
+              <li><a href="{{ url_for('all_users') }}">Users</a></li>
               <li><a href="{{ url_for('job_queue') }}">Jobs</a></li>
               <li><a href="{{ url_for('about') }}">About</a></li>
               <li><a href="{{ url_for('contact') }}">Contact</a></li>
