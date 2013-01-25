@@ -92,34 +92,26 @@ class Threshold(um.UserMetric):
         survival = bool(kwargs['survival'])
         restrict = bool(kwargs['restrict'])
 
-        # Format condition on user ids.  if no user handle exists there is no condition.
+        # Format condition on user ids.  if no user handle exists there is no
+        # condition.
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
         if not user_handle: user_handle.append(-1) # No user is matched
 
         user_id_str = um.dl.DataLoader().format_comma_separated_list(
-            um.dl.DataLoader().cast_elems_to_string(user_handle), include_quotes=False)
+            um.dl.DataLoader().cast_elems_to_string(user_handle),
+            include_quotes=False)
         user_id_cond = "and log_user in (%s)" % user_id_str
 
-        # Format condition on timestamps
-        ts_cond = ''
-        if restrict:
-            ts_cond = 'log_timestamp >= %(date_start)s and log_timestamp <= %(date_end)s and' % {
-                'date_start' : self._start_ts_,
-                'date_end' : self._end_ts_,
-                }
-
-        # Get all registrations - this assumes that each user id corresponds to a valid registration event in the
-        # the logging table.
+        # Get all registrations - this assumes that each user id corresponds
+        # to a valid registration event in the the logging table.
         sql = """
             select
                 log_user,
                 log_timestamp
             from %(project)s.logging
-            where %(ts_cond)s
-                log_action = 'create' AND log_type='newusers'
+            where log_action = 'create' AND log_type='newusers'
                 %(uid_str)s
         """ % {
-            'ts_cond' : ts_cond,
             'project' : self._project_,
             'uid_str' : user_id_cond
         }
@@ -127,27 +119,34 @@ class Threshold(um.UserMetric):
 
         # Process results
         user_data = [r for r in self._data_source_._cur_]
-        args = [self._project_, self._namespace_, self._n_, self._t_, log_progress, survival]
+        args = [self._project_, self._namespace_, self._n_,
+                self._t_, log_progress, survival, restrict,
+                self._start_ts_, self._end_ts_]
         self._results = mpw.build_thread_pool(user_data,_process_help,k,args)
 
         return self
 
 def _process_help(args):
-    """ Used by Threshold::process() for forking.  Should not be called externally. """
+    """ Used by Threshold::process() for forking.
+        Should not be called externally. """
 
-    ThresholdArgsClass = collections.namedtuple('ThresholdArgs', 'project namespace n t log_progress survival')
+    ThresholdArgsClass = collections.namedtuple('ThresholdArgs',
+        'project namespace n t log_progress survival restrict ts_start ts_end')
     user_data = args[0]
     state = args[1]
-    thread_args = ThresholdArgsClass(state[0],state[1],state[2],state[3],state[4],state[5])
+    thread_args = ThresholdArgsClass(state[0],state[1],state[2],
+        state[3],state[4],state[5],state[6],state[7],state[8])
 
-    if thread_args.log_progress: logging.info(__name__ + '::Processing revision data ' + \
+    if thread_args.log_progress: logging.info(__name__ +
+                                              '::Processing revision data ' + \
         '(%s users) by user... (PID = %s)' % (len(user_data), os.getpid()))
 
     # only proceed if there is user data
     if not len(user_data): return []
 
-    # The key difference between survival and threshold is that threshold measures a level of activity before a point
-    # whereas survival (generally) measures any activity after a point
+    # The key difference between survival and threshold is that threshold
+    # measures a level of activity before a point whereas survival
+    # (generally) measures any activity after a point
     if thread_args.survival:
         timestamp_cond = ' and rev_timestamp > %(ts)s'
     else:
@@ -156,6 +155,13 @@ def _process_help(args):
     # format the namespace condition
     ns_cond = um.UserMetric._format_namespace(thread_args.namespace)
     if ns_cond: ns_cond += ' and'
+
+    # Format condition on timestamps
+    if thread_args.restrict:
+        timestamp_cond += ' and rev_timestamp > {0} and ' \
+                          'rev_timestamp <= {1}'.format(thread_args.ts_start,
+            thread_args.ts_end)
+
 
     sql = """
             select
