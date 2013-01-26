@@ -7,32 +7,40 @@
     Job Queue and Processing
     ^^^^^^^^^^^^^^^^^^^^^^^^
 
-    As requests are issued via http to the API a process queue will store all active jobs. Processes will be created
-    and assume one of the following states throughout their existence: ::
+    As requests are issued via http to the API a process queue will store all
+    active jobs. Processes will be created and assume one of the following
+    states throughout their existence: ::
 
-        * 'pending' - The request has yet to be fully processed and exposed but is underway
-        * 'success' - The request has finished processing and is exposed at the url
-        * 'failure' - The result has finished processing but dailed to expose results
+        * 'pending' - The request has yet to be fully processed and exposed
+            but is underway
+        * 'success' - The request has finished processing and is exposed at
+            the url
+        * 'failure' - The result has finished processing but dailed to expose
+            results
 
-    When a process a request is received and a job is created to service that request it enters the 'pending' state.
-    If the job returns without exception it enters the 'success' state, otherwise it enters the 'failure' state.  The
-    jpb remains in either of these states until it is cleared from the process queue.
+    When a process a request is received and a job is created to service that
+    request it enters the 'pending' state. If the job returns without
+    exception it enters the 'success' state, otherwise it enters the 'failure'
+    state.  The job remains in either of these states until it is cleared
+    from the process queue.
 
     Response Data
     ^^^^^^^^^^^^^
 
-    As requests are made to the API the data generated and formatted as JSON.  The definition of is as follows: ::
+    As requests are made to the API the data generated and formatted as JSON.
+    The definition of is as follows: ::
 
         {   header : header_list,
-            cohort_expr : cohort_gen_timestamp : metric : timeseries : aggregator : date_start :
-                date_end : [ metric_param : ]* : data
+            cohort_expr : cohort_gen_timestamp : metric : timeseries :
+            aggregator : date_start : date_end : [ metric_param : ]* : data
         }
 
     Where each component is defined: ::
 
         header_str := list(str), list of header values
         cohort_expr := str, cohort ID expression
-        cohort_gen_timestamp := str, cohort generation timestamp (earliest of all cohorts in expression)
+        cohort_gen_timestamp := str, cohort generation timestamp (earliest of
+            all cohorts in expression)
         metric := str, user metric handle
         timeseries := boolean, indicates if this is a timeseries
         aggregator := str, aggregator used
@@ -41,13 +49,14 @@
         metric_param := -, optional metric parameters
         data := list(tuple), set of data points
 
-    Request data is mapped to a query via metric objects and hashed in the dictionary `pkl_data`.
+    Request data is mapped to a query via metric objects and hashed in the
+    dictionary `pkl_data`.
 
     Cohort Data
     ^^^^^^^^^^^
 
-    Cohort data is maintained in the host s1-analytics-slave.eqiad.wmnet under the `staging` database in the `usertags`
-    and `usertags_meta` tables: ::
+    Cohort data is maintained in the host s1-analytics-slave.eqiad.wmnet under
+    the `staging` database in the `usertags` and `usertags_meta` tables: ::
 
         +---------+-----------------+------+-----+---------+-------+
         | Field   | Type            | Null | Key | Default | Extra |
@@ -56,14 +65,14 @@
         | ut_tag  | int(4) unsigned | NO   | PRI | NULL    |       |
         +---------+-----------------+------+-----+---------+-------+
 
-        +-------------+-----------------+------+-----+---------+----------------+
-        | Field       | Type            | Null | Key | Default | Extra          |
-        +-------------+-----------------+------+-----+---------+----------------+
-        | utm_id      | int(5) unsigned | NO   | PRI | NULL    | auto_increment |
-        | utm_name    | varchar(255)    | NO   |     |         |                |
-        | utm_notes   | varchar(255)    | YES  |     | NULL    |                |
-        | utm_touched | datetime        | YES  |     | NULL    |                |
-        +-------------+-----------------+------+-----+---------+----------------+
+    +-------------+-----------------+------+-----+---------+----------------+
+    | Field       | Type            | Null | Key | Default | Extra          |
+    +-------------+-----------------+------+-----+---------+----------------+
+    | utm_id      | int(5) unsigned | NO   | PRI | NULL    | auto_increment |
+    | utm_name    | varchar(255)    | NO   |     |         |                |
+    | utm_notes   | varchar(255)    | YES  |     | NULL    |                |
+    | utm_touched | datetime        | YES  |     | NULL    |                |
+    +-------------+-----------------+------+-----+---------+----------------+
 
 """
 from flask import Flask, render_template, Markup, jsonify, \
@@ -97,7 +106,8 @@ app = Flask(__name__)
 global global_id
 global_id = 0
 
-# Stores cached requests (this should eventually be replaced with a proper cache)
+# Stores cached requests (this should eventually be replaced
+# with a proper cache)
 global pkl_data
 pkl_data = OrderedDict()
 
@@ -119,7 +129,8 @@ global processQ
 processQ = list()
 
 # Class defining all objects contained on the processQ
-QStructClass = collections.namedtuple('QStruct', 'id process request url queue status')
+QStructClass = collections.namedtuple('QStruct',
+    'id process request url queue status')
 
 ######
 #
@@ -137,10 +148,12 @@ def get_errors(request_args):
     return error
 
 def process_metrics(p, rm):
-    """ Worker process for requests - this will typically operate in a forked process """
+    """ Worker process for requests -
+        this will typically operate in a forked process """
 
     conn = dl.Connector(instance='slave')
-    logging.info(__name__ + '::START JOB %s (PID = %s)' % (str(rm), os.getpid()))
+    logging.info(__name__ + '::START JOB %s (PID = %s)' % (str(rm),
+                                                           os.getpid()))
 
     # obtain user list - handle the case where a lone user ID is passed
     if search(MW_UID_REGEX, str(rm.cohort_expr)):
@@ -149,8 +162,10 @@ def process_metrics(p, rm):
         users = get_users(rm.cohort_expr)
 
     # unpack RequestMeta into dict using MEDIATOR
-    args = { attr.metric_var : getattr(rm, attr.query_var) for attr in QUERY_PARAMS_BY_METRIC[rm.metric] }
-    logging.info(__name__ + '::Calling %s with args = %s.' % (rm.metric, str(args)))
+    args = { attr.metric_var : getattr(rm, attr.query_var)
+             for attr in QUERY_PARAMS_BY_METRIC[rm.metric] }
+    logging.info(__name__ + '::Calling %s with args = %s.' % (rm.metric,
+                                                              str(args)))
 
     # process request
     results = mm.process_data_request(rm.metric, users, **args)
@@ -290,12 +305,14 @@ def output(cohort, metric):
         cohort_refresh_ts = get_cohort_refresh_datetime(cid)
     except Exception:
         cohort_refresh_ts = None
-        logging.error(__name__ + '::Could not retrieve refresh time of cohort.')
+        logging.error(__name__ + '::Could not retrieve refresh '
+                                 'time of cohort.')
 
     # Build a request. Populate with request parameters from query args.
     rm = RequestMetaFactory(cohort, cohort_refresh_ts, metric)
     for param in REQUEST_META_QUERY_STR:
-        if param in request.args and hasattr(rm, param): setattr(rm, param, request.args[param])
+        if param in request.args and hasattr(rm, param): setattr(rm, param,
+            request.args[param])
 
     # Process defaults for request parameters
     try:
@@ -303,7 +320,8 @@ def output(cohort, metric):
     except MetricsAPIError as e:
         return redirect(url_for('cohorts') + '?error=' + e.message)
 
-    # Determine if the request maps to an existing response.  If so return it.  Otherwise compute.
+    # Determine if the request maps to an existing response.  If so return it.
+    # Otherwise compute.
     data = get_data(rm, pkl_data)
     if data and not refresh:
         return data
@@ -312,7 +330,8 @@ def output(cohort, metric):
         # Ensure that the job for this url is not already running
         is_pending_job = False
         for p in processQ:
-            if not cmp(rm, p.request) and p.status[0] == 'pending': is_pending_job = True
+            if not cmp(rm, p.request) and p.status[0] == 'pending':
+                is_pending_job = True
 
         if not is_pending_job: # Queue the job
 
@@ -322,7 +341,8 @@ def output(cohort, metric):
 
             global_id += 1
 
-            logging.info(__name__ + '::Appending request %s to the queue...' % rm)
+            logging.info(__name__ + '::Appending request %s to the queue...'
+                % rm)
             processQ.append(QStructClass(global_id,p,rm,url,q,['pending']))
 
             return render_template('processing.html', url_str=str(rm))
@@ -343,7 +363,8 @@ def job_queue():
         	}.get(em, '') 
 
     p_list = list()
-    p_list.append(Markup('<thead><tr><th>is_alive</th><th>PID</th><th>url</th><th>status</th></tr></thead>\n<tbody>\n'))
+    p_list.append(Markup('<thead><tr><th>is_alive</th><th>PID</th><th>url'
+                         '</th><th>status</th></tr></thead>\n<tbody>\n'))
     for p in processQ:
         try:
 
@@ -355,7 +376,8 @@ def job_queue():
                     for k,v in queue_data[p.id]:
                         if hasattr(v,'__iter__'): queue_data[p.id][k].extend(v)
 
-            # once a process has finished working remove it and put its contents into the cache
+            # once a process has finished working remove it and put its
+            # contents into the cache
             if not p.process.is_alive() and p.status[0] == 'pending':
                 q_response = make_response(jsonify(queue_data[p.id]))
                 del queue_data[p.id]
@@ -366,13 +388,16 @@ def job_queue():
 
         except Exception as e:
             p.status[0] = 'failure'
-            logging.error(__name__ + "::Could not update request: %s.  Exception: %s" % (p.url, e.message) )
+            logging.error(__name__ + "::Could not update request: %s.  "
+                                     "Exception: %s" % (p.url, e.message) )
 
         # Log the status of the job
-        response_url = "".join(['<a href="', request.url_root, p.url + '">', p.url, '</a>'])
+        response_url = "".join(['<a href="',
+                                request.url_root, p.url + '">', p.url, '</a>'])
 	
         p_list.append(Markup('<tr class="'+ error_class(p.status[0])+'"><td>'))
-        p_list.append("</td><td>".join([str(p.process.is_alive()), str(p.process.pid),
+        p_list.append("</td><td>".join([str(p.process.is_alive()),
+                                        str(p.process.pid),
                                   escape(Markup(response_url)), p.status[0]]))
         p_list.append(Markup('</td></tr>'))
 
@@ -407,7 +432,8 @@ def all_urls():
     url_list = list()
     for key_sig in key_sigs:
         url = get_url_from_keys(key_sig, 'stored')
-        url_list.append("".join(['<a href="', request.url_root, url + '">', url, '</a>']))
+        url_list.append("".join(['<a href="',
+                                 request.url_root, url + '">', url, '</a>']))
     return render_template('all_urls.html', urls=url_list)
 
 @app.route('/stored/<string:cohort>/<string:metric>')
@@ -418,7 +444,9 @@ def stored_requests(cohort, metric):
 
     # Parse the cohort and metric IDs
     try:
-        hash_ref = hash_ref['cohort_expr' + HASH_KEY_DELIMETER + cohort]['metric' + HASH_KEY_DELIMETER + metric]
+        hash_ref = hash_ref[
+                   'cohort_expr' + HASH_KEY_DELIMETER + cohort][
+                   'metric' + HASH_KEY_DELIMETER + metric]
     except Exception:
         logging.error(__name__ + '::Request not found for: %s' % request.url)
         return redirect(url_for('cohorts') + '?error=2')
@@ -427,12 +455,15 @@ def stored_requests(cohort, metric):
     for param in REQUEST_META_QUERY_STR:
         if param in request.args:
             try:
-                hash_ref = hash_ref[param + HASH_KEY_DELIMETER + request.args[param]]
+                hash_ref = hash_ref[
+                           param + HASH_KEY_DELIMETER + request.args[param]]
             except KeyError:
-                logging.error(__name__ + '::Request not found for: %s' % request.url)
+                logging.error(__name__ + '::Request not found for: %s' %
+                                         request.url)
                 return redirect(url_for('cohorts') + '?error=2')
 
-    if hasattr(hash_ref, 'status_code'): # Ensure that that the data is a HTTP response object
+    # Ensure that that the data is a HTTP response object
+    if hasattr(hash_ref, 'status_code'):
         return hash_ref
     else:
         return redirect(url_for('cohort') + '?error=2')
