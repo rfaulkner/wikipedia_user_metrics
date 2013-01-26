@@ -217,6 +217,9 @@ def get_data(request_meta, hash_table_ref):
     # Traverse the hash key structure to find data
     # @TODO rather than iterate through REQUEST_META_BASE &
     #   REQUEST_META_QUERY_STR look only at existing attributes
+
+    logging.debug(__name__ + "::Attempting to pull data for request {0}".
+        format(str(request_meta)))
     for key_name in REQUEST_META_BASE + REQUEST_META_QUERY_STR:
         if hasattr(request_meta, key_name) and getattr(request_meta, key_name):
             key = getattr(request_meta, key_name)
@@ -261,6 +264,8 @@ def set_data(request_meta, data, hash_table_ref):
             key = getattr(request_meta, key_name)
             if key: key_sig.append(key_name + HASH_KEY_DELIMETER + key)
 
+    logging.debug(__name__ + "::Adding data to hash @ key signature = {0}".
+        format(str(key_sig)))
     # For each key in the key signature add a nested key to the hash
     last_item = key_sig[len(key_sig) - 1]
     for key in key_sig:
@@ -294,6 +299,7 @@ def get_url_from_keys(keys, path_root):
 def build_key_tree(nested_dict):
     """ Builds a tree of key values from a nested dict. """
     if hasattr(nested_dict, 'keys'):
-        for key in nested_dict.keys(): yield (key, build_key_tree(nested_dict[key]))
+        for key in nested_dict.keys(): yield (key, build_key_tree(
+            nested_dict[key]))
     else:
         yield None
