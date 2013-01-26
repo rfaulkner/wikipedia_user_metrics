@@ -14,17 +14,19 @@ from config import logging
 
 class Threshold(um.UserMetric):
     """
-        Boolean measure: Did an editor reach some threshold of activity (e.g. n edits, words added, pages created,
-        etc.) within t time.
+        Boolean measure: Did an editor reach some threshold of activity (e.g.
+        n edits, words added, pages created, etc.) within t time.
 
             `https://meta.wikimedia.org/wiki/Research:Metrics/threshold(t,n)`
 
-        As a UserMetric type this class utilizes the process() function attribute to produce an internal list of metrics by
-        user handle (typically ID but user names may also be specified). The execution of process() produces a nested list that
-        stores in each element:
+        As a UserMetric type this class utilizes the process() function
+        attribute to produce an internal list of metrics by user handle
+        (typically ID but user names may also be specified). The execution
+        of process() produces a nested list that stores in each element:
 
             * User ID
-            * boolean flag to indicate whether edit threshold was reached in time given
+            * boolean flag to indicate whether edit threshold was reached
+                in time given
 
         usage e.g.: ::
 
@@ -37,14 +39,20 @@ class Threshold(um.UserMetric):
     _param_types = {
         'init' : {
             't' : ['int', 'The time in minutes until the threshold.',24],
-            'n' : ['int', 'Revision threshold that is to be exceeded in time `t`.',1],
+            'n' : ['int', 'Revision threshold that is '
+                          'to be exceeded in time `t`.',1],
             },
         'process' : {
             'log_progress' : ['bool', 'Enable logging for processing.',False],
-            'num_threads' : ['int', 'Number of worker processes over users.',1],
-            'survival' : ['bool', 'Indicates whether this is to be processed as the survival metric.',False],
-            'restrict' : ['bool', 'Restrict threshold calculations to those users registered between'
-                                  '`date_start` and `date_end`',False],
+            'num_threads' : ['int', 'Number of worker processes over users.',
+                             1],
+            'survival' : ['bool', 'Indicates whether this is '
+                                  'to be processed as the survival metric.',
+                          False],
+            'restrict' : ['bool', 'Restrict threshold calculations to those '
+                                  'users registered between `date_start` and '
+                                  '`date_end`',
+                          False],
         }
     }
 
@@ -75,14 +83,18 @@ class Threshold(um.UserMetric):
         """
             This function gathers threahold (survival) metric data by: ::
 
-                1. selecting all new user registrations within the timeframe and in the user list (empty means select
-                all withing the timeframe.)
-                2. For each user id find the number of revisions before (after) the threshold (survival) cut-off time t
+                1. selecting all new user registrations within the timeframe
+                    and in the user list (empty means select all withing the
+                    timeframe.)
+                2. For each user id find the number of revisions before (after)
+                    the threshold (survival) cut-off time t
 
             - Parameters:
-                - **user_handle** - String or Integer (optionally lists).  Value or list of values representing user handle(s).
+                - **user_handle** - String or Integer (optionally lists).
+                    Value or list of values representing user handle(s).
 
-            **NOTA BENE** - kwarg "survival" is used to execute has this determine survival rather than a threshold metric
+            **NOTA BENE** - kwarg "survival" is used to execute has this
+                determine survival rather than a threshold metric
         """
 
         self.apply_default_kwargs(kwargs,'process')
@@ -178,9 +190,11 @@ def _process_help(args):
     results = list()
     for r in user_data:
         try:
-            ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) + timedelta(hours=thread_args.t))
+            ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) +
+                                              timedelta(hours=thread_args.t))
             id = long(r[0])
-            conn._cur_.execute(sql % {'project' : thread_args.project, 'ts' : ts,
+            conn._cur_.execute(sql % {'project' : thread_args.project,
+                                      'ts' : ts,
                                       'ns' : ns_cond, 'id' : id})
             count = int(conn._cur_.fetchone()[0])
 
@@ -192,22 +206,25 @@ def _process_help(args):
         else:
             results.append((r[0],1))
 
-    if thread_args.log_progress: logging.info(__name__ + '::Processed PID = %s.' % os.getpid())
+    if thread_args.log_progress: logging.info(
+        __name__ + '::Processed PID = %s.' % os.getpid())
 
     return results
 
 
 # Build "rate" decorator
 threshold_editors_agg = boolean_rate
-threshold_editors_agg = decorator_builder(Threshold.header())(threshold_editors_agg)
+threshold_editors_agg = decorator_builder(Threshold.header())(
+    threshold_editors_agg)
 
 setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_FLAG, True)
-setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_NAME, 'threshold_editors_agg')
+setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_NAME,
+    'threshold_editors_agg')
 setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
                                       'threshold_reached','rate'])
 setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 1})
 
 # testing
 if __name__ == "__main__":
-    for r in Threshold(namespace=[0,4]).process([13234584, 156171], num_threads=0,
-        log_progress=True).__iter__(): print r
+    for r in Threshold(namespace=[0,4]).process([13234584, 156171],
+        num_threads=0, log_progress=True).__iter__(): print r
