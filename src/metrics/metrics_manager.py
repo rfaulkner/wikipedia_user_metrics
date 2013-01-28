@@ -9,6 +9,7 @@ __date__ = "12/28/2012"
 __license__ = "GPL (version 2 or later)"
 
 import re
+from collections import OrderedDict
 from dateutil.parser import parse as date_parse
 
 import user_metric as um
@@ -29,7 +30,7 @@ import src.etl.time_series_process_methods as tspm
 from config import logging
 
 INTERVALS_PER_THREAD = 10
-MAX_THREADS = 10
+MAX_THREADS = 5
 
 USER_THREADS=100
 REVISION_THREADS=100
@@ -83,7 +84,7 @@ def process_data_request(metric_handle, users, **kwargs):
     agg_key = get_agg_key(aggregator, metric_handle) if aggregator else None
 
     # Initialize the results
-    results = dict()
+    results = OrderedDict()
 
     metric_class = metric_dict[metric_handle]
     metric_obj = metric_class(**kwargs)
@@ -95,7 +96,7 @@ def process_data_request(metric_handle, users, **kwargs):
     for key in metric_obj.__dict__:
         if re.search(r'_.*_', key):
             results[str(key[1:-1])] = str(metric_obj.__dict__[key])
-    results['metric'] = dict()
+    results['metric'] = OrderedDict()
 
     # Parse the aggregator
     aggregator_func = None
@@ -126,12 +127,17 @@ def process_data_request(metric_handle, users, **kwargs):
             out = tspm.build_time_series(start, end,
                 interval, metric_class, aggregator_func, users,
                 num_threads=time_threads,
-                metric_threads='{"num_threads" : 20, "rev_threads" : 50}',
+                metric_threads='{"num_threads" : %(user_threads)s, '
+                               '"rev_threads" : %(rev_threads)s}' %
+                { 'user_threads' : USER_THREADS,
+                  'rev_threads': REVISION_THREADS},
                 log=True)
 
+            count = 1
             for row in out:
-                results['metric'][row[0] + ' - ' + row[1]] = " ".join(
-                    to_string(row[3:]))
+                results['metric'][count] = " ".join(
+                    to_string([row[0][:10] + 'T' + row[0][11:13]] + row[3:]))
+                count += 1
         else:
 
             logging.info('Metrics Manager: Initiating aggregator for '
