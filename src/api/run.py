@@ -88,9 +88,9 @@ import collections
 from collections import OrderedDict
 from re import sub, search
 
+from src.metrics.users import MediaWikiUser
 import src.etl.data_loader as dl
 import src.metrics.metrics_manager as mm
-from src.api import MetricsAPIError
 
 from engine import *
 
@@ -161,6 +161,10 @@ def process_metrics(p, rm):
     # obtain user list - handle the case where a lone user ID is passed
     if search(MW_UID_REGEX, str(rm.cohort_expr)):
         users = [rm.cohort_expr]
+    # Special case where user lists are to be generated based on registered
+    # user reg dates from the logging table -- see src/metrics/users.py
+    elif rm.cohort_expr == 'all':
+        users = MediaWikiUser(query_type=1)
     else:
         users = get_users(rm.cohort_expr)
 

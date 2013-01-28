@@ -112,8 +112,8 @@ def process_data_request(metric_handle, users, **kwargs):
             interval = int(kwargs['interval'])
             total_intervals = (date_parse(end) -
                         date_parse(start)).total_seconds() / (3600 * interval)
-            num_threads = min(MAX_THREADS,
-                int(total_intervals / INTERVALS_PER_THREAD))
+            time_threads = max(1,int(total_intervals / INTERVALS_PER_THREAD))
+            time_threads = min(MAX_THREADS, time_threads)
 
             logging.info('Metrics Manager: Initiating time series for '
                          '%(metric)s with %(agg)s from '
@@ -125,7 +125,7 @@ def process_data_request(metric_handle, users, **kwargs):
             })
             out = tspm.build_time_series(start, end,
                 interval, metric_class, aggregator_func, users,
-                num_threads=num_threads,
+                num_threads=time_threads,
                 metric_threads='{"num_threads" : 20, "rev_threads" : 50}',
                 log=True)
 
