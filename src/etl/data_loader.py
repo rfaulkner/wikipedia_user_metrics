@@ -543,72 +543,72 @@ class DataLoader(object):
             logging.error(message)
             raise Exception(message)
 
-    # Determine the length of each key-list and store
-    max_lens = dict()
-    max_list_len = 0
-    for key in d.keys():
-        max_lens[key] = len(d[key])
-        if max_lens[key] > max_list_len:
-            max_list_len = max_lens[key]
+        # Determine the length of each key-list and store
+        max_lens = dict()
+        max_list_len = 0
+        for key in d.keys():
+            max_lens[key] = len(d[key])
+            if max_lens[key] > max_list_len:
+                max_list_len = max_lens[key]
 
-    # Write to xsv
-    file_obj_out.write(separator.join(d.keys()) + '\n')
-    for i in range(max_list_len):
-        line_elems = list()
-        for key in d:
-            if i < max_lens[key]:
-                line_elems.append(str(d[key][i]))
-            else:
-                line_elems.append('None')
-        file_obj_out.write(separator.join(line_elems) + '\n')
+        # Write to xsv
+        file_obj_out.write(separator.join(d.keys()) + '\n')
+        for i in range(max_list_len):
+            line_elems = list()
+            for key in d:
+                if i < max_lens[key]:
+                    line_elems.append(str(d[key][i]))
+                else:
+                    line_elems.append('None')
+            file_obj_out.write(separator.join(line_elems) + '\n')
 
-    file_obj_out.close()
+        file_obj_out.close()
 
-def create_generic_table(self, table_name, column_names,
-                         conn=Connector(instance='slave')):
-    """
-        Given a table name and a set of column names create a generic table
+    def create_generic_table(self, table_name, column_names,
+                             conn=Connector(instance='slave')):
+        """
+            Given a table name and a set of column names create a generic table
 
-        Parameters:
-            - **table_name** - str.
-            = **column_names** - list(str).
-    """
-    create_stmt = 'CREATE TABLE `%s` (' % table_name
-    for col in column_names:
-        create_stmt += "`%s` varbinary(255) NOT NULL DEFAULT ''," % col
-    create_stmt = create_stmt[:-1]+") ENGINE=MyISAM DEFAULT CHARSET=binary"
-    conn.execute_SQL(create_stmt)
+            Parameters:
+                - **table_name** - str.
+                = **column_names** - list(str).
+        """
+        create_stmt = 'CREATE TABLE `%s` (' % table_name
+        for col in column_names:
+            create_stmt += "`%s` varbinary(255) NOT NULL DEFAULT ''," % col
+        create_stmt = create_stmt[:-1]+") ENGINE=MyISAM DEFAULT CHARSET=binary"
+        conn.execute_SQL(create_stmt)
 
-def format_condition_in(self, field_name, item_list, include_quotes=False):
-    """ Formats a SQL "in" condition """
-    if hasattr(item_list, '__iter__'):
-        list_str = self.format_comma_separated_list(
-            self.cast_elems_to_string(item_list),
-            include_quotes=include_quotes)
-        list_cond = "%s in (%s)" % (field_name, list_str)
-        return list_cond
-    else:
-        logging.error(__name__ + '::format_condition_in - '
-                                 'item_list must implement the '
-                                 'iterable interface.')
-        return ''
+    def format_condition_in(self, field_name, item_list, include_quotes=False):
+        """ Formats a SQL "in" condition """
+        if hasattr(item_list, '__iter__'):
+            list_str = self.format_comma_separated_list(
+                self.cast_elems_to_string(item_list),
+                include_quotes=include_quotes)
+            list_cond = "%s in (%s)" % (field_name, list_str)
+            return list_cond
+        else:
+            logging.error(__name__ + '::format_condition_in - '
+                                     'item_list must implement the '
+                                     'iterable interface.')
+            return ''
 
-def format_condition_between(self, field_name, val_1, val_2,
-                             include_quotes=False):
-    """ Formats a SQL "between" condition """
+    def format_condition_between(self, field_name, val_1, val_2,
+                                 include_quotes=False):
+        """ Formats a SQL "between" condition """
 
-    # Cast operands to string.  Add quoatation if specified
-    val_1 = str(val_1)
-    val_2 = str(val_2)
-    if include_quotes:
-        val_1 = '"' + val_1 + '"'
-        val_2 = '"' + val_2 + '"'
+        # Cast operands to string.  Add quoatation if specified
+        val_1 = str(val_1)
+        val_2 = str(val_2)
+        if include_quotes:
+            val_1 = '"' + val_1 + '"'
+            val_2 = '"' + val_2 + '"'
 
-    # Format clause
-    ts_cond = '%(field_name)s BETWEEN %(val_1)s AND %(val_2)s' % {
-        'field_name' : field_name,
-        'val_1' : val_1,
-        'val_2' : val_2,
-        }
-    return ts_cond
+        # Format clause
+        ts_cond = '%(field_name)s BETWEEN %(val_1)s AND %(val_2)s' % {
+            'field_name' : field_name,
+            'val_1' : val_1,
+            'val_2' : val_2,
+            }
+        return ts_cond
 
