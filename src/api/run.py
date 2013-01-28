@@ -132,6 +132,9 @@ processQ = list()
 QStructClass = collections.namedtuple('QStruct',
     'id process request url queue status')
 
+# The default value for non-assigned and valid values in the query string
+DEFAULT_QUERY_VAL = 'present'
+
 ######
 #
 # Define Decorators and helper methods
@@ -311,8 +314,12 @@ def output(cohort, metric):
     # Build a request. Populate with request parameters from query args.
     rm = RequestMetaFactory(cohort, cohort_refresh_ts, metric)
     for param in REQUEST_META_QUERY_STR:
-        if param in request.args and hasattr(rm, param): setattr(rm, param,
-            request.args[param])
+        if param in request.args and hasattr(rm, param):
+            if not request.args[param]:
+                # Assign a value indicating presence of a query var
+                setattr(rm, param, DEFAULT_QUERY_VAL)
+            else:
+                setattr(rm, param, request.args[param])
 
     # Process defaults for request parameters
     try:
