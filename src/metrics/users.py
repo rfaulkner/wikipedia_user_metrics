@@ -8,8 +8,16 @@ __date__    = "01/28/2013"
 __email__   = 'rfaulkner@wikimedia.org'
 
 from src.etl.data_loader import Connector
+from dateutil.parser import parse as date_parse
 
-MEDIAWIKI_DB_INSTANCE = 'slave'
+MEDIAWIKI_DB_INSTANCE           = 'slave'
+MEDIAWIKI_TIMESTAMP_FORMAT      = "%Y%m%d%H%M%S"
+
+class MediaWikiUserException(Exception):
+    """ Basic exception class for UserMetric types """
+    def __init__(self, message="Error obtaining user(s) from MediaWiki "
+                               "instance."):
+        Exception.__init__(self, message)
 
 class MediaWikiUser(object):
     """
@@ -49,8 +57,8 @@ class MediaWikiUser(object):
             Returns a Generator for MediaWiki user IDs.
         """
         param_dict = {
-            'date_start': date_start,
-            'date_end': date_end,
+            'date_start': self._format_mediawiki_timestamp(date_start),
+            'date_end': self._format_mediawiki_timestamp(date_end),
             'project' : project,
         }
         conn = Connector(instance=MEDIAWIKI_DB_INSTANCE)
@@ -58,8 +66,12 @@ class MediaWikiUser(object):
 
         for row in conn._cur_: yield row[0]
 
-class MediaWikiUserException(Exception):
-    """ Basic exception class for UserMetric types """
-    def __init__(self, message="Error obtaining user(s) from MediaWiki "
-                               "instance."):
-        Exception.__init__(self, message)
+    def _format_mediawiki_timestamp(self, timestamp_repr):
+        """ Convert to mediawiki timestamps """
+        if hasattr(timestamp_repr, 'strftime'):
+            return timestamp_repr.strftime(MEDIAWIKI_TIMESTAMP_FORMAT)
+        else:
+            return date_parse(timestamp_repr).strftime(
+                MEDIAWIKI_TIMESTAMP_FORMAT)
+
+
