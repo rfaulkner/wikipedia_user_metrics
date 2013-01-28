@@ -53,7 +53,7 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric):
 REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace',
                           'date_start', 'date_end', 'interval', 't', 'n',
                           'time_unit','time_unit_count', 'look_ahead',
-                          'look_back', 'threshold_type', 'restrict', 'refresh',
+                          'look_back', 'threshold_type', 'restrict',
                           ]
 REQUEST_META_BASE = ['cohort_expr', 'metric']
 

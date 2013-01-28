@@ -135,6 +135,9 @@ QStructClass = collections.namedtuple('QStruct',
 # The default value for non-assigned and valid values in the query string
 DEFAULT_QUERY_VAL = 'present'
 
+# REGEX to identify refresh flags in the URL
+REFRESH_REGEX = r'refresh[^&]*&|\?refresh[^&]*$|&refresh[^&]*$'
+
 ######
 #
 # Define Decorators and helper methods
@@ -304,7 +307,7 @@ def output(cohort, metric):
     # Check for refresh flag - drop from url
     refresh = True if 'refresh' in request.args else False
     if refresh:
-        url = sub(r'refresh=[^&]*[&]|\?refresh=[^&]*$','', url)
+        url = sub(REFRESH_REGEX,'',url)
 
     # Get the refresh date of the cohort
     try:
