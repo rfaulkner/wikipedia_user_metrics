@@ -40,10 +40,11 @@ class MediaWikiUser(object):
             2: USER_QUERY_USER,
     }
 
-    def __init__(self):
+    def __init__(self, query_type=1):
+        self._query_type = query_type
         super(MediaWikiUser, self).__init__()
 
-    def get_users(self, date_start, date_end, project='enwiki', query_type=1):
+    def get_users(self, date_start, date_end, project='enwiki'):
         """
             Returns a Generator for MediaWiki user IDs.
         """
@@ -53,7 +54,7 @@ class MediaWikiUser(object):
             'project' : project,
         }
         conn = Connector(instance=MEDIAWIKI_DB_INSTANCE)
-        conn._cur_.execute(self.QUERY_TYPES[query_type] % param_dict)
+        conn._cur_.execute(self.QUERY_TYPES[self._query_type] % param_dict)
 
         for row in conn._cur_: yield row[0]
 
