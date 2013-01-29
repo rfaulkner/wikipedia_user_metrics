@@ -78,6 +78,7 @@ class BytesAdded(um.UserMetric):
     def header(): return ['user_id', 'bytes_added_net', 'bytes_added_absolute',
                           'bytes_added_pos', 'bytes_added_neg', 'edit_count']
 
+    @um.UserMetric.pre_process_users
     def process(self, user_handle, **kwargs):
         """ Setup metrics gathering using multiprocessing """
 

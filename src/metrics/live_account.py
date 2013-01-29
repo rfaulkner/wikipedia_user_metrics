@@ -80,6 +80,7 @@ class LiveAccount(um.UserMetric):
     @staticmethod
     def header(): return ['user_id', 'is_active_account', ]
 
+    @um.UserMetric.pre_process_users
     def process(self, user_handle, **kwargs):
 
         self.apply_default_kwargs(kwargs,'process')

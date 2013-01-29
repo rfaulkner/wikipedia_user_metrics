@@ -79,6 +79,7 @@ class Threshold(um.UserMetric):
     def header():
         return ['user_id', 'has_reached_threshold']
 
+    @um.UserMetric.pre_process_users
     def process(self, user_handle, **kwargs):
         """
             This function gathers threahold (survival) metric data by: ::

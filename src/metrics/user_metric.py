@@ -257,7 +257,18 @@ class UserMetric(object):
     @staticmethod
     def header(): raise NotImplementedError
 
-    def process(self, user_handle, **kwargs): raise NotImplementedError
+    @staticmethod
+    def pre_process_users(proc_func):
+        def wrapper(self, users, **kwargs):
+            # Duck-type the "cohort" ref for a ID generating interface
+            # see src/metrics/users.py
+            if hasattr(users, 'get_users'):
+                users = [u for u in users.get_users(self._start_ts_, self._end_ts_)]
+            return proc_func(self, users, **kwargs)
+        return wrapper
+
+    def process(self, users, **kwargs):
+        raise NotImplementedError()
 
     class UserMetricError(Exception):
         """ Basic exception class for UserMetric types """

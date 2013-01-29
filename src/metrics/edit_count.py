@@ -46,6 +46,7 @@ class EditCount(um.UserMetric):
     @staticmethod
     def header(): return ['user_id', 'edit_count']
 
+    @um.UserMetric.pre_process_users
     def process(self, user_handle, **kwargs):
         """
             Determine edit count.  The parameter *user_handle* can be either a string or an integer or a list of these types.  When the

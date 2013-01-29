@@ -64,6 +64,7 @@ class Blocks(um.UserMetric):
     @staticmethod
     def header(): return ['user_id', 'block_count', 'block_first', 'block_last', 'ban']
 
+    @um.UserMetric.pre_process_users
     def process(self, user_handle, **kwargs):
         """
             Process method for the "blocks" metric.  Computes a list of block and ban events for users.

@@ -153,15 +153,8 @@ def time_series_worker(time_series, metric, aggregator, cohort, kwargs, q):
                              ' :: Processing thread %s, %s - %s ...' % (
             os.getpid(), str(ts_s), str(ts_e)))
 
-        # Duck-type the "cohort" ref for a ID generating interface
-        # see src/metrics/users.py
-        if hasattr(cohort, 'get_users'):
-            users = [u for u in cohort.get_users(ts_s, ts_e)]
-            metric_obj = metric(date_start=ts_s,date_end=ts_e,**new_kwargs).\
-            process(users, **new_kwargs)
-        else:
-            metric_obj = metric(date_start=ts_s,date_end=ts_e,**new_kwargs).\
-                process(cohort, **new_kwargs)
+        metric_obj = metric(date_start=ts_s,date_end=ts_e,**new_kwargs).\
+            process(cohort, **new_kwargs)
 
         r = um.aggregator(aggregator, metric_obj, metric.header())
 
