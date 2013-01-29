@@ -150,9 +150,10 @@ def _process_help(args):
     thread_args = ThresholdArgsClass(state[0],state[1],state[2],
         state[3],state[4],state[5],state[6],state[7],state[8])
 
-    if thread_args.log_progress: logging.info(__name__ +
-                                              '::Processing revision data ' + \
+    if thread_args.log_progress:
+        logging.info(__name__ + ' :: Processing revision data ' + \
         '(%s users) by user... (PID = %s)' % (len(user_data), os.getpid()))
+        logging.info(__name__ + ' :: ' + str(thread_args))
 
     # only proceed if there is user data
     if not len(user_data): return []
@@ -189,6 +190,7 @@ def _process_help(args):
 
     conn = um.dl.Connector(instance='slave')
     results = list()
+    dropped_users = 0
     for r in user_data:
         try:
             ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) +
@@ -197,10 +199,14 @@ def _process_help(args):
             conn._cur_.execute(sql % {'project' : thread_args.project,
                                       'ts' : ts,
                                       'ns' : ns_cond, 'id' : id})
-            count = int(conn._cur_.fetchone()[0])
 
-        except IndexError: continue
-        except ValueError: continue
+            count = int(conn._cur_.fetchone()[0])
+        except IndexError:
+            dropped_users += 1
+            continue
+        except ValueError:
+            dropped_users += 1
+            continue
 
         if count < thread_args.n:
             results.append((r[0],0))
@@ -208,7 +214,8 @@ def _process_help(args):
             results.append((r[0],1))
 
     if thread_args.log_progress: logging.info(
-        __name__ + '::Processed PID = %s.' % os.getpid())
+        __name__ + '::Processed PID = %s.  Dropped users = %s.' % (
+            os.getpid(), str(dropped_users)))
 
     return results
 
