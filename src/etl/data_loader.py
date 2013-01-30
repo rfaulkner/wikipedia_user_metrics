@@ -104,7 +104,7 @@ class Connector(object):
                     self._db_ = MySQLdb.connect(**mysql_kwargs)
                     break
                 except MySQLdb.OperationalError:
-                    logging.error(__name__ + '::Connection dropped. '
+                    logging.debug(__name__ + '::Connection dropped. '
                                              'Reopening MySQL connection. '
                                              '%s retries left' % retries)
                     retries -= 1
