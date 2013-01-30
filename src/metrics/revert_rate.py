@@ -9,7 +9,7 @@ import src.etl.data_loader as dl
 import collections
 import os
 import src.utils.multiprocessing_wrapper as mpw
-from src.etl.aggregator import decorator_builder
+from src.etl.aggregator import decorator_builder, weighted_rate
 
 from config import logging
 
@@ -221,31 +221,17 @@ def _revision_proc(args):
         revision_count += 1.0
     return [(revision_count, revert_count)]
 
-@decorator_builder(RevertRate.header())
-def reverted_revs_agg(metric):
-    """ Computes total revert metrics on a user set """
-    total_revs = 0
-    weighted_rate = 0.0
-    total_editors = 0
-    reverted_editors = 0
-    for r in metric.__iter__():
-        try:
-            reverted_revs = int(r[2])
-            total_editors += 1
-            if reverted_revs: reverted_editors += 1
-            total_revs += reverted_revs
-            weighted_rate += reverted_revs * float(r[1])
-        except IndexError: continue
-        except TypeError: continue
-    if total_revs:
-        weighted_rate /= total_revs
-    else:
-        weighted_rate = 0.0
-    return [total_revs, weighted_rate, total_editors, reverted_editors]
-setattr(reverted_revs_agg, um.METRIC_AGG_METHOD_FLAG, True)
-setattr(reverted_revs_agg, um.METRIC_AGG_METHOD_NAME, 'reversion_aggregates')
-setattr(reverted_revs_agg, um.METRIC_AGG_METHOD_HEAD, ['type', 'total_revs',
-                                      'weighted_rate','total_editors','reverted_editors'])
+# Build "weighted rate" decorator
+revert_rate_avg = weighted_rate
+revert_rate_avg = decorator_builder(RevertRate.header())(
+                                    revert_rate_avg)
+
+setattr(revert_rate_avg, um.METRIC_AGG_METHOD_FLAG, True)
+setattr(revert_rate_avg, um.METRIC_AGG_METHOD_NAME, 'revert_rate_avg')
+setattr(revert_rate_avg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
+                                                     'total_revisions',
+                                                    'average_rate',])
+setattr(revert_rate_avg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 1, 'weight_idx' : 1})
 
 # testing
 if __name__ == "__main__":

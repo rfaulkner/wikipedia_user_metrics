@@ -17,7 +17,7 @@ import threshold as th
 from blocks import Blocks
 from bytes_added import BytesAdded
 from survival import Survival, survival_editors_agg
-import revert_rate as rr
+from revert_rate import RevertRate, revert_rate_avg
 from time_to_threshold import TimeToThreshold, ttt_avg_agg
 from edit_rate import EditRate, edit_rate_agg
 from namespace_of_edits import NamespaceEdits, namespace_edits_sum
@@ -39,7 +39,7 @@ REVISION_THREADS=100
 metric_dict = {
     'threshold' : th.Threshold,
     'survival' : Survival,
-    'revert_rate' : rr.RevertRate,
+    'revert_rate' : RevertRate,
     'bytes_added' : BytesAdded,
     'blocks' : Blocks,
     'time_to_threshold' : TimeToThreshold,
@@ -55,7 +55,7 @@ aggregator_dict = {
     'average+threshold' : th.threshold_editors_agg,
     'average+survival' : survival_editors_agg,
     'average+live_account' : live_accounts_agg,
-    'average+revert' : rr.reverted_revs_agg,
+    'average+revert_rate' : revert_rate_avg,
     'average+edit_rate' : edit_rate_agg,
     'average+time_to_threshold' : ttt_avg_agg,
     }
