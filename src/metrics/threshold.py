@@ -9,6 +9,7 @@ import os
 import src.utils.multiprocessing_wrapper as mpw
 import user_metric as um
 from src.etl.aggregator import decorator_builder, boolean_rate
+from query_calls import threshold_reg_query, threshold_rev_query
 
 from config import logging
 
@@ -110,25 +111,8 @@ class Threshold(um.UserMetric):
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
         if not user_handle: user_handle.append(-1) # No user is matched
 
-        user_id_str = um.dl.DataLoader().format_comma_separated_list(
-            um.dl.DataLoader().cast_elems_to_string(user_handle),
-            include_quotes=False)
-        user_id_cond = "and log_user in (%s)" % user_id_str
-
-        # Get all registrations - this assumes that each user id corresponds
-        # to a valid registration event in the the logging table.
-        sql = """
-            select
-                log_user,
-                log_timestamp
-            from %(project)s.logging
-            where log_action = 'create' AND log_type='newusers'
-                %(uid_str)s
-        """ % {
-            'project' : self._project_,
-            'uid_str' : user_id_cond
-        }
-        self._data_source_._cur_.execute(" ".join(sql.strip().split('\n')))
+        reg_query = threshold_reg_query(user_handle, self._project_)
+        self._data_source_._cur_.execute(reg_query)
 
         # Process results
         user_data = [r for r in self._data_source_._cur_]
@@ -158,48 +142,23 @@ def _process_help(args):
     # only proceed if there is user data
     if not len(user_data): return []
 
-    # The key difference between survival and threshold is that threshold
-    # measures a level of activity before a point whereas survival
-    # (generally) measures any activity after a point
-    if thread_args.survival:
-        timestamp_cond = ' and rev_timestamp > %(ts)s'
-    else:
-        timestamp_cond = ' and rev_timestamp <= %(ts)s'
-
-    # format the namespace condition
-    ns_cond = um.UserMetric._format_namespace(thread_args.namespace)
-    if ns_cond: ns_cond += ' and'
-
-    # Format condition on timestamps
-    if thread_args.restrict:
-        timestamp_cond += ' and rev_timestamp > {0} and ' \
-                          'rev_timestamp <= {1}'.format(thread_args.ts_start,
-            thread_args.ts_end)
-
-
-    sql = """
-            select
-                count(*) as revs
-            from %(project)s.revision as r
-                join %(project)s.page as p
-                on r.rev_page = p.page_id
-            where %(ns)s rev_user = %(id)s
-        """
-    sql += timestamp_cond
-    sql = " ".join(sql.strip().split('\n'))
-
     conn = um.dl.Connector(instance='slave')
     results = list()
     dropped_users = 0
     for r in user_data:
         try:
-            ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) +
+            threshold_ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) +
                                               timedelta(hours=thread_args.t))
-            id = long(r[0])
-            conn._cur_.execute(sql % {'project' : thread_args.project,
-                                      'ts' : ts,
-                                      'ns' : ns_cond, 'id' : id})
-
+            uid = long(r[0])
+            rev_query = threshold_rev_query(uid,
+                                            thread_args.survival,
+                                            thread_args.namespace,
+                                            thread_args.project,
+                                            thread_args.restrict,
+                                            thread_args.ts_start,
+                                            thread_args.ts_start,
+                                            threshold_ts)
+            conn._cur_.execute(rev_query)
             count = int(conn._cur_.fetchone()[0])
         except IndexError:
             dropped_users += 1
