@@ -211,7 +211,6 @@ def _revision_proc(args):
     state = args[1]
     thread_args = RevertRateArgsClass(state[0],state[1],state[2],state[3],state[4],state[5],state[6])
     rev_data = args[0]
-    conn = dl.Connector(instance='slave')
 
     # if thread_args.log_progress: print 'Computing reverts on %s revisions in thread %s.' % (len(rev_data), str(os.getpid()))
     revision_count = 0.0
