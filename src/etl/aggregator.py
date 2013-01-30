@@ -140,13 +140,13 @@ def weighted_rate(iter, **kwargs):
     weight_method = kwargs['weight_method'] if 'cmp_method' in kwargs else weight_method_default
 
     count=0
-    total_weight=0
+    total_weight=0.0
     weighted_sum=0.0
     for r in iter.__iter__():
         try:
             count+=1
             weight = weight_method(r[weight_idx])
-            total_weight+=weight
+            total_weight += r[weight_idx]
             weighted_sum += weight * r[val_idx]
         except IndexError: continue
         except TypeError: continue
