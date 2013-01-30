@@ -225,10 +225,14 @@ experiments = {
 experiments['acux3'] = copy.deepcopy(experiments['acux2'])
 experiments['acux3']['version'] = 3
 
-experiments['acux3']['log_files'] = ['clicktracking.log-20121227.gz', 'clicktracking.log-20121228.gz',
-                                     'clicktracking.log-20121229.gz', 'clicktracking.log-20121230.gz',
-                                     'clicktracking.log-20121231.gz', 'clicktracking.log-20130101.gz',
-                                     'clicktracking.log-20130102.gz',]
+experiments['acux3']['log_files'] = ['clicktracking.log-20121129.gz', 'clicktracking.log-20121130.gz',
+                                     'clicktracking.log-20121201.gz', 'clicktracking.log-20121202.gz',
+                                     'clicktracking.log-20121203.gz', 'clicktracking.log-20121204.gz',
+                                     'clicktracking.log-20121205.gz', 'clicktracking.log-20121206.gz',
+                                     'clicktracking.log-20121207.gz', 'clicktracking.log-20121208.gz',
+                                     'clicktracking.log-20121209.gz', 'clicktracking.log-20121210.gz',
+                                     'clicktracking.log-20121211.gz', 'clicktracking.log-20121212.gz',
+                                     'clicktracking.log-20121213.gz',]
 #experiments['acux3']['log_files'] = ['clicktracking.log-20121106.gz', 'clicktracking.log-20121107.gz',
 #                                      'clicktracking.log-20121108.gz', 'clicktracking.log-20121109.gz',
 #                                      'clicktracking.log-20121110.gz', 'clicktracking.log-20121111.gz',
