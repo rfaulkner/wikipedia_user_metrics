@@ -9,6 +9,7 @@ __date__ = "january 30th, 2013"
 __license__ = "GPL (version 2 or later)"
 
 from src.etl.data_loader import DataLoader
+from copy import deepcopy
 
 def format_namespace(namespace):
     """ Format the namespace condition in queries and returns the string.
@@ -17,6 +18,7 @@ def format_namespace(namespace):
         an empty condition string
     """
     ns_cond = ''
+
     if hasattr(namespace, '__iter__'):
         if len(namespace) == 1:
             ns_cond = 'page_namespace = ' + str(namespace.pop())
@@ -52,16 +54,15 @@ def threshold_rev_query(uid, is_survival, namespace, project,
     if is_survival:
         timestamp_cond = ' and rev_timestamp > %(ts)s'
     else:
-        timestamp_cond = ' and rev_timestamp <= %(ts)s'
+        timestamp_cond = ' and rev_timestamp <= "%(ts)s"'
 
     # format the namespace condition
-    ns_cond = format_namespace(namespace)
-    if ns_cond: ns_cond += ' and'
+    ns_cond = format_namespace(deepcopy(namespace))
 
     # Format condition on timestamps
     if restrict:
-        timestamp_cond += ' and rev_timestamp > {0} and '\
-                          'rev_timestamp <= {1}'.format(start_time,
+        timestamp_cond += ' and rev_timestamp > "{0}" and '\
+                          'rev_timestamp <= "{1}"'.format(start_time,
                                                         end_time)
 
     sql = query_store[threshold_rev_query.__name__] + timestamp_cond
@@ -70,6 +71,7 @@ def threshold_rev_query(uid, is_survival, namespace, project,
                 'ts' : threshold_ts,
                 'ns' : ns_cond,
                 'uid' : uid}
+    # print " ".join(sql.strip().split('\n'))
     return " ".join(sql.strip().split('\n'))
 
 query_store = {
@@ -91,7 +93,7 @@ query_store = {
                                 FROM %(project)s.revision as r
                                     JOIN %(project)s.page as p
                                         ON  r.rev_page = p.page_id
-                                WHERE %(ns)s rev_user = %(uid)s
+                                WHERE %(ns)s AND rev_user = %(uid)s
                             """,
 }
 
