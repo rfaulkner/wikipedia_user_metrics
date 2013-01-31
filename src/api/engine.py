@@ -83,7 +83,7 @@ QUERY_PARAMS_BY_METRIC = {
                                    varMapping('time_unit_count',
                                        'time_unit_count'),],
     'live_account' : common_params + [varMapping('t','t'),],
-    'namespace_of_edits' : common_params,
+    'namespace_edits' : common_params,
     'revert_rate' : common_params + [varMapping('look_back','look_back'),
                                      varMapping('look_ahead','look_ahead'),],
     'survival' : common_params + [varMapping('restrict','restrict'),
