@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 from distutils.core import setup
 
@@ -7,44 +8,23 @@ with open('README.md') as file:
 
 setup(
     name='e3_analysis',
-    version='0.1.4',
+    version='0.1-dev',
+    email="e3-team@lists.wikimedia.org",
     long_description=long_description,
-    description='Data handling code for Wikimedia Editor Engagement Experiments.',
+    description='Data Analysis for Wikipedia User data.',
     url='http://www.github.com/rfaulkner/E3_analysis',
     author='Ryan Faulkner',
     author_email='rfaulkner@wikimedia.org',
-    packages=['e3_analysis.src', 'e3_analysis.src.etl', 'e3_analysis.src.metrics','e3_analysis.config'],
-    scripts=['e3_analysis/scripts/e3_data_wrangle', 'e3_analysis/scripts/e3_experiment_definitions.py',
-             'e3_analysis/scripts/call_metric_on_users', 'e3_analysis/scripts/daily_active_users',
-             'e3_analysis/scripts/id2user.sh', 'e3_analysis/scripts/user2id.sh', 'e3_analysis/scripts/e3_settings.py'],
-    data_files=[('readme', ['README.md'])]
-)
-
-<<<<<<< HEAD
-=======
-# -*- coding: utf-8 -*-
-"""
-The Wikimedia Foundation's E3 Data Analysis Library
-
-"""
-
-from setuptools import setup, find_packages
-
-
-
-setup(
-    name='e3analysis',
-    packages=find_packages(),
-    version='0.1-dev',
-    url='http://meta.wikimedia.org/wiki/E3',
-    license='GPL',
-    description='E3 Data Analysis Library',
-    author='Wikimedia Foundation -- E3 Team',
-    email="e3-team@lists.wikimedia.org",
     long_description=__doc__,
-    entry_points = {
-        'console_scripts': [ 'ct2csv = e3analysis.ct2csv:main' ],
-    },
+    packages=['e3_analysis.src', 'e3_analysis.src.etl',
+              'e3_analysis.src.metrics','e3_analysis.config'],
+    scripts=['e3_analysis/scripts/e3_data_wrangle',
+             'e3_analysis/scripts/e3_experiment_definitions.py',
+             'e3_analysis/scripts/call_metric_on_users',
+             'e3_analysis/scripts/daily_active_users',
+             'e3_analysis/scripts/id2user.sh',
+             'e3_analysis/scripts/user2id.sh',
+             'e3_analysis/scripts/e3_settings.py'],
     classifiers=[
         'Development Status :: 1 - Planning',
         'Intended Audience :: Science/Research',
@@ -54,7 +34,6 @@ setup(
         'Programming Language :: Python',
         'Topic :: Scientific/Engineering :: Information Analysis',
         'Topic :: Software Development :: Libraries :: Python Modules'
-    ]
+    ],
+    data_files=[('readme', ['README.md'])]
 )
-=======
->>>>>>> latest
