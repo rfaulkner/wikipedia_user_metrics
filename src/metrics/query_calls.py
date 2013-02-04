@@ -71,8 +71,39 @@ def threshold_rev_query(uid, is_survival, namespace, project,
                 'ts' : threshold_ts,
                 'ns' : ns_cond,
                 'uid' : uid}
-    # print " ".join(sql.strip().split('\n'))
     return " ".join(sql.strip().split('\n'))
+
+def live_account_query(users, namespace, project):
+    """ Format query for live_account metric """
+
+    user_cond = DataLoader().format_condition_in('ept_user', users)
+    ns_cond = format_namespace(namespace)
+
+    where_clause = 'log_action = "create"'
+    if user_cond: where_clause += ' AND ' + user_cond
+    if ns_cond: where_clause += ' AND ' + ns_cond
+
+    from_clause = '%(project)s.edit_page_tracking AS e RIGHT JOIN ' \
+                  '%(project)s.logging AS l ON e.ept_user = l.log_user'
+    from_clause = from_clause % {"project" : project}
+    if ns_cond:
+        from_clause += " LEFT JOIN %(project)s.page as p " \
+                        "ON e.ept_title = p.page_title" % \
+                       { "project" : project}
+
+    sql = """
+            SELECT
+                e.ept_user,
+                MIN(l.log_timestamp) as registration,
+                MIN(e.ept_timestamp) as first_click
+            FROM %(from_clause)s
+            WHERE %(where_clause)s
+            GROUP BY 1
+        """ % {
+        "from_clause" : from_clause,
+        "where_clause" : where_clause,
+        }
+    return " ".join(sql.split('\n'))
 
 query_store = {
     threshold_reg_query.__name__:
@@ -94,6 +125,16 @@ query_store = {
                                     JOIN %(project)s.page as p
                                         ON  r.rev_page = p.page_id
                                 WHERE %(ns)s AND rev_user = %(uid)s
+                            """,
+    live_account_query.__name__:
+                            """
+                                SELECT
+                                    e.ept_user,
+                                    MIN(l.log_timestamp) as registration,
+                                    MIN(e.ept_timestamp) as first_click
+                                FROM %(from_clause)s
+                                WHERE %(where_clause)s
+                                GROUP BY 1
                             """,
 }
 
