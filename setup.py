@@ -6,20 +6,20 @@ from distutils.core import setup
 with open('README.md') as file:
     long_description = file.read()
 
-__version__ = '0.1-dev'
+__version__ = '0.1.1'
 
 setup(
-    name='e3_analysis',
+    name='wmf_user_metrics',
     version=__version__,
     long_description=long_description,
     description='Data Analysis for Wikipedia User data.',
     url='http://www.github.com/rfaulkner/E3_analysis',
     author="Wikimedia Foundation",
     author_email="e3-team@lists.wikimedia.org",
-    packages=['e3_analysis.src',
-              'e3_analysis.src.etl',
-              'e3_analysis.src.metrics',
-              'e3_analysis.config'],
+    packages=['src.etl',
+              'src.metrics',
+              'src.utils',
+              'config'],
     classifiers=[
         'Development Status :: 1 - Planning',
         'Intended Audience :: Science/Research',

@@ -1,24 +1,35 @@
-e3_analysis
-===========
+wmf_user_metrics
+================
 
 
 Introduction
 ------------
 
-This package implements log retirieval, metrics generation, and data analysis tools used by the Editor Engagement Experiment (E3) team at the Wikimedia Foundation. The modules herein will be used to perform the ETL and analysis operations necessary to process the experimental data generated from E3 projects.
+This package implements log retrieval, metrics generation, and data
+analysis tools used by the Editor Engagement Experiment (E3) team at
+the Wikimedia Foundation. The modules herein will be used to perform
+the ETL and analysis operations necessary to process the experimental
+data generated from E3 projects.
 
 Installation
 ------------
 
-`e3_analysis` is packaged with distutils: ::
+`wmf_user_metrics` is packaged with distutils: ::
 
-    $ sudo pip install e3_analysis 
+    $ sudo pip install wmf_user_metrics
 
-Once installed you will need to modify the configuration files.  This can be found in the file `settings.py` under `$site-packages-home$/e3_analysis/config`.  Within this file configure the connections dictionary to point to a replicated production MySQL instance containing the .  The 'db' setting should be an instance which 'user' has write access to.  If you are from outside the Wikimedia Foundation and do not have access to these credentials contact me at rfaulkner@wikimedi.org if you'd like to work with this package. 
+Once installed you will need to modify the configuration files.  This
+can be found in the file `settings.py` under
+`$site-packages-home$/e3_analysis/config`.  Within this file configure
+the connections dictionary to point to a replicated production MySQL instance
+containing the .  The 'db' setting should be an instance which 'user' has write
+access to.  If you are from outside the Wikimedia Foundation and do not have
+access to these credentials contact me at rfaulkner@wikimedi.org if you'd
+like to work with this package.
 
 The template configuration file looks like the following: ::
 
-    # Project settings - aluminium$/srv/org.wikimedia.community-analytics/community-analytics
+    # Project settings
     # ================
     __home__ = '/Users/rfaulkner/'
     __project_home__ = ''.join([__home__, 'projects/E3_analysis/'])
@@ -51,21 +62,35 @@ The template configuration file looks like the following: ::
 Documentation
 -------------
 
-Once the installation is complete and the configuration has been set the modules can be imported into the Python environment.  The available operational modules are the following: ::
+Once the installation is complete and the configuration has been set the
+modules can be imported into the Python environment.  The available
+operational modules are the following: ::
 
-    e3_analysis.src.etl.data_loader
-    e3_analysis.src.etl.log_parser
-    e3_analysis.src.etl.data_filter
-    e3_analysis.src.etl.experiments_loader
-    e3_analysis.src.etl.timestamp_processor
-    e3_analysis.src.etl.wpapi
+    src.etl.data_loader
+    src.etl.aggregator
+    src.etl.table_loader
+    src.etl.log_parser
+    src.etl.time_series_process_methods
+    src.etl.wpapi
 
-    e3_analysis.src.metrics.blocks
-    e3_analysis.src.metrics.bytes_added
-    e3_analysis.src.metrics.edit_count
-    e3_analysis.src.metrics.edit_rate
-    e3_analysis.src.metrics.revert_rate
-    e3_analysis.src.metrics.time_to_threshold
-    e3_analysis.src.metrics.user_metric
+    src.metrics.blocks
+    src.metrics.bytes_added
+    src.metrics.live_account.pyc
+    src.metrics.edit_count
+    src.metrics.edit_rate
+    src.metrics.live_account
+    src.metrics.metrics_manager
+    src.metrics.namespace_of_edits
+    src.metrics.query_calls
+    src.metrics.revert_rate
+    src.metrics.survival
+    src.metrics.time_to_threshold
+    src.metrics.user_metric
+    src.metrics.users
 
-More complete docs can be found at: http://stat1.wikimedia.org/rfaulk/pydocs/_build/
+    src.utils.autovivification
+    src.utils.multiprocessing_wrapper
+    src.utils.record_type
+
+More complete docs can be found at:
+    http://stat1.wikimedia.org/rfaulk/pydocs/_build/
