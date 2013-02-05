@@ -3,11 +3,14 @@ __author__ = "Ryan Faulkner"
 __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
+from MySQLdb import ProgrammingError
 import collections
 import user_metric as um
 import os
 import src.etl.aggregator as agg
 import src.utils.multiprocessing_wrapper as mpw
+from query_calls import escape_var
+
 from config import logging
 
 class BytesAdded(um.UserMetric):
@@ -141,7 +144,7 @@ def _get_revisions(args):
 
     # 1. Escape user_handle for SQL injection
     # 2. Ensure the handles are iterable
-    users = um.UserMetric._escape_var(users)
+    users = escape_var(users)
     if not hasattr(users, '__iter__'): users = [users]
 
     user_set = um.dl.DataLoader().format_comma_separated_list(users,
@@ -179,7 +182,7 @@ def _get_revisions(args):
         )
     try:
         return list(conn.execute_SQL(sql))
-    except um.MySQLdb.ProgrammingError:
+    except ProgrammingError:
        raise um.UserMetric.UserMetricError(
            message=str(BytesAdded) + '::Could not get revisions '
                                      'for specified users(s) - Query Failed.')
@@ -266,7 +269,7 @@ def _process_help(args):
             except TypeError:
                 missed_records += 1
                 continue
-            except um.MySQLdb.ProgrammingError:
+            except ProgrammingError:
                 raise um.UserMetric.UserMetricError(message=str(BytesAdded) +
                         '::Could not produce rev diff for %s on rev_id %s.' % (
                                 user, str(parent_rev_id)))

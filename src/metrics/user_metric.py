@@ -49,7 +49,6 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import src.etl.data_loader as dl
-import MySQLdb
 from collections import namedtuple
 from dateutil.parser import parse as date_parse
 from datetime import datetime, timedelta
@@ -218,29 +217,6 @@ class UserMetric(object):
         except ValueError:
             raise cls.UserMetricError(message='Could not parse timestamp: %s'
                 % datetime_obj.__str__())
-
-    @classmethod
-    def _escape_var(cls, var):
-        """
-            Escapes either elements of a list (recursively visiting elements)
-            or a single variable.  The variable is cast to string before being
-            escaped.
-
-            - Parameters:
-                - **var**: List or string.  Variable or list (potentially
-                    nested) of variables to be escaped.
-
-            - Return:
-                - List or string.  escaped elements.
-        """
-
-        # If the input is a list recursively call on elements
-        if hasattr(var, '__iter__'):
-            escaped_var = list()
-            for elem in var: escaped_var.append(cls._escape_var(elem))
-            return escaped_var
-        else:
-            return MySQLdb.escape_string(str(var))
 
     @classmethod
     def _format_namespace(cls, namespace):

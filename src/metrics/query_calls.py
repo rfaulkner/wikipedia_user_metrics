@@ -9,7 +9,30 @@ __date__ = "january 30th, 2013"
 __license__ = "GPL (version 2 or later)"
 
 from src.etl.data_loader import DataLoader
+from MySQLdb import escape_string
 from copy import deepcopy
+
+def escape_var(var):
+    """
+        Escapes either elements of a list (recursively visiting elements)
+        or a single variable.  The variable is cast to string before being
+        escaped.
+
+        - Parameters:
+            - **var**: List or string.  Variable or list (potentially
+                nested) of variables to be escaped.
+
+        - Return:
+            - List or string.  escaped elements.
+    """
+
+    # If the input is a list recursively call on elements
+    if hasattr(var, '__iter__'):
+        escaped_var = list()
+        for elem in var: escaped_var.append(escape_var(elem))
+        return escaped_var
+    else:
+        return escape_string(str(var))
 
 def format_namespace(namespace):
     """ Format the namespace condition in queries and returns the string.

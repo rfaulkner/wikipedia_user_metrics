@@ -4,6 +4,8 @@ __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import user_metric as um
+from query_calls import escape_var
+from MySQLdb import ProgrammingError
 
 class EditCount(um.UserMetric):
     """
@@ -64,7 +66,7 @@ class EditCount(um.UserMetric):
         ts_condition  = 'and rev_timestamp >= "%s" and rev_timestamp < "%s"' % (self._start_ts_, self._end_ts_)
 
         # Escape user_handle for SQL injection
-        user_handle = self._escape_var(user_handle)
+        user_handle = escape_var(user_handle)
 
         if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
         user_set = um.dl.DataLoader().format_comma_separated_list(user_handle)
@@ -83,7 +85,7 @@ class EditCount(um.UserMetric):
 
         try:
             self._data_source_._cur_.execute(sql)
-        except um.MySQLdb.ProgrammingError:
+        except ProgrammingError:
             raise um.UserMetric.UserMetricError(message=str(self.__class__()) + 'Could not get edit counts - Query failed.')
 
         # Get edit counts from query - all users not appearing have an edit count of 0
