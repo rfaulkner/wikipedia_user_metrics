@@ -163,6 +163,29 @@ def bytes_added_rev_user_query(start, end):
         'end': end,
     }
 
+def revert_rate_past_revs_query(rev_id, page_id, n, project):
+    return query_store[revert_rate_past_revs_query.__name__] % {
+        'rev_id':  rev_id,
+        'page_id': page_id,
+        'n':       n,
+        'project': project
+    }
+def revert_rate_future_revs_query(rev_id, page_id, n, project):
+    return query_store[revert_rate_future_revs_query.__name__] % {
+        'rev_id':  rev_id,
+        'page_id': page_id,
+        'n':       n,
+        'project': project
+    }
+
+def revert_rate_user_revs_query(project, user, start, end):
+    return query_store[revert_rate_future_revs_query.__name__] % {
+        'project' : project,
+        'user' : user,
+        'start_ts' : start,
+        'end_ts' : end
+    }
+
 query_store = {
     threshold_reg_query.__name__:
                             """
@@ -218,6 +241,36 @@ query_store = {
                                 WHERE rev_timestamp >= "%(start)s" AND
                                     rev_timestamp < "%(end)s"
                             """,
+    revert_rate_past_revs_query.__name__:
+                        """
+                            SELECT rev_id, rev_user_text, rev_sha1
+                            FROM %(project)s.revision
+                            WHERE rev_page = %(page_id)s
+                                AND rev_id < %(rev_id)s
+                            ORDER BY rev_id DESC
+                            LIMIT %(n)s
+                        """,
+    revert_rate_future_revs_query.__name__:
+                        """
+                            SELECT rev_id, rev_user_text, rev_sha1
+                            FROM %(project)s.revision
+                            WHERE rev_page = %(page_id)s
+                                AND rev_id > %(rev_id)s
+                            ORDER BY rev_id ASC
+                            LIMIT %(n)s
+                        """,
+    revert_rate_user_revs_query.__name__:
+                        """
+                           SELECT
+                               rev_user,
+                               rev_page,
+                               rev_sha1,
+                               rev_user_text
+                           FROM %(project)s.revision
+                           WHERE rev_user = %(user)s AND
+                           rev_timestamp > "%(start_ts)s" AND
+                           rev_timestamp <= "%(end_ts)s"
+                        """,
 }
 
 

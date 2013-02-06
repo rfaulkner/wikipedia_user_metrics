@@ -10,7 +10,9 @@ import collections
 import os
 import src.utils.multiprocessing_wrapper as mpw
 from src.etl.aggregator import decorator_builder, weighted_rate
-
+from query_calls import revert_rate_future_revs_query, \
+                        revert_rate_past_revs_query, \
+                        revert_rate_user_revs_query
 from config import logging
 
 # Definition of persistent state for RevertRate objects
@@ -133,19 +135,7 @@ def __history(rev_id, page_id, n, project='enwiki'):
     """ Produce the n revisions on a page before a given revision """
     conn = dl.Connector(instance='slave')
     conn._cur_.execute(
-        """
-            SELECT rev_id, rev_user_text, rev_sha1
-            FROM %(project)s.revision
-            WHERE rev_page = %(page_id)s
-                AND rev_id < %(rev_id)s
-            ORDER BY rev_id DESC
-            LIMIT %(n)s
-        """ % {
-            'rev_id':  rev_id,
-            'page_id': page_id,
-            'n':       n,
-            'project': project
-        }
+        revert_rate_past_revs_query(rev_id, page_id, n, project)
     )
 
     for row in conn._cur_:
@@ -155,19 +145,7 @@ def __future(rev_id, page_id, n, project='enwiki'):
     """ Produce the n revisions on a page after a given revision """
     conn = dl.Connector(instance='slave')
     conn._cur_.execute(
-        """
-            SELECT rev_id, rev_user_text, rev_sha1
-            FROM %(project)s.revision
-            WHERE rev_page = %(page_id)s
-                AND rev_id > %(rev_id)s
-            ORDER BY rev_id ASC
-            LIMIT %(n)s
-        """ % {
-            'rev_id':  rev_id,
-            'page_id': page_id,
-            'n':       n,
-            'project': project
-        }
+        revert_rate_future_revs_query(rev_id, page_id, n, project)
     )
 
     for row in conn._cur_:
@@ -190,21 +168,10 @@ def _process_help(args):
     for user in user_data:
         conn = dl.Connector(instance='slave')
         conn._cur_.execute(
-            """
-           select
-               rev_user,
-               rev_page,
-               rev_sha1,
-               rev_user_text
-           from %(project)s.revision
-           where rev_user = %(user)s and
-           rev_timestamp > "%(start_ts)s" and rev_timestamp <= "%(end_ts)s"
-            """ % {
-                'project' : thread_args.project,
-                'user' : user,
-                'start_ts' : thread_args.date_start,
-                'end_ts' : thread_args.date_end
-            })
+            revert_rate_user_revs_query(thread_args.project, user,
+                thread_args.date_start,
+                thread_args.date_end)
+        )
 
         total_revisions = 0.0
         total_reverts = 0.0
