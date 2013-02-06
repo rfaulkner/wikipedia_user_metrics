@@ -179,7 +179,7 @@ def revert_rate_future_revs_query(rev_id, page_id, n, project):
     }
 
 def revert_rate_user_revs_query(project, user, start, end):
-    return query_store[revert_rate_future_revs_query.__name__] % {
+    return query_store[revert_rate_user_revs_query.__name__] % {
         'project' : project,
         'user' : user,
         'start_ts' : start,
