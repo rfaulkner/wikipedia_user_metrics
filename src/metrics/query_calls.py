@@ -114,19 +114,54 @@ def live_account_query(users, namespace, project):
                         "ON e.ept_title = p.page_title" % \
                        { "project" : project}
 
-    sql = """
-            SELECT
-                e.ept_user,
-                MIN(l.log_timestamp) as registration,
-                MIN(e.ept_timestamp) as first_click
-            FROM %(from_clause)s
-            WHERE %(where_clause)s
-            GROUP BY 1
-        """ % {
-        "from_clause" : from_clause,
-        "where_clause" : where_clause,
-        }
+    sql = query_store[live_account_query.__name__] % \
+                {
+                    "from_clause" : from_clause,
+                    "where_clause" : where_clause,
+                }
     return " ".join(sql.split('\n'))
+
+def bytes_added_rev_query(start, end, users, namespace, project):
+    """ Get revision length, user, and page """
+    ts_condition  = 'rev_timestamp >= "%s" and rev_timestamp < "%s"' % \
+                                                                (start, end)
+
+    # build the user set for inclusion into the query - if the user_handle is
+    # empty or None get all users for timeframe
+
+    # 1. Escape user_handle for SQL injection
+    # 2. Ensure the handles are iterable
+    users = escape_var(users)
+    if not hasattr(users, '__iter__'): users = [users]
+
+    user_set = DataLoader().format_comma_separated_list(users,
+        include_quotes=False)
+    where_clause = 'rev_user in (%(user_set)s) and %(ts_condition)s' % {
+        'user_set' : user_set, 'ts_condition' : ts_condition}
+
+    # format the namespace condition
+    ns_cond = format_namespace(namespace)
+    if ns_cond: ns_cond += ' and'
+
+    sql = query_store[bytes_added_rev_query.__name__] % {
+        'where_clause' : where_clause,
+        'project' : project,
+        'namespace' : ns_cond}
+    return " ".join(sql.split('\n'))
+
+def bytes_added_rev_len_query(rev_id, project):
+    """ Get parent revision length """
+    return query_store[bytes_added_rev_len_query.__name__] % {
+        'project' : project,
+        'parent_rev_id' : rev_id,
+    }
+
+def bytes_added_rev_user_query(start, end):
+    """ Produce all users that made a revision within period """
+    return query_store[bytes_added_rev_user_query.__name__] % {
+        'start': start,
+        'end': end,
+    }
 
 query_store = {
     threshold_reg_query.__name__:
@@ -158,6 +193,30 @@ query_store = {
                                 FROM %(from_clause)s
                                 WHERE %(where_clause)s
                                 GROUP BY 1
+                            """,
+    bytes_added_rev_query.__name__:
+                            """
+                                select
+                                    rev_user,
+                                    rev_len,
+                                    rev_parent_id
+                                from %(project)s.revision
+                                    join %(project)s.page
+                                    on page.page_id = revision.rev_page
+                                where %(namespace)s %(where_clause)s
+                            """,
+    bytes_added_rev_len_query.__name__:
+                            """
+                                SELECT rev_len
+                                FROM %(project)s.revision
+                                WHERE rev_id = %(parent_rev_id)s
+                            """,
+    bytes_added_rev_user_query.__name__:
+                            """
+                                SELECT distinct rev_user
+                                FROM enwiki.revision
+                                WHERE rev_timestamp >= "%(start)s" AND
+                                    rev_timestamp < "%(end)s"
                             """,
 }
 

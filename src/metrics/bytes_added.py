@@ -9,7 +9,8 @@ import user_metric as um
 import os
 import src.etl.aggregator as agg
 import src.utils.multiprocessing_wrapper as mpw
-from query_calls import escape_var
+from query_calls import bytes_added_rev_query, bytes_added_rev_len_query, \
+                        bytes_added_rev_user_query
 
 from config import logging
 
@@ -97,9 +98,7 @@ class BytesAdded(um.UserMetric):
             # build the argument lists for each thread
 
         if not user_handle:
-            sql = 'SELECT distinct rev_user FROM enwiki.revision ' \
-                  'WHERE rev_timestamp >= "%s" AND rev_timestamp < "%s"'
-            sql = sql % (self._start_ts_, self._end_ts_)
+            sql = bytes_added_rev_user_query(self._start_ts_, self._end_ts_)
 
             if log_progress: logging.info(
                 __name__ + '::Getting all distinct users: " %s "' % sql)
@@ -136,40 +135,9 @@ def _get_revisions(args):
     conn = um.dl.Connector(instance='slave')
 
     if arg_obj.log: logging.info('Computing revisions, PID = %s' % os.getpid())
-    ts_condition  = 'rev_timestamp >= "%s" and rev_timestamp < "%s"' % (
-        arg_obj.start, arg_obj.end)
 
-    # build the user set for inclusion into the query - if the user_handle is
-    # empty or None get all users for timeframe
-
-    # 1. Escape user_handle for SQL injection
-    # 2. Ensure the handles are iterable
-    users = escape_var(users)
-    if not hasattr(users, '__iter__'): users = [users]
-
-    user_set = um.dl.DataLoader().format_comma_separated_list(users,
-        include_quotes=False)
-    where_clause = 'rev_user in (%(user_set)s) and %(ts_condition)s' % {
-        'user_set' : user_set, 'ts_condition' : ts_condition}
-
-    # format the namespace condition
-    ns_cond = um.UserMetric._format_namespace(arg_obj.namespace)
-    if ns_cond: ns_cond += ' and'
-
-    sql = """
-            select
-                rev_user,
-                rev_len,
-                rev_parent_id
-            from %(project)s.revision
-                join %(project)s.page
-                on page.page_id = revision.rev_page
-            where %(namespace)s %(where_clause)s
-        """ % {
-        'where_clause' : where_clause,
-        'project' : arg_obj.project,
-        'namespace' : ns_cond}
-    sql = " ".join(sql.strip().split())
+    rev_query = bytes_added_rev_query(arg_obj.start, arg_obj.end, users, arg_obj.namespace,
+                          arg_obj.project)
 
     if arg_obj.log:
         logging.info(__name__ +
@@ -181,7 +149,7 @@ def _get_revisions(args):
                   'namespace' : arg_obj.namespace}
         )
     try:
-        return list(conn.execute_SQL(sql))
+        return list(conn.execute_SQL(rev_query))
     except ProgrammingError:
        raise um.UserMetric.UserMetricError(
            message=str(BytesAdded) + '::Could not get revisions '
@@ -253,14 +221,7 @@ def _process_help(args):
         if parent_rev_id == 0:
             parent_rev_len = 0
         else:
-            sql = """
-                    SELECT rev_len
-                    FROM %(project)s.revision
-                    WHERE rev_id = %(parent_rev_id)s
-                """ % {
-                    'project' : thread_args.project,
-                    'parent_rev_id' : parent_rev_id,
-            }
+            sql = bytes_added_rev_len_query(parent_rev_id, thread_args.project)
             try:
                 parent_rev_len = conn.execute_SQL(sql)[0][0]
             except IndexError:
