@@ -186,6 +186,12 @@ def revert_rate_user_revs_query(project, user, start, end):
         'end_ts' : end
     }
 
+def time_to_threshold_revs_query(user_id, project):
+    sql = query_store[time_to_threshold_revs_query.__name__] % {
+        'user_handle' : str(user_id),
+        'project' : project}
+    return " ".join(sql.strip().splitlines())
+
 query_store = {
     threshold_reg_query.__name__:
                             """
@@ -270,6 +276,13 @@ query_store = {
                            WHERE rev_user = %(user)s AND
                            rev_timestamp > "%(start_ts)s" AND
                            rev_timestamp <= "%(end_ts)s"
+                        """,
+    time_to_threshold_revs_query.__name__:
+                        """
+                            SELECT rev_timestamp
+                            FROM %(project)s.revision
+                            WHERE rev_user = "%(user_handle)s"
+                            ORDER BY 1 ASC
                         """,
 }
 
