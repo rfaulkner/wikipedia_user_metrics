@@ -8,7 +8,7 @@ __email__ = "rfaulkner@wikimedia.org"
 __date__ = "january 30th, 2013"
 __license__ = "GPL (version 2 or later)"
 
-from src.etl.data_loader import DataLoader
+from src.etl.data_loader import DataLoader, Connector
 from MySQLdb import escape_string
 from copy import deepcopy
 
@@ -192,6 +192,42 @@ def time_to_threshold_revs_query(user_id, project):
         'project' : project}
     return " ".join(sql.strip().splitlines())
 
+def blocks_user_map_query(users):
+
+    # Get usernames for user ids to detect in block events
+    conn = Connector(insatance='slave')
+    user_str = DataLoader().format_comma_separated_list(users)
+
+    query = query_store[blocks_user_map_query.__name__] % \
+        { 'users': user_str }
+    query = " ".join(query.strip().splitlines())
+    conn._cur_.execute(query)
+
+    # keys username on userid
+    user_map = dict()
+    for r in conn._cur_:
+        user_map[r[1]] = r[0]
+    del conn
+    return user_map
+
+def blocks_user_query(users, start, project):
+    conn = Connector(insatance='slave')
+    user_str = DataLoader().format_comma_separated_list(users)
+
+    query = query_store[blocks_user_query.__name__] % \
+                       {
+                           'user_str' : user_str,
+                           'timestamp': start,
+                           'user_cond': user_str,
+                           'wiki' : project
+                       }
+    query = " ".join(query.strip().splitlines())
+    conn._cur_.execute(query)
+
+    results = [row for row in conn._cur_]
+    del conn
+    return results
+
 query_store = {
     threshold_reg_query.__name__:
                             """
@@ -283,6 +319,30 @@ query_store = {
                             FROM %(project)s.revision
                             WHERE rev_user = "%(user_handle)s"
                             ORDER BY 1 ASC
+                        """,
+    blocks_user_map_query.__name__:
+                        """
+                            SELECT
+                                user_id,
+                                user_name
+                            FROM enwiki.user
+                            WHERE user_id in (%(users)s)
+                        """,
+    blocks_user_query.__name__:
+                        """
+                            SELECT
+                                log_title as user,
+                                IF(log_params LIKE "%%indefinite%%", "ban",
+                                    "block") as type,
+                                count(*) as count,
+                                min(log_timestamp) as first,
+                                max(log_timestamp) as last
+                            FROM %(wiki)s.logging
+                            WHERE log_type = "block"
+                            AND log_action = "block"
+                            AND log_title in (%(user_str)s)
+                            AND log_timestamp >= "%(timestamp)s"
+                            GROUP BY 1, 2
                         """,
 }
 
