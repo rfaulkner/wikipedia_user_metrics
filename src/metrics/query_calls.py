@@ -280,6 +280,7 @@ def edit_count_user_query(users, start, end, project):
     del conn
     return results
 
+@pre_process_users
 def namespace_edits_rev_query(users, args):
     """ Obtain revisions by namespace """
     conn = Connector(instance='slave')
