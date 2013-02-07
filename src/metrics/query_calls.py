@@ -53,6 +53,20 @@ def format_namespace(namespace):
                                 cast_elems_to_string(list(namespace))) + ')'
     return ns_cond
 
+def pre_process_users(f):
+    """ Decorator that handles pre processing of user cohort """
+    def wrapper(users, args):
+        # Escape user_handle for SQL injection
+        users = escape_var(users)
+
+        # ensure the handles are iterable
+        if not hasattr(users, '__iter__'): users = [users]
+
+        # call
+        f(users, args)
+
+    return wrapper
+
 def threshold_reg_query(users, project):
     """ Get registered users for Threshold metric objects """
     uid_str = DataLoader().\
@@ -234,10 +248,10 @@ def edit_count_user_query(users, start, end, project):
     conn = Connector(instance='slave')
 
     # Escape user_handle for SQL injection
-    user_handle = escape_var(users)
+    users = escape_var(users)
 
     # ensure the handles are iterable
-    if not hasattr(user_handle, '__iter__'): users = [users]
+    if not hasattr(users, '__iter__'): users = [users]
 
     user_str = DataLoader().format_comma_separated_list(users)
     ts_condition  = 'and rev_timestamp >= "%s" and rev_timestamp < "%s"' % \
