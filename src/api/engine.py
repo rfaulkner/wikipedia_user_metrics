@@ -9,7 +9,6 @@ __license__ = "GPL (version 2 or later)"
 
 from flask import escape, redirect, url_for
 from src.utils.record_type import *
-from src.api import COHORT_REGEX, parse_cohorts, MetricsAPIError
 from dateutil.parser import parse as date_parse
 from datetime import timedelta, datetime
 from re import search
@@ -26,8 +25,8 @@ MW_UNAME_REGEX = r'[a-zA-Z_\.\+ ]'
 
 # Define standard variable names in the query string - store in named tuple
 RequestMeta = recordtype('RequestMeta',
-    'cohort_expr cohort_gen_timestamp metric time_series '
-    'aggregator project namespace date_start date_end interval t n')
+    'cohort_expr cohort_gen_timestamp metric time_series aggregator '
+    'restrict project namespace date_start date_end interval t n')
 
 def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric):
     """
@@ -54,7 +53,8 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric):
 REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace',
                           'date_start', 'date_end', 'interval', 't', 'n',
                           'time_unit','time_unit_count', 'look_ahead',
-                          'look_back', 'threshold_type',]
+                          'look_back', 'threshold_type', 'restrict',
+                          ]
 REQUEST_META_BASE = ['cohort_expr', 'metric']
 
 
@@ -83,11 +83,14 @@ QUERY_PARAMS_BY_METRIC = {
                                    varMapping('time_unit_count',
                                        'time_unit_count'),],
     'live_account' : common_params + [varMapping('t','t'),],
-    'namespace_of_edits' : common_params,
+    'namespace_edits' : common_params,
     'revert_rate' : common_params + [varMapping('look_back','look_back'),
                                      varMapping('look_ahead','look_ahead'),],
-    'survival' : common_params + [varMapping('t','t'),],
-    'threshold' : common_params + [varMapping('t','t'), varMapping('n','n'),],
+    'survival' : common_params + [varMapping('restrict','restrict'),
+                                    varMapping('t','t'),],
+    'threshold' : common_params + [varMapping('restrict','restrict'),
+                                    varMapping('t','t'),
+                                    varMapping('n','n'),],
     'time_to_threshold' : common_params + [varMapping('threshold_type',
         'threshold_type_class'),],
     }
@@ -137,9 +140,6 @@ def process_request_params(request_meta):
     else:
         request_meta.date_end = end.strftime(
             DATETIME_STR_FORMAT)[:8] + TIME_STR
-
-    # set the time series if it has been included as a parameter
-    request_meta.time_series = True if request_meta.time_series else None
 
     # set the aggregator if there is one
     agg_key = mm.get_agg_key(request_meta.aggregator, request_meta.metric)
@@ -214,6 +214,9 @@ def get_data(request_meta, hash_table_ref):
     # Traverse the hash key structure to find data
     # @TODO rather than iterate through REQUEST_META_BASE &
     #   REQUEST_META_QUERY_STR look only at existing attributes
+
+    logging.debug(__name__ + "::Attempting to pull data for request {0}".
+        format(str(request_meta)))
     for key_name in REQUEST_META_BASE + REQUEST_META_QUERY_STR:
         if hasattr(request_meta, key_name) and getattr(request_meta, key_name):
             key = getattr(request_meta, key_name)
@@ -258,6 +261,8 @@ def set_data(request_meta, data, hash_table_ref):
             key = getattr(request_meta, key_name)
             if key: key_sig.append(key_name + HASH_KEY_DELIMETER + key)
 
+    logging.debug(__name__ + "::Adding data to hash @ key signature = {0}".
+        format(str(key_sig)))
     # For each key in the key signature add a nested key to the hash
     last_item = key_sig[len(key_sig) - 1]
     for key in key_sig:
@@ -291,6 +296,93 @@ def get_url_from_keys(keys, path_root):
 def build_key_tree(nested_dict):
     """ Builds a tree of key values from a nested dict. """
     if hasattr(nested_dict, 'keys'):
-        for key in nested_dict.keys(): yield (key, build_key_tree(nested_dict[key]))
+        for key in nested_dict.keys(): yield (key, build_key_tree(
+            nested_dict[key]))
     else:
         yield None
+
+#
+# Cohort parsing methods
+#
+# ======================
+
+# This regex must be matched to parse cohorts
+COHORT_REGEX = r'^([0-9]+[&~])*[0-9]+$'
+
+COHORT_OP_AND = '&'
+COHORT_OP_OR = '~'
+# COHORT_OP_NOT = '^'
+
+def parse_cohorts(expression):
+    """
+        Defines and parses boolean expressions of cohorts and returns a list
+        of user ids corresponding to the expression argument.
+
+            Parameters:
+                - **expression**: str. Boolean expression built of
+                    cohort labels.
+
+            Return:
+                - List(str).  user ids corresponding to cohort expression.
+    """
+
+    # match expression
+    if not search(COHORT_REGEX, expression):
+        raise MetricsAPIError()
+
+    # parse expression
+    return parse(expression)
+
+
+def parse(expression):
+    """ Top level parsing. Splits expression by OR then sub-expressions by
+        AND. returns a generator of ids included in the evaluated expression
+    """
+    user_ids_seen = set()
+    for sub_exp_1 in expression.split(COHORT_OP_OR):
+        for user_id in intersect_ids(sub_exp_1.split(COHORT_OP_AND)):
+            if not user_ids_seen.__contains__(user_id):
+                user_ids_seen.add(user_id)
+                yield user_id
+
+
+def get_cohort_ids(conn, cohort_id):
+    """ Returns string valued ids corresponding to a cohort """
+    sql = """
+        SELECT ut_user
+        FROM staging.usertags
+        WHERE ut_tag = %(id)s
+    """ % {
+        'id' : str(cohort_id)
+    }
+    conn._cur_.execute(sql)
+    for row in conn._cur_:
+        yield str(row[0])
+
+def intersect_ids(cohort_id_list):
+
+    conn = dl.Connector(instance='slave')
+
+    user_ids = dict()
+    # only a single cohort id in the expression - return all users of this
+    # cohort
+    if len(cohort_id_list) == 1:
+        for id in get_cohort_ids(conn, cohort_id_list[0]):
+            yield id
+    else:
+        for cid in cohort_id_list:
+            for id in get_cohort_ids(conn, cid):
+                if user_ids.has_key(id):
+                    user_ids[id] += 1
+                else:
+                    user_ids[id] = 1
+            # Executes only in the case that there was more than one cohort
+            # id in the expression
+        for key in user_ids:
+            if user_ids[key] > 1: yield key
+    del conn
+
+class MetricsAPIError(Exception):
+    """ Basic exception class for UserMetric types """
+    def __init__(self, message="Error processing API request."):
+        Exception.__init__(self, message)

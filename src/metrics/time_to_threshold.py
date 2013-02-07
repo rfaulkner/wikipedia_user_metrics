@@ -87,6 +87,7 @@ class TimeToThreshold(um.UserMetric):
     @staticmethod
     def header(): return ['user_id', 'minutes_diff']
 
+    @um.UserMetric.pre_process_users
     def process(self, user_handle, **kwargs):
         """ Wrapper for specific threshold objects """
         self.apply_default_kwargs(kwargs,'process')

@@ -1,6 +1,7 @@
 
 """
-    This module defines a set of methods useful in handling series of metrics objects to build more complex results.
+    This module defines a set of methods useful in handling series of metrics
+    objects to build more complex results.
 """
 
 __author__ = "ryan faulkner"
@@ -8,6 +9,7 @@ __date__ = "12/28/2012"
 __license__ = "GPL (version 2 or later)"
 
 import re
+from collections import OrderedDict
 from dateutil.parser import parse as date_parse
 
 import user_metric as um
@@ -15,7 +17,7 @@ import threshold as th
 from blocks import Blocks
 from bytes_added import BytesAdded
 from survival import Survival, survival_editors_agg
-import revert_rate as rr
+from revert_rate import RevertRate, revert_rate_avg
 from time_to_threshold import TimeToThreshold, ttt_avg_agg
 from edit_rate import EditRate, edit_rate_agg
 from namespace_of_edits import NamespaceEdits, namespace_edits_sum
@@ -28,13 +30,16 @@ import src.etl.time_series_process_methods as tspm
 from config import logging
 
 INTERVALS_PER_THREAD = 10
-MAX_THREADS = 10
+MAX_THREADS = 5
+
+USER_THREADS=100
+REVISION_THREADS=100
 
 # Registered metrics types
 metric_dict = {
     'threshold' : th.Threshold,
     'survival' : Survival,
-    'revert_rate' : rr.RevertRate,
+    'revert_rate' : RevertRate,
     'bytes_added' : BytesAdded,
     'blocks' : Blocks,
     'time_to_threshold' : TimeToThreshold,
@@ -50,13 +55,14 @@ aggregator_dict = {
     'average+threshold' : th.threshold_editors_agg,
     'average+survival' : survival_editors_agg,
     'average+live_account' : live_accounts_agg,
-    'average+revert' : rr.reverted_revs_agg,
+    'average+revert_rate' : revert_rate_avg,
     'average+edit_rate' : edit_rate_agg,
     'average+time_to_threshold' : ttt_avg_agg,
     }
 
 def get_metric_names(): return metric_dict.keys()
-def get_param_types(metric_handle): return metric_dict[metric_handle]()._param_types
+def get_param_types(metric_handle):
+    return metric_dict[metric_handle]()._param_types
 
 def get_agg_key(agg_handle, metric_handle):
     """ Compose the metric dependent aggregator handle """
@@ -78,7 +84,7 @@ def process_data_request(metric_handle, users, **kwargs):
     agg_key = get_agg_key(aggregator, metric_handle) if aggregator else None
 
     # Initialize the results
-    results = dict()
+    results = OrderedDict()
 
     metric_class = metric_dict[metric_handle]
     metric_obj = metric_class(**kwargs)
@@ -90,7 +96,7 @@ def process_data_request(metric_handle, users, **kwargs):
     for key in metric_obj.__dict__:
         if re.search(r'_.*_', key):
             results[str(key[1:-1])] = str(metric_obj.__dict__[key])
-    results['metric'] = dict()
+    results['metric'] = OrderedDict()
 
     # Parse the aggregator
     aggregator_func = None
@@ -98,29 +104,44 @@ def process_data_request(metric_handle, users, **kwargs):
         aggregator_func = aggregator_dict[agg_key]
 
     # Parse the time series flag
-    time_series = True if 'time_series' in kwargs and kwargs['time_series'] else False
+    time_series = True if 'time_series' in kwargs and kwargs['time_series'] \
+        else False
 
     if aggregator_func:
         if time_series:
-            interval = int(kwargs['interval'])      # interval length in hours
-            total_intervals = (date_parse(end) - date_parse(start)).total_seconds() / (3600 * interval)
-            num_threads = min(MAX_THREADS, int(total_intervals / INTERVALS_PER_THREAD))
+            # interval length in hours
+            interval = int(kwargs['interval'])
+            total_intervals = (date_parse(end) -
+                        date_parse(start)).total_seconds() / (3600 * interval)
+            time_threads = max(1,int(total_intervals / INTERVALS_PER_THREAD))
+            time_threads = min(MAX_THREADS, time_threads)
 
-            logging.info('Metrics Manager: Initiating time series for %(metric)s with %(agg)s from '
+            logging.info('Metrics Manager: Initiating time series for '
+                         '%(metric)s with %(agg)s from '
                          '%(start)s to %(end)s.' % {
                 'metric' : metric_class.__name__,
                 'agg' : aggregator_func.__name__,
                 'start' : str(start),
                 'end' : str(end),
             })
-            out = tspm.build_time_series(start, end, interval, metric_class, aggregator_func, users,
-                num_threads=num_threads, metric_threads='{"num_threads" : 20, "rev_threads" : 50}', log=True)
+            out = tspm.build_time_series(start, end,
+                interval, metric_class, aggregator_func, users,
+                num_threads=time_threads,
+                metric_threads='{"num_threads" : %(user_threads)s, '
+                               '"rev_threads" : %(rev_threads)s}' %
+                { 'user_threads' : USER_THREADS,
+                  'rev_threads': REVISION_THREADS},
+                log=True)
 
+            count = 1
             for row in out:
-                results['metric'][row[0] + ' - ' + row[1]] = " ".join(to_string(row[3:]))
+                results['metric'][count] = " ".join(
+                    to_string([row[0][:10] + 'T' + row[0][11:13]] + row[3:]))
+                count += 1
         else:
 
-            logging.info('Metrics Manager: Initiating aggregator for %(metric)s with %(agg)s from '
+            logging.info('Metrics Manager: Initiating aggregator for '
+                         '%(metric)s with %(agg)s from '
                          '%(start)s to %(end)s.' % {
                 'metric' : metric_class.__name__,
                 'agg' : aggregator_func.__name__,
@@ -128,19 +149,21 @@ def process_data_request(metric_handle, users, **kwargs):
                 'end' : str(end),
                 })
 
-            metric_obj.process(users, num_threads=30, rev_threads=50, **kwargs)
+            metric_obj.process(users, num_threads=USER_THREADS,
+                rev_threads=REVISION_THREADS, **kwargs)
             r = um.aggregator(aggregator_func, metric_obj, metric_obj.header())
             results['metric'][r.data[0]] = " ".join(to_string(r.data[1:]))
             results['header'] = " ".join(to_string(r.header))
     else:
 
-        logging.info('Metrics Manager: Initiating user data for %(metric)s from '
-                     '%(start)s to %(end)s.' % {
+        logging.info('Metrics Manager: Initiating user data for '
+                     '%(metric)s from %(start)s to %(end)s.' % {
             'metric' : metric_class.__name__,
             'start' : str(start),
             'end' : str(end),
             })
-        metric_obj.process(users, num_threads=30, rev_threads=50, log_progress=True, **kwargs)
+        metric_obj.process(users, num_threads=USER_THREADS,
+            rev_threads=REVISION_THREADS, log_progress=True, **kwargs)
         for m in metric_obj.__iter__():
             results['metric'][m[0]] = " ".join(to_string(m[1:]))
 

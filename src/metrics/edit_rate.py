@@ -74,6 +74,7 @@ class EditRate(um.UserMetric):
     def header(): return ['user_id', 'edit_count', 'edit_rate', 'start_time',
                           'period_len']
 
+    @um.UserMetric.pre_process_users
     def process(self, user_handle, **kwargs):
         """
             Determine the edit rate of user(s).  The parameter *user_handle*

@@ -64,6 +64,7 @@ class Survival(um.UserMetric):
     def header():
         return ['user_id', 'is_alive']
 
+    @um.UserMetric.pre_process_users
     def process(self, user_handle, **kwargs):
 
         """

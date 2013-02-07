@@ -74,6 +74,7 @@ class NamespaceEdits(um.UserMetric):
     @staticmethod
     def header(): return ['user_id', 'revision_data_by_namespace', ]
 
+    @um.UserMetric.pre_process_users
     def process(self, user_handle, **kwargs):
 
         self.apply_default_kwargs(kwargs,'process')
