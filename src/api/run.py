@@ -209,7 +209,11 @@ def about():
 def contact():
     return render_template('contact.html')
 
-@app.route('/tags/')
+@app.route('/compare/')
+def compare():
+    return render_template('compare.html')
+
+@app.route('/tags/') #deprecated
 def tags():
     """ View for tag definitions where cohort meta data can be reviewed """
     #@@@ TODO make tag list generation a dedicated method
@@ -314,6 +318,12 @@ def cohort(cohort=''):
             m_list=mm.get_metric_names(), error=error)
 
 @app.route('/cohorts/<string:cohort>/<string:metric>')
+def cohort_job_review(cohort, metric):
+    """ Review job before firing it """
+    return render_template('cohort_review.html', c=cohort, m=metric)
+
+
+@app.route('/run/<string:cohort>/<string:metric>', methods=['GET'])
 def output(cohort, metric):
     """ View corresponding to a data request -
         All of the setup and execution for a request happens here. """
@@ -380,7 +390,8 @@ def output(cohort, metric):
         else:
             return redirect(url_for('job_queue') + '?error=0')
 
-@app.route('/job_queue/')
+@app.route('/job_queue/') #backward compatibility
+@app.route('/jobs/')
 def job_queue():
     """ View for listing current jobs working """
 
@@ -440,7 +451,7 @@ def job_queue():
         return render_template('queue.html', procs=p_list)
 
 @app.route('/all_requests')
-def all_urls():
+def all_requests():
     """ View for listing all requests """
 
     # Build a tree containing nested key values
@@ -465,7 +476,7 @@ def all_urls():
         url = get_url_from_keys(key_sig, 'stored')
         url_list.append("".join(['<a href="',
                                  request.url_root, url + '">', url, '</a>']))
-    return render_template('all_urls.html', urls=url_list)
+    return render_template('all_requests.html', urls=url_list)
 
 @app.route('/stored/<string:cohort>/<string:metric>')
 def stored_requests(cohort, metric):
@@ -498,7 +509,6 @@ def stored_requests(cohort, metric):
         return hash_ref
     else:
         return redirect(url_for('cohort') + '?error=2')
-
 
 ######
 #

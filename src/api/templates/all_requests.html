@@ -1,9 +1,9 @@
 {% extends "layout.html" %}
 {% block body %}
-<h2>Recently completed requests</h2>
+<h2>All requests</h2>
 {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
-
-<table class="table">
+<p>This is a list of recently completed requests. For current and pending requests check out the <a href="{{ url_for('job_queue') }}">queue</a>.</p>
+<table class="table table-striped">
 <tbody>
 {% for url in urls %}
 <tr><td>{{ url|safe }}</td></tr>

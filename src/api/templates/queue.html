@@ -1,7 +1,8 @@
 {% extends "layout.html" %}
 {% block body %}
-<h2>Job queue</h2>
+<h2>Jobs</h2>
 {% if error %}<p class="text-warning"><strong>Warning:</strong> {{ error }}</p>{% endif %}
+<p>This is the queue displaying a list of the most recent requests. For completed requests, see the <a href="{{ url_for('all_requests') }}">all requests</a> page.</p>
 <table class="table table-striped">
     {% for job in procs %}
     {{ job|safe }}

@@ -5,8 +5,8 @@
 <div class="hero-unit">
 <h1>User Metrics</h1>
 
-  <p class="margin-top:2em">Welcome to the Wikimedia Foundation's user metrics API homepage. This API allows you to select a set of users, also known as a "cohort" <span class="muted">(for example, <a href="{{url_for('all_cohorts') + 'e3_donor_referral_thank_you_b'}}">all users who signed up via the Thank You campaign</a>)</span>, select a metric to be computed <span class="muted">(for example, their <a href="{{ url_for('all_metrics') + 'revert_rate'}}">7-day revert rate</a>)</span> and retrieve a response in JSON format for each of these users.</p><p>You can also compute a single, aggregate response for the whole cohort <span class="muted">(like its <a href="#">mean revert rate</a>)</span>.</p>
-    <p class="margin-top:1em"><a class="btn btn-primary btn-large" href="/about/">Learn more</a></p>
+  <p>Welcome to the Wikimedia Foundation's user metrics API homepage.</p><p>This API allows you to select a set of users, also known as <strong>a cohort</strong> <span class="muted">(for example, <a href="{{url_for('all_cohorts') + 'e3_donor_referral_thank_you_b'}}">all users who signed up via the Thank You campaign</a>)</span>, select <strong>a metric</strong> to be computed <span class="muted">(for example, their <a href="{{ url_for('all_metrics') + 'revert_rate'}}">7-day revert rate</a>)</span> and retrieve a value for each of these users. This is what we call a <strong>raw response</strong>.</p><p>You can also compute a single, <strong>aggregate response</strong> for the entire cohort <span class="muted">(like its <a href="#">mean revert rate</a>)</span>.</p>
+    <p class="margin-top:1em"><a class="btn btn-large btn-primary" href="/about/">Learn more</a></p>
 </div>
 
 <div class="row-fluid">
@@ -33,19 +33,21 @@
         </form>
   </div>
   <div class="span4">
-    <h4>Additional parameters</h4>
-          <ul>
-                <li>Date start - date_start</li>
-                <li>Date end - date_end</li>
-                <li>Aggregator function - aggregator</li>
-            </ul>
+    <h4>Look up a user</h4>
+		<form class="form-inline" action="{{url_for('all_users')}}" method="post">
+		<div class="input-prepend">
+			<span class="add-on">User:</span><input class="input-medium" id="prependedInput" name="selectUser" type="text" placeholder="Username">
+		</div>
+		<button type="submit" class="btn btn-primary">Next</button>
+		</form>
   </div>
 </div>
 
+<!--
 <div class="embed_p">
     Choose a <a href="{{ url_for('all_cohorts') }}">Cohort</a>.<div class="v_space_sm"></div>
     Check the <a href="{{ url_for('job_queue') }}">Job Queue</a>.<div class="v_space_sm"></div>
-    See all generated <a href="{{ url_for('all_urls') }}">requests</a>.<div class="v_space_sm"></div>
+    See all generated <a href="{{ url_for('all_requests') }}">requests</a>.<div class="v_space_sm"></div>
     View the <a href="{{ url_for('tags') }}">tag definitions</a> for cohorts.
 </div>
 {% endblock %}

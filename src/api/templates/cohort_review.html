@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block body %}
+<ul class="breadcrumb">
+  <li><a href="{{ url_for('all_cohorts') }}">cohorts</a> <span class="divider">/</span></li>
+  <li><a href="{{ url_for('all_cohorts') + c }}">{{c}}</a><span class="divider">/</span></li>
+  <li class="active">{{m}}</li>
+</ul>
+
+<h2>Review</h2>
+{% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+<p>This page will allow you to review a request before firing it.</p>
+<table class="table table-bordered">
+	<tr><th scope="row">cohort:</th><td>{{c}}</td></tr>
+	<tr><th scope="row">metric:</th><td>{{m}}</td></tr>
+</table>
+
+<p><a class="btn btn-primary" href="/run/{{c + '/' + m }}">Run</a></p><!-- replace this with a form-->
+
+{% endblock %}
