@@ -180,6 +180,7 @@ def bytes_added_rev_user_query(start, end):
     }
 
 def revert_rate_past_revs_query(rev_id, page_id, n, project):
+    """ Compute revision history pegged to a given rev """
     return query_store[revert_rate_past_revs_query.__name__] % {
         'rev_id':  rev_id,
         'page_id': page_id,
@@ -187,6 +188,7 @@ def revert_rate_past_revs_query(rev_id, page_id, n, project):
         'project': project
     }
 def revert_rate_future_revs_query(rev_id, page_id, n, project):
+    """ Compute revision future pegged to a given rev """
     return query_store[revert_rate_future_revs_query.__name__] % {
         'rev_id':  rev_id,
         'page_id': page_id,
@@ -195,6 +197,7 @@ def revert_rate_future_revs_query(rev_id, page_id, n, project):
     }
 
 def revert_rate_user_revs_query(project, user, start, end):
+    """ Get revision history for a user """
     return query_store[revert_rate_user_revs_query.__name__] % {
         'project' : project,
         'user' : user,
@@ -203,13 +206,14 @@ def revert_rate_user_revs_query(project, user, start, end):
     }
 
 def time_to_threshold_revs_query(user_id, project):
+    """ Obtain revisions to perform threshold computation """
     sql = query_store[time_to_threshold_revs_query.__name__] % {
         'user_handle' : str(user_id),
         'project' : project}
     return " ".join(sql.strip().splitlines())
 
 def blocks_user_map_query(users):
-    """ """
+    """ Obtain map to generate uname to uid"""
     # Get usernames for user ids to detect in block events
     conn = Connector(insatance='slave')
     user_str = DataLoader().format_comma_separated_list(users)
@@ -227,7 +231,7 @@ def blocks_user_map_query(users):
     return user_map
 
 def blocks_user_query(users, start, project):
-    """ """
+    """ Obtain block/ban events for users """
     conn = Connector(insatance='slave')
     user_str = DataLoader().format_comma_separated_list(users)
 
@@ -246,7 +250,7 @@ def blocks_user_query(users, start, project):
     return results
 
 def edit_count_user_query(users, start, end, project):
-    """ """
+    """  Obtain rev counts by user """
     conn = Connector(instance='slave')
 
     # Escape user_handle for SQL injection
@@ -277,7 +281,7 @@ def edit_count_user_query(users, start, end, project):
     return results
 
 def namespace_edits_rev_query(users, args):
-    """  """
+    """ Obtain revisions by namespace """
     conn = Connector(instance='slave')
 
     # @TODO check attributes for existence and throw error otherwise
