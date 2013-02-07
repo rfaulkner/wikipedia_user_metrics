@@ -322,7 +322,6 @@ def cohort_job_review(cohort, metric):
     """ Review job before firing it """
     return render_template('cohort_review.html', c=cohort, m=metric)
 
-
 @app.route('/run/<string:cohort>/<string:metric>', methods=['GET'])
 def output(cohort, metric):
     """ View corresponding to a data request -
