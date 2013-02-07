@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block body %}
+<h2>Users</h2>
+{% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+<p>You can compute single-user metrics by specifying a valid Wikipedia username or userid.</p>
+<form class="form-inline" action="{{url_for('all_users')}}" method="post">
+<div class="input-prepend">
+  <span class="add-on">User:</span>
+  <input class="span2" id="prependedInput" name="selectUser" type="text" placeholder="Username">
+</div>
+<button type="submit" class="btn">Next</button>
+</form>
+{% endblock %}

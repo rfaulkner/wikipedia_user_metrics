@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+{% block body %}
+<ul class="breadcrumb">
+  <li><a href="{{ url_for('all_users') }}">users</a> <span class="divider">/</span></li>
+  <li class="active">{{user}}</li>
+</ul>
+<h2>{{user}}</h2>
+{% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+<p>This will be the landing page for user {{user}}</p>
+<table class="table table-striped">
+<tbody>
+{% for metric in m_list %}
+<tr><td><a href="{{ url_for('all_users') + user + '/' + metric }}">{{ metric }}</a></td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% endblock %}
