@@ -53,7 +53,7 @@ def format_namespace(namespace):
                                 cast_elems_to_string(list(namespace))) + ')'
     return ns_cond
 
-def pre_process_users(f):
+def query_method_deco(f):
     """ Decorator that handles pre processing of user cohort """
     def wrapper(users, args):
         # Escape user_handle for SQL injection
@@ -62,9 +62,36 @@ def pre_process_users(f):
         # ensure the handles are iterable
         if not hasattr(users, '__iter__'): users = [users]
 
-        # call
-        f(users, args)
+        # get query and call
+        query = f(users, args)
+        conn = Connector(instance='slave')
+        try:
+            conn._cur_.execute(query)
+        except ProgrammingError:
+            logging.error(__name__ +
+                          'Could not get edit counts - Query failed.')
+        results = [row for row in conn._cur_]
+        del conn
+        return results
+    return wrapper
 
+def post_process_query_method(f):
+    """ Decorator that handles pre processing of user cohort """
+    def wrapper(users, args):
+
+        # call
+        query = f(users, args)
+
+        conn = Connector(instance='slave')
+        try:
+            conn._cur_.execute(query)
+        except ProgrammingError:
+            logging.error(__name__ +
+                      'Could not get edit counts - Query failed.')
+
+        results = [row for row in conn._cur_]
+        del conn
+        return results
     return wrapper
 
 def threshold_reg_query(users, project):
@@ -280,10 +307,9 @@ def edit_count_user_query(users, start, end, project):
     del conn
     return results
 
-@pre_process_users
+@query_method_deco
 def namespace_edits_rev_query(users, args):
     """ Obtain revisions by namespace """
-    conn = Connector(instance='slave')
 
     # @TODO check attributes for existence and throw error otherwise
     project = args.project
@@ -307,15 +333,7 @@ def namespace_edits_rev_query(users, args):
         }
     query = " ".join(query.strip().splitlines())
 
-    try:
-        conn._cur_.execute(query)
-    except ProgrammingError:
-        logging.error(__name__ +
-                      'Could not get edit counts - Query failed.')
-
-    results = [row for row in conn._cur_]
-    del conn
-    return results
+    return query
 
 
 query_store = {
