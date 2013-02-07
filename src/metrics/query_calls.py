@@ -9,8 +9,10 @@ __date__ = "january 30th, 2013"
 __license__ = "GPL (version 2 or later)"
 
 from src.etl.data_loader import DataLoader, Connector
-from MySQLdb import escape_string
+from MySQLdb import escape_string, ProgrammingError
 from copy import deepcopy
+
+from config import logging
 
 def escape_var(var):
     """
@@ -228,6 +230,36 @@ def blocks_user_query(users, start, project):
     del conn
     return results
 
+def edit_count_user_query(users, start, end, project):
+    conn = Connector(instance='slave')
+
+    # Escape user_handle for SQL injection
+    user_handle = escape_var(users)
+
+    # ensure the handles are iterable
+    if not hasattr(user_handle, '__iter__'): users = [users]
+
+    user_str = DataLoader().format_comma_separated_list(users)
+    ts_condition  = 'and rev_timestamp >= "%s" and rev_timestamp < "%s"' % \
+                    (start, end)
+    query  = query_store[edit_count_user_query.__name__] % \
+                    {
+                        'users' : user_str,
+                        'ts_condition' : ts_condition,
+                        'project' : project
+                    }
+    query = " ".join(query.strip().splitlines())
+
+    try:
+        conn._cur_.execute(query)
+    except ProgrammingError:
+        logging.error(__name__ +
+                      'Could not get edit counts - Query failed.')
+
+    results = [row for row in conn._cur_]
+    del conn
+    return results
+
 query_store = {
     threshold_reg_query.__name__:
                             """
@@ -343,6 +375,15 @@ query_store = {
                             AND log_title in (%(user_str)s)
                             AND log_timestamp >= "%(timestamp)s"
                             GROUP BY 1, 2
+                        """,
+    edit_count_user_query.__name__:
+                        """
+                            SELECT
+                                rev_user,
+                                count(*)
+                            FROM %(project)s.revision
+                            WHERE rev_user IN (%(users)s) %(ts_condition)s
+                            GROUP BY 1
                         """,
 }
 
