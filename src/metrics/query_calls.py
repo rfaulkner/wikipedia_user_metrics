@@ -209,7 +209,7 @@ def time_to_threshold_revs_query(user_id, project):
     return " ".join(sql.strip().splitlines())
 
 def blocks_user_map_query(users):
-
+    """ """
     # Get usernames for user ids to detect in block events
     conn = Connector(insatance='slave')
     user_str = DataLoader().format_comma_separated_list(users)
@@ -227,6 +227,7 @@ def blocks_user_map_query(users):
     return user_map
 
 def blocks_user_query(users, start, project):
+    """ """
     conn = Connector(insatance='slave')
     user_str = DataLoader().format_comma_separated_list(users)
 
@@ -245,6 +246,7 @@ def blocks_user_query(users, start, project):
     return results
 
 def edit_count_user_query(users, start, end, project):
+    """ """
     conn = Connector(instance='slave')
 
     # Escape user_handle for SQL injection
@@ -273,6 +275,43 @@ def edit_count_user_query(users, start, end, project):
     results = [row for row in conn._cur_]
     del conn
     return results
+
+def namespace_edits_rev_query(users, args):
+    """  """
+    conn = Connector(instance='slave')
+
+    # @TODO check attributes for existence and throw error otherwise
+    project = args.project
+    start = args.start
+    end = args.end
+
+    to_string = DataLoader().cast_elems_to_string
+    to_csv_str = DataLoader().format_comma_separated_list
+
+    # Format user condition
+    user_str= "rev_user in (" + to_csv_str(to_string(users)) + ")"
+
+    # Format timestamp condition
+    ts_cond = "rev_timestamp >= %s and rev_timestamp < %s" % (start, end)
+
+    query = query_store[namespace_edits_rev_query.__name__] % \
+        {
+            "user_cond" : user_str,
+            "ts_cond" : ts_cond,
+            "project" : project,
+        }
+    query = " ".join(query.strip().splitlines())
+
+    try:
+        conn._cur_.execute(query)
+    except ProgrammingError:
+        logging.error(__name__ +
+                      'Could not get edit counts - Query failed.')
+
+    results = [row for row in conn._cur_]
+    del conn
+    return results
+
 
 query_store = {
     threshold_reg_query.__name__:
@@ -398,6 +437,17 @@ query_store = {
                             FROM %(project)s.revision
                             WHERE rev_user IN (%(users)s) %(ts_condition)s
                             GROUP BY 1
+                        """,
+    namespace_edits_rev_query.__name__:
+                        """
+                            SELECT
+                                r.rev_user,
+                                p.page_namespace,
+                                count(*) AS revs
+                            FROM %(project)s.revision AS r JOIN %(project)s.page AS p
+                                ON r.rev_page = p.page_id
+                            WHERE %(user_cond)s AND %(ts_cond)s
+                            GROUP BY 1,2
                         """,
 }
 
