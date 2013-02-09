@@ -4,6 +4,7 @@ __date__ = "October 3rd, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import user_metric as um
+from query_calls import blocks_user_map_query, blocks_user_query
 
 from config import logging
 
@@ -54,7 +55,8 @@ class Blocks(um.UserMetric):
         }
 
     _agg_indices = {
-        'list_sum_indices' : _data_model_meta['integer_fields'] + _data_model_meta['float_fields'],
+        'list_sum_indices' : _data_model_meta['integer_fields'] +
+                             _data_model_meta['float_fields'],
         }
 
     @um.pre_metrics_init
@@ -62,12 +64,18 @@ class Blocks(um.UserMetric):
         um.UserMetric.__init__(self, **kwargs)
 
     @staticmethod
-    def header(): return ['user_id', 'block_count', 'block_first', 'block_last', 'ban']
+    def header():
+        return ['user_id',
+                'block_count',
+                'block_first',
+                'block_last',
+                'ban']
 
     @um.UserMetric.pre_process_users
     def process(self, user_handle, **kwargs):
         """
-            Process method for the "blocks" metric.  Computes a list of block and ban events for users.
+            Process method for the "blocks" metric.  Computes a list of block
+            and ban events for users.
 
             Parameters:
                 - **user_handle** - List.  List of user IDs.
@@ -83,52 +91,26 @@ class Blocks(um.UserMetric):
 
         log = bool(kwargs['log_progress'])
 
-        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle] # ensure the handles are iterable
+        # ensure the handles are iterable
+        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
         users = um.dl.DataLoader().cast_elems_to_string(user_handle)
 
         for i in xrange(len(users)):
-            rowValues[users[i]] = {'block_count' : 0, 'block_first' : -1, 'block_last' : -1, 'ban' : -1}
-
-        cursor = self._data_source_._cur_
-        user_dict = dict()
-
-        # Get usernames for user ids to detect in block events
-        users = um.dl.DataLoader().cast_elems_to_string(users)
-        user_str = um.dl.DataLoader().format_comma_separated_list(users)
-        cursor.execute('select user_id, user_name from enwiki.user where user_id in (%s)' % user_str)
-
-        for r in cursor: user_dict[r[1]] = r[0] # keys username on userid
-        user_handle_str = um.dl.DataLoader().format_comma_separated_list(user_dict.keys())
+            rowValues[users[i]] = {'block_count' : 0, 'block_first' : -1,
+                                   'block_last' : -1, 'ban' : -1}
 
         # Get blocks from the logging table
-        if log: logging.info(__name__ + '::Processing blocks for %s users.' % len(user_handle))
-        sql = """
-				SELECT
-				    log_title as user,
-					IF(log_params LIKE "%%indefinite%%", "ban", "block") as type,
-					count(*) as count,
-					min(log_timestamp) as first,
-					max(log_timestamp) as last
-				FROM %(wiki)s.logging
-				WHERE log_type = "block"
-				AND log_action = "block"
-				AND log_title in (%(user_str)s)
-				AND log_timestamp >= "%(timestamp)s"
-				GROUP BY 1, 2
-			""" % {
-            'user_str' : user_handle_str,
-            'timestamp': self._start_ts_,
-            'user_cond': user_handle_str,
-            'wiki' : self._project_
-            }
+        if log: logging.info(__name__ + '::Processing blocks for %s users.' %
+                                        len(user_handle))
 
-        sql = " ".join(sql.strip().split())
-        cursor.execute(sql)
+        # Data calls
+        user_map = blocks_user_map_query(users)
+        results = blocks_user_query(users, self._start_ts_, self._project_)
 
         # Process rows - extract block and ban events
-        for row in cursor:
+        for row in results:
 
-            userid = str(user_dict[row[0]])
+            userid = str(user_map[row[0]])
             type = row[1]
             count = row[2]
             first = row[3]
@@ -142,7 +124,11 @@ class Blocks(um.UserMetric):
             elif type == "ban":
                 rowValues[userid][type] = first
 
-        self._results = [[user, rowValues.get(user)['block_count'], rowValues.get(user)['block_first'], rowValues.get(user)['block_last'], rowValues.get(user)['ban']] for user in rowValues.keys()]
+        self._results = [[user, rowValues.get(user)['block_count'],
+                          rowValues.get(user)['block_first'],
+                          rowValues.get(user)['block_last'],
+                          rowValues.get(user)['ban']] for user in
+                                                      rowValues.keys()]
         return self
 
 if __name__ == "__main__":

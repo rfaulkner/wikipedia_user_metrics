@@ -20,6 +20,12 @@ setup(
               'src.metrics',
               'src.utils',
               'config'],
+    install_requires=[
+        'numpy == 1.6.2',
+        'Flask == 0.9',
+        'python-dateutil >= 2.1',
+        # MySQLdb is not in PyPi
+    ],
     classifiers=[
         'Development Status :: 1 - Planning',
         'Intended Audience :: Science/Research',

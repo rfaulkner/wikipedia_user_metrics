@@ -8,9 +8,11 @@ __email__ = "rfaulkner@wikimedia.org"
 __date__ = "january 30th, 2013"
 __license__ = "GPL (version 2 or later)"
 
-from src.etl.data_loader import DataLoader
-from MySQLdb import escape_string
+from src.etl.data_loader import DataLoader, Connector
+from MySQLdb import escape_string, ProgrammingError
 from copy import deepcopy
+
+from config import logging
 
 def escape_var(var):
     """
@@ -50,6 +52,47 @@ def format_namespace(namespace):
                       ",".join(DataLoader().
                                 cast_elems_to_string(list(namespace))) + ')'
     return ns_cond
+
+def query_method_deco(f):
+    """ Decorator that handles pre processing of user cohort """
+    def wrapper(users, args):
+        # Escape user_handle for SQL injection
+        users = escape_var(users)
+
+        # ensure the handles are iterable
+        if not hasattr(users, '__iter__'): users = [users]
+
+        # get query and call
+        query = f(users, args)
+        conn = Connector(instance='slave')
+        try:
+            conn._cur_.execute(query)
+        except ProgrammingError:
+            logging.error(__name__ +
+                          'Could not get edit counts - Query failed.')
+        results = [row for row in conn._cur_]
+        del conn
+        return results
+    return wrapper
+
+def post_process_query_method(f):
+    """ Decorator that handles pre processing of user cohort """
+    def wrapper(users, args):
+
+        # call
+        query = f(users, args)
+
+        conn = Connector(instance='slave')
+        try:
+            conn._cur_.execute(query)
+        except ProgrammingError:
+            logging.error(__name__ +
+                      'Could not get edit counts - Query failed.')
+
+        results = [row for row in conn._cur_]
+        del conn
+        return results
+    return wrapper
 
 def threshold_reg_query(users, project):
     """ Get registered users for Threshold metric objects """
@@ -164,6 +207,7 @@ def bytes_added_rev_user_query(start, end):
     }
 
 def revert_rate_past_revs_query(rev_id, page_id, n, project):
+    """ Compute revision history pegged to a given rev """
     return query_store[revert_rate_past_revs_query.__name__] % {
         'rev_id':  rev_id,
         'page_id': page_id,
@@ -171,6 +215,7 @@ def revert_rate_past_revs_query(rev_id, page_id, n, project):
         'project': project
     }
 def revert_rate_future_revs_query(rev_id, page_id, n, project):
+    """ Compute revision future pegged to a given rev """
     return query_store[revert_rate_future_revs_query.__name__] % {
         'rev_id':  rev_id,
         'page_id': page_id,
@@ -179,12 +224,117 @@ def revert_rate_future_revs_query(rev_id, page_id, n, project):
     }
 
 def revert_rate_user_revs_query(project, user, start, end):
+    """ Get revision history for a user """
     return query_store[revert_rate_user_revs_query.__name__] % {
         'project' : project,
         'user' : user,
         'start_ts' : start,
         'end_ts' : end
     }
+
+def time_to_threshold_revs_query(user_id, project):
+    """ Obtain revisions to perform threshold computation """
+    sql = query_store[time_to_threshold_revs_query.__name__] % {
+        'user_handle' : str(user_id),
+        'project' : project}
+    return " ".join(sql.strip().splitlines())
+
+def blocks_user_map_query(users):
+    """ Obtain map to generate uname to uid"""
+    # Get usernames for user ids to detect in block events
+    conn = Connector(insatance='slave')
+    user_str = DataLoader().format_comma_separated_list(users)
+
+    query = query_store[blocks_user_map_query.__name__] % \
+        { 'users': user_str }
+    query = " ".join(query.strip().splitlines())
+    conn._cur_.execute(query)
+
+    # keys username on userid
+    user_map = dict()
+    for r in conn._cur_:
+        user_map[r[1]] = r[0]
+    del conn
+    return user_map
+
+def blocks_user_query(users, start, project):
+    """ Obtain block/ban events for users """
+    conn = Connector(insatance='slave')
+    user_str = DataLoader().format_comma_separated_list(users)
+
+    query = query_store[blocks_user_query.__name__] % \
+                       {
+                           'user_str' : user_str,
+                           'timestamp': start,
+                           'user_cond': user_str,
+                           'wiki' : project
+                       }
+    query = " ".join(query.strip().splitlines())
+    conn._cur_.execute(query)
+
+    results = [row for row in conn._cur_]
+    del conn
+    return results
+
+def edit_count_user_query(users, start, end, project):
+    """  Obtain rev counts by user """
+    conn = Connector(instance='slave')
+
+    # Escape user_handle for SQL injection
+    users = escape_var(users)
+
+    # ensure the handles are iterable
+    if not hasattr(users, '__iter__'): users = [users]
+
+    user_str = DataLoader().format_comma_separated_list(users)
+    ts_condition  = 'and rev_timestamp >= "%s" and rev_timestamp < "%s"' % \
+                    (start, end)
+    query  = query_store[edit_count_user_query.__name__] % \
+                    {
+                        'users' : user_str,
+                        'ts_condition' : ts_condition,
+                        'project' : project
+                    }
+    query = " ".join(query.strip().splitlines())
+
+    try:
+        conn._cur_.execute(query)
+    except ProgrammingError:
+        logging.error(__name__ +
+                      'Could not get edit counts - Query failed.')
+
+    results = [row for row in conn._cur_]
+    del conn
+    return results
+
+@query_method_deco
+def namespace_edits_rev_query(users, args):
+    """ Obtain revisions by namespace """
+
+    # @TODO check attributes for existence and throw error otherwise
+    project = args.project
+    start = args.start
+    end = args.end
+
+    to_string = DataLoader().cast_elems_to_string
+    to_csv_str = DataLoader().format_comma_separated_list
+
+    # Format user condition
+    user_str= "rev_user in (" + to_csv_str(to_string(users)) + ")"
+
+    # Format timestamp condition
+    ts_cond = "rev_timestamp >= %s and rev_timestamp < %s" % (start, end)
+
+    query = query_store[namespace_edits_rev_query.__name__] % \
+        {
+            "user_cond" : user_str,
+            "ts_cond" : ts_cond,
+            "project" : project,
+        }
+    query = " ".join(query.strip().splitlines())
+
+    return query
+
 
 query_store = {
     threshold_reg_query.__name__:
@@ -270,6 +420,57 @@ query_store = {
                            WHERE rev_user = %(user)s AND
                            rev_timestamp > "%(start_ts)s" AND
                            rev_timestamp <= "%(end_ts)s"
+                        """,
+    time_to_threshold_revs_query.__name__:
+                        """
+                            SELECT rev_timestamp
+                            FROM %(project)s.revision
+                            WHERE rev_user = "%(user_handle)s"
+                            ORDER BY 1 ASC
+                        """,
+    blocks_user_map_query.__name__:
+                        """
+                            SELECT
+                                user_id,
+                                user_name
+                            FROM enwiki.user
+                            WHERE user_id in (%(users)s)
+                        """,
+    blocks_user_query.__name__:
+                        """
+                            SELECT
+                                log_title as user,
+                                IF(log_params LIKE "%%indefinite%%", "ban",
+                                    "block") as type,
+                                count(*) as count,
+                                min(log_timestamp) as first,
+                                max(log_timestamp) as last
+                            FROM %(wiki)s.logging
+                            WHERE log_type = "block"
+                            AND log_action = "block"
+                            AND log_title in (%(user_str)s)
+                            AND log_timestamp >= "%(timestamp)s"
+                            GROUP BY 1, 2
+                        """,
+    edit_count_user_query.__name__:
+                        """
+                            SELECT
+                                rev_user,
+                                count(*)
+                            FROM %(project)s.revision
+                            WHERE rev_user IN (%(users)s) %(ts_condition)s
+                            GROUP BY 1
+                        """,
+    namespace_edits_rev_query.__name__:
+                        """
+                            SELECT
+                                r.rev_user,
+                                p.page_namespace,
+                                count(*) AS revs
+                            FROM %(project)s.revision AS r JOIN %(project)s.page AS p
+                                ON r.rev_page = p.page_id
+                            WHERE %(user_cond)s AND %(ts_cond)s
+                            GROUP BY 1,2
                         """,
 }
 

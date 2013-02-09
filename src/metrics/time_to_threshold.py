@@ -7,6 +7,7 @@ __license__ = "GPL (version 2 or later)"
 from dateutil.parser import parse as date_parse
 import user_metric as um
 from src.etl.aggregator import weighted_rate, decorator_builder
+from query_calls import time_to_threshold_revs_query
 
 from config import logging
 
@@ -18,7 +19,7 @@ class TimeToThreshold(um.UserMetric):
         Produces an integer value representing the number of minutes taken to
         reach a threshold.
 
-            `https://meta.wikimedia.org/wiki/Research:Metrics/time_to_threshold`
+          `https://meta.wikimedia.org/wiki/Research:Metrics/time_to_threshold`
 
         As a UserMetric type this class utilizes the process() function
         attribute to produce an internal list of metrics by user handle
@@ -155,24 +156,17 @@ class TimeToThreshold(um.UserMetric):
 
             minutes_to_threshold = list()
 
-            # Operate on either user ids or names
-            user_revs_SQL = """
-                                SELECT rev_timestamp
-                                FROM %(project)s.revision
-                                WHERE rev_user = "%(user_handle)s"
-                                ORDER BY 1 ASC
-                            """
-            user_revs_SQL = " ".join(user_revs_SQL.strip().splitlines())
+            # ensure the handles are iterable
             if not hasattr(user_handle, '__iter__'):
-                user_handle = [user_handle] # ensure the handles are iterable
+                user_handle = [user_handle]
+
 
             # For each user gather their revisions
             for user in user_handle:
-                sql = user_revs_SQL % {
-                    'user_handle' : str(user),
-                    'project' : threshold_obj._project_}
+                rev_query = time_to_threshold_revs_query(user,
+                                                    threshold_obj._project_)
                 revs = [rev[0] for rev in threshold_obj.
-                    _data_source_.execute_SQL(sql)]
+                    _data_source_.execute_SQL(rev_query)]
                 minutes_to_threshold.append(
                     [user, self._get_minute_diff_result(revs)])
 
