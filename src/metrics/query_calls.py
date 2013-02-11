@@ -54,7 +54,8 @@ def format_namespace(namespace):
     return ns_cond
 
 def query_method_deco(f):
-    """ Decorator that handles pre processing of user cohort """
+    """ Decorator that handles setup and tear down of user
+        query dependent on user cohort & project """
     def wrapper(users, project, args):
         # Escape user_handle for SQL injection
         users = escape_var(users)
@@ -63,7 +64,12 @@ def query_method_deco(f):
         if not hasattr(users, '__iter__'): users = [users]
 
         # get query and call
-        query = f(users, args)
+        logging.debug(__name__ + ':: calling "%(method)s" in "%(project)s".' %
+                                 {
+                                    'method': f.__name__,
+                                    'project': project
+        })
+        query = f(users, project, args)
 
         try:
             conn = Connector(instance=DB_MAP[project])
@@ -263,24 +269,19 @@ def blocks_user_map_query(users):
     del conn
     return user_map
 
-def blocks_user_query(users, start, project):
+@query_method_deco
+def blocks_user_query(users, project, args):
     """ Obtain block/ban events for users """
-    conn = Connector(instance='slave')
     user_str = DataLoader().format_comma_separated_list(users)
-
-    query = query_store[blocks_user_query.__name__] % \
+    query = query_store[blocks_user_query.__query_name__] % \
                        {
                            'user_str' : user_str,
-                           'timestamp': start,
-                           'user_cond': user_str,
-                           'wiki' : project
+                           'timestamp': args.date_start,
+                           'project' : project
                        }
     query = " ".join(query.strip().splitlines())
-    conn._cur_.execute(query)
-
-    results = [row for row in conn._cur_]
-    del conn
-    return results
+    return query
+blocks_user_query.__query_name__ = 'blocks_user_query'
 
 def edit_count_user_query(users, start, end, project):
     """  Obtain rev counts by user """
@@ -314,11 +315,10 @@ def edit_count_user_query(users, start, end, project):
     return results
 
 @query_method_deco
-def namespace_edits_rev_query(users, args):
+def namespace_edits_rev_query(users, project, args):
     """ Obtain revisions by namespace """
 
     # @TODO check attributes for existence and throw error otherwise
-    project = args.project
     start = args.date_start
     end = args.date_end
 
@@ -331,16 +331,15 @@ def namespace_edits_rev_query(users, args):
     # Format timestamp condition
     ts_cond = "rev_timestamp >= %s and rev_timestamp < %s" % (start, end)
 
-    query = query_store[namespace_edits_rev_query.__name__] % \
+    query = query_store[namespace_edits_rev_query.__query_name__] % \
         {
             "user_cond" : user_str,
             "ts_cond" : ts_cond,
             "project" : project,
         }
     query = " ".join(query.strip().splitlines())
-
     return query
-
+namespace_edits_rev_query.__query_name__ = 'namespace_edits_rev_query'
 
 query_store = {
     threshold_reg_query.__name__:
@@ -442,7 +441,7 @@ query_store = {
                             FROM enwiki.user
                             WHERE user_id in (%(users)s)
                         """,
-    blocks_user_query.__name__:
+    blocks_user_query.__query_name__:
                         """
                             SELECT
                                 log_title as user,
@@ -451,7 +450,7 @@ query_store = {
                                 count(*) as count,
                                 min(log_timestamp) as first,
                                 max(log_timestamp) as last
-                            FROM %(wiki)s.logging
+                            FROM %(project)s.logging
                             WHERE log_type = "block"
                             AND log_action = "block"
                             AND log_title in (%(user_str)s)
@@ -467,7 +466,7 @@ query_store = {
                             WHERE rev_user IN (%(users)s) %(ts_condition)s
                             GROUP BY 1
                         """,
-    namespace_edits_rev_query.__name__:
+    namespace_edits_rev_query.__query_name__:
                         """
                             SELECT
                                 r.rev_user,

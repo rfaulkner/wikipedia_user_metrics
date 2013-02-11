@@ -118,12 +118,13 @@ def _process_help(args):
         logging.info(__name__ + '::From %s to %s. (PID = %s)' % (
             str(thread_args.date_start), str(thread_args.date_end), getpid()))
 
-    query_args = namedtuple('QueryArgs', 'date_start date_end '
-                            'project')(thread_args.date_start,
-                                       thread_args.date_end,
-                                       thread_args.project)
+    query_args = namedtuple('QueryArgs', 'date_start date_end')\
+                                (thread_args.date_start,
+                                 thread_args.date_end)
 
-    query_results = namespace_edits_rev_query(users, query_args)
+    query_results = namespace_edits_rev_query(users,
+                                              thread_args.project,
+                                              query_args)
 
     # Tally counts of namespace edits
     results = dict()
