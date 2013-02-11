@@ -7,19 +7,22 @@ __license__ = "GPL (version 2 or later)"
 from collections import namedtuple
 import user_metric as um
 import collections
+from datetime import timedelta
+from dateutil.parser import parse as date_parse
 import os
 import src.utils.multiprocessing_wrapper as mpw
 from src.etl.aggregator import decorator_builder, weighted_rate
 from query_calls import revert_rate_future_revs_query, \
                         revert_rate_past_revs_query, \
-                        revert_rate_user_revs_query
+                        revert_rate_user_revs_query, \
+                        user_registration_date
 from config import logging
 
 # Definition of persistent state for RevertRate objects
 RevertRateArgsClass = collections.namedtuple('RevertRateArgs',
                                              'project log_progress '
-                                             'look_ahead look_back date_start '
-                                             'date_end rev_threads')
+                                             'look_ahead look_back t '
+                                             'rev_threads')
 class RevertRate(um.UserMetric):
     """
         Skeleton class for "RevertRate" metric:
@@ -61,16 +64,17 @@ class RevertRate(um.UserMetric):
     _param_types = {
         'init' : {
             'look_ahead' : ['int', 'Number of revisions to look '
-                                   'ahead when computing revert.',15],
+                                   'ahead when computing revert.', 15],
             'look_back' : ['int', 'Number of revisions to look '
-                                  'back when computing revert.',15],
+                                  'back when computing revert.', 15],
+            't' : ['int', 'Length of measurement period.', 168],
         },
         'process' : {
-            'log_progress' : ['bool', 'Enable logging for processing.',False],
+            'log_progress' : ['bool', 'Enable logging for processing.', False],
             'num_threads' : ['int', 'Number of worker '
-                                    'processes over users.',1],
+                                    'processes over users.', 1],
             'rev_threads' : ['int', 'Number of worker '
-                                    'processes over revisions.',1],
+                                    'processes over revisions.', 1],
         }
     }
 
@@ -93,6 +97,7 @@ class RevertRate(um.UserMetric):
         um.UserMetric.__init__(self, **kwargs)
         self.look_back = kwargs['look_back']
         self.look_ahead = kwargs['look_ahead']
+        self.t = kwargs['t']
 
     @staticmethod
     def header(): return ['user_id', 'revert_rate', 'total_revisions']
@@ -109,7 +114,7 @@ class RevertRate(um.UserMetric):
         log_progress = bool(kwargs['log_progress'])
 
         args = [self._project_, log_progress, self.look_ahead,
-                self.look_back, self._start_ts_, self._end_ts_, k_r]
+                self.look_back, self.t, self._end_ts_, k_r]
         self._results = mpw.build_thread_pool(user_handle, _process_help,
                                               k, args)
 
@@ -147,7 +152,7 @@ def _process_help(args):
 
     state = args[1]
     thread_args = RevertRateArgsClass(state[0],state[1],state[2],
-                                      state[3],state[4],state[5],state[6])
+                                      state[3],state[4],state[6])
     user_data = args[0]
 
     if thread_args.log_progress:
@@ -161,8 +166,22 @@ def _process_help(args):
         total_reverts = 0.0
 
         # Call query on revert rate for each user
+        #
+        # 1. Obtain user registration date
+        # 2. Compute end date based on 't'
+        # 3. Get user revisions in time period
+        try:
+            reg_date = user_registration_date(user, thread_args.project,
+                                              None)[0][1]
+            reg_date_obj = date_parse(reg_date)
+        except Exception:
+            logging.error(__name__ + ':: No account create in logging table' \
+                                     ' for "{0}".'.format(user))
+            continue
+        date_frmt = um.UserMetric.DATETIME_STR_FORMAT
+        end_date_obj = reg_date_obj + timedelta(hours=thread_args.t)
         query_args = namedtuple('QueryArgs', 'date_start date_end')\
-            (thread_args.date_start, thread_args.date_end)
+            (reg_date_obj.strftime(date_frmt), end_date_obj.strftime(date_frmt))
         revisions = revert_rate_user_revs_query(user, thread_args.project,
             query_args)
         results_thread = mpw.build_thread_pool(revisions, _revision_proc,
