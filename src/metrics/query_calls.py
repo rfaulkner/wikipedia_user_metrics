@@ -208,29 +208,47 @@ def bytes_added_rev_user_query(start, end):
 
 def revert_rate_past_revs_query(rev_id, page_id, n, project):
     """ Compute revision history pegged to a given rev """
-    return query_store[revert_rate_past_revs_query.__name__] % {
-        'rev_id':  rev_id,
-        'page_id': page_id,
-        'n':       n,
-        'project': project
-    }
+    conn = Connector(instance='slave')
+    conn._cur_.execute(query_store[revert_rate_past_revs_query.__name__] %
+                       {
+                        'rev_id':  rev_id,
+                        'page_id': page_id,
+                        'n':       n,
+                        'project': project
+    })
+    for row in conn._cur_:
+        yield row
+    del conn
+
 def revert_rate_future_revs_query(rev_id, page_id, n, project):
     """ Compute revision future pegged to a given rev """
-    return query_store[revert_rate_future_revs_query.__name__] % {
-        'rev_id':  rev_id,
-        'page_id': page_id,
-        'n':       n,
-        'project': project
-    }
+    conn = Connector(instance='slave')
+    conn._cur_.execute(
+                        query_store[revert_rate_future_revs_query.__name__] %
+                       {
+                        'rev_id':  rev_id,
+                        'page_id': page_id,
+                        'n':       n,
+                        'project': project
+    })
+    for row in conn._cur_:
+        yield row
+    del conn
 
 def revert_rate_user_revs_query(project, user, start, end):
     """ Get revision history for a user """
-    return query_store[revert_rate_user_revs_query.__name__] % {
-        'project' : project,
-        'user' : user,
-        'start_ts' : start,
-        'end_ts' : end
-    }
+    conn = Connector(instance='slave')
+    conn._cur_.execute(
+                        query_store[revert_rate_user_revs_query.__name__] %
+                        {
+                            'project' : project,
+                            'user' : user,
+                            'start_ts' : start,
+                            'end_ts' : end
+    })
+    revisions = [rev for rev in conn._cur_]
+    del conn
+    return  revisions
 
 def time_to_threshold_revs_query(user_id, project):
     """ Obtain revisions to perform threshold computation """

@@ -5,7 +5,6 @@ __date__ = "October 29th, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import user_metric as um
-import src.etl.data_loader as dl
 import collections
 import os
 import src.utils.multiprocessing_wrapper as mpw
@@ -132,24 +131,14 @@ def __revert(rev_id, page_id, sha1, user_text, metric_args):
                 return rev
 
 def __history(rev_id, page_id, n, project='enwiki'):
-    """ Produce the n revisions on a page before a given revision """
-    conn = dl.Connector(instance='slave')
-    conn._cur_.execute(
-        revert_rate_past_revs_query(rev_id, page_id, n, project)
-    )
-
-    for row in conn._cur_:
-        yield row
+    """ Produce the n revisions on a page before a given revision
+            Returns a generator of revision objects """
+    return revert_rate_past_revs_query(rev_id, page_id, n, project)
 
 def __future(rev_id, page_id, n, project='enwiki'):
-    """ Produce the n revisions on a page after a given revision """
-    conn = dl.Connector(instance='slave')
-    conn._cur_.execute(
-        revert_rate_future_revs_query(rev_id, page_id, n, project)
-    )
-
-    for row in conn._cur_:
-        yield row
+    """ Produce the n revisions on a page after a given revision
+            Returns a generator of revision objects """
+    return revert_rate_future_revs_query(rev_id, page_id, n, project)
 
 def _process_help(args):
     """ Used by Threshold::process() for forking.
@@ -166,18 +155,14 @@ def _process_help(args):
                     % (len(user_data), str(os.getpid())))
     results_agg = list()
     for user in user_data:
-        conn = dl.Connector(instance='slave')
-        conn._cur_.execute(
-            revert_rate_user_revs_query(thread_args.project, user,
-                thread_args.date_start,
-                thread_args.date_end)
-        )
 
         total_revisions = 0.0
         total_reverts = 0.0
 
-        revisions = [rev for rev in conn._cur_]
-        del conn
+        # Call query on revert rate for each user
+        revisions = revert_rate_user_revs_query(thread_args.project, user,
+                                                thread_args.date_start,
+                                                thread_args.date_end)
 
         results_thread = mpw.build_thread_pool(revisions, _revision_proc,
                                                thread_args.rev_threads, state)
