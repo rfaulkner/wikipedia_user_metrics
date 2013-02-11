@@ -244,10 +244,11 @@ def revert_rate_user_revs_query(project, user, start, end):
     del conn
     return  revisions
 
-def time_to_threshold_revs_query(user_id, project):
+@query_method_deco
+def time_to_threshold_revs_query(user_id, project, args):
     """ Obtain revisions to perform threshold computation """
     sql = query_store[time_to_threshold_revs_query.__name__] % {
-        'user_handle' : str(user_id),
+        'user_handle' : str(user_id[0]),
         'project' : project}
     return " ".join(sql.strip().splitlines())
 
