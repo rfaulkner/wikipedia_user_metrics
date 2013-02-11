@@ -283,36 +283,21 @@ def blocks_user_query(users, project, args):
     return query
 blocks_user_query.__query_name__ = 'blocks_user_query'
 
-def edit_count_user_query(users, start, end, project):
+@query_method_deco
+def edit_count_user_query(users, project, args):
     """  Obtain rev counts by user """
-    conn = Connector(instance='slave')
-
-    # Escape user_handle for SQL injection
-    users = escape_var(users)
-
-    # ensure the handles are iterable
-    if not hasattr(users, '__iter__'): users = [users]
-
     user_str = DataLoader().format_comma_separated_list(users)
     ts_condition  = 'and rev_timestamp >= "%s" and rev_timestamp < "%s"' % \
-                    (start, end)
-    query  = query_store[edit_count_user_query.__name__] % \
+                        (args.date_start, args.date_end)
+    query  = query_store[edit_count_user_query.__query_name__] % \
                     {
                         'users' : user_str,
                         'ts_condition' : ts_condition,
                         'project' : project
                     }
     query = " ".join(query.strip().splitlines())
-
-    try:
-        conn._cur_.execute(query)
-    except ProgrammingError:
-        logging.error(__name__ +
-                      'Could not get edit counts - Query failed.')
-
-    results = [row for row in conn._cur_]
-    del conn
-    return results
+    return query
+edit_count_user_query.__query_name__ = 'edit_count_user_query'
 
 @query_method_deco
 def namespace_edits_rev_query(users, project, args):
@@ -457,7 +442,7 @@ query_store = {
                             AND log_timestamp >= "%(timestamp)s"
                             GROUP BY 1, 2
                         """,
-    edit_count_user_query.__name__:
+    edit_count_user_query.__query_name__:
                         """
                             SELECT
                                 rev_user,
