@@ -4,6 +4,7 @@ __author__ = "Ryan Faulkner (adapted from Aaron Halfaker's implementation)"
 __date__ = "October 29th, 2012"
 __license__ = "GPL (version 2 or later)"
 
+from collections import namedtuple
 import user_metric as um
 import collections
 import os
@@ -160,10 +161,10 @@ def _process_help(args):
         total_reverts = 0.0
 
         # Call query on revert rate for each user
-        revisions = revert_rate_user_revs_query(thread_args.project, user,
-                                                thread_args.date_start,
-                                                thread_args.date_end)
-
+        query_args = namedtuple('QueryArgs', 'date_start date_end')\
+            (thread_args.date_start, thread_args.date_end)
+        revisions = revert_rate_user_revs_query(user, thread_args.project,
+            query_args)
         results_thread = mpw.build_thread_pool(revisions, _revision_proc,
                                                thread_args.rev_threads, state)
 

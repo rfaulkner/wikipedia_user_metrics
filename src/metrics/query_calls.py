@@ -229,28 +229,26 @@ def revert_rate_future_revs_query(rev_id, page_id, n, project):
         yield row
     del conn
 
-def revert_rate_user_revs_query(project, user, start, end):
+@query_method_deco
+def revert_rate_user_revs_query(user, project, args):
     """ Get revision history for a user """
-    conn = Connector(instance=DB_MAP[project])
-    conn._cur_.execute(
-                        query_store[revert_rate_user_revs_query.__name__] %
-                        {
-                            'project' : project,
-                            'user' : user,
-                            'start_ts' : start,
-                            'end_ts' : end
-    })
-    revisions = [rev for rev in conn._cur_]
-    del conn
-    return  revisions
+    return query_store[revert_rate_user_revs_query.__query_name__] % \
+    {
+        'user' : user[0],
+        'project' : project,
+        'start_ts' : args.date_start,
+        'end_ts' : args.date_end
+    }
+revert_rate_user_revs_query.__query_name__ = 'revert_rate_user_revs_query'
 
 @query_method_deco
 def time_to_threshold_revs_query(user_id, project, args):
     """ Obtain revisions to perform threshold computation """
-    sql = query_store[time_to_threshold_revs_query.__name__] % {
+    sql = query_store[time_to_threshold_revs_query.__query_name__] % {
         'user_handle' : str(user_id[0]),
         'project' : project}
     return " ".join(sql.strip().splitlines())
+time_to_threshold_revs_query.__query_name__ = 'time_to_threshold_revs_query'
 
 def blocks_user_map_query(users):
     """ Obtain map to generate uname to uid"""
@@ -400,7 +398,7 @@ query_store = {
                             ORDER BY rev_id ASC
                             LIMIT %(n)s
                         """,
-    revert_rate_user_revs_query.__name__:
+    revert_rate_user_revs_query.__query_name__:
                         """
                            SELECT
                                rev_user,
@@ -412,7 +410,7 @@ query_store = {
                            rev_timestamp > "%(start_ts)s" AND
                            rev_timestamp <= "%(end_ts)s"
                         """,
-    time_to_threshold_revs_query.__name__:
+    time_to_threshold_revs_query.__query_name__:
                         """
                             SELECT rev_timestamp
                             FROM %(project)s.revision
