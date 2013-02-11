@@ -325,6 +325,18 @@ def namespace_edits_rev_query(users, project, args):
     return query
 namespace_edits_rev_query.__query_name__ = 'namespace_edits_rev_query'
 
+@query_method_deco
+def user_registration_date(user, project, args):
+    """ Returns user registration date from logging table """
+    query = query_store[user_registration_date.__query_name__] %\
+            {
+                "uid" : user[0],
+                "project" : project,
+                }
+    query = " ".join(query.strip().splitlines())
+    return query
+user_registration_date.__query_name__ = 'user_registration_date'
+
 query_store = {
     threshold_reg_query.__name__:
                             """
@@ -460,6 +472,16 @@ query_store = {
                                 ON r.rev_page = p.page_id
                             WHERE %(user_cond)s AND %(ts_cond)s
                             GROUP BY 1,2
+                        """,
+    user_registration_date.__query_name__:
+                        """
+                            SELECT
+                                log_user,
+                                log_timestamp
+                            FROM %(project)s.logging
+                            WHERE log_action = 'create' AND
+                                log_type='newusers' AND
+                                log_user = %(uid)s
                         """,
 }
 
