@@ -8,7 +8,7 @@ __email__ = "rfaulkner@wikimedia.org"
 __date__ = "january 30th, 2013"
 __license__ = "GPL (version 2 or later)"
 
-from src.etl.data_loader import DataLoader, Connector
+from src.etl.data_loader import DataLoader, Connector, DB_MAP
 from MySQLdb import escape_string, ProgrammingError
 from copy import deepcopy
 
@@ -55,7 +55,7 @@ def format_namespace(namespace):
 
 def query_method_deco(f):
     """ Decorator that handles pre processing of user cohort """
-    def wrapper(users, args):
+    def wrapper(users, project, args):
         # Escape user_handle for SQL injection
         users = escape_var(users)
 
@@ -64,7 +64,13 @@ def query_method_deco(f):
 
         # get query and call
         query = f(users, args)
-        conn = Connector(instance='slave')
+
+        try:
+            conn = Connector(instance=DB_MAP[project])
+        except KeyError:
+            logging.error(__name__ + '::Project does not exist.')
+            return []
+
         try:
             conn._cur_.execute(query)
         except ProgrammingError:
@@ -75,24 +81,6 @@ def query_method_deco(f):
         return results
     return wrapper
 
-def post_process_query_method(f):
-    """ Decorator that handles pre processing of user cohort """
-    def wrapper(users, args):
-
-        # call
-        query = f(users, args)
-
-        conn = Connector(instance='slave')
-        try:
-            conn._cur_.execute(query)
-        except ProgrammingError:
-            logging.error(__name__ +
-                      'Could not get edit counts - Query failed.')
-
-        results = [row for row in conn._cur_]
-        del conn
-        return results
-    return wrapper
 
 def threshold_reg_query(users, project):
     """ Get registered users for Threshold metric objects """
@@ -208,7 +196,7 @@ def bytes_added_rev_user_query(start, end):
 
 def revert_rate_past_revs_query(rev_id, page_id, n, project):
     """ Compute revision history pegged to a given rev """
-    conn = Connector(instance='slave')
+    conn = Connector(instance=DB_MAP[project])
     conn._cur_.execute(query_store[revert_rate_past_revs_query.__name__] %
                        {
                         'rev_id':  rev_id,
@@ -222,7 +210,7 @@ def revert_rate_past_revs_query(rev_id, page_id, n, project):
 
 def revert_rate_future_revs_query(rev_id, page_id, n, project):
     """ Compute revision future pegged to a given rev """
-    conn = Connector(instance='slave')
+    conn = Connector(instance=DB_MAP[project])
     conn._cur_.execute(
                         query_store[revert_rate_future_revs_query.__name__] %
                        {
@@ -237,7 +225,7 @@ def revert_rate_future_revs_query(rev_id, page_id, n, project):
 
 def revert_rate_user_revs_query(project, user, start, end):
     """ Get revision history for a user """
-    conn = Connector(instance='slave')
+    conn = Connector(instance=DB_MAP[project])
     conn._cur_.execute(
                         query_store[revert_rate_user_revs_query.__name__] %
                         {
