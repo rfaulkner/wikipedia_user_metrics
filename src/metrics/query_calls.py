@@ -242,7 +242,7 @@ def time_to_threshold_revs_query(user_id, project):
 def blocks_user_map_query(users):
     """ Obtain map to generate uname to uid"""
     # Get usernames for user ids to detect in block events
-    conn = Connector(insatance='slave')
+    conn = Connector(instance='slave')
     user_str = DataLoader().format_comma_separated_list(users)
 
     query = query_store[blocks_user_map_query.__name__] % \
@@ -259,7 +259,7 @@ def blocks_user_map_query(users):
 
 def blocks_user_query(users, start, project):
     """ Obtain block/ban events for users """
-    conn = Connector(insatance='slave')
+    conn = Connector(instance='slave')
     user_str = DataLoader().format_comma_separated_list(users)
 
     query = query_store[blocks_user_query.__name__] % \
