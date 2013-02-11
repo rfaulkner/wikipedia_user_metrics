@@ -313,14 +313,14 @@ def namespace_edits_rev_query(users, args):
 
     # @TODO check attributes for existence and throw error otherwise
     project = args.project
-    start = args.start
-    end = args.end
+    start = args.date_start
+    end = args.date_end
 
     to_string = DataLoader().cast_elems_to_string
     to_csv_str = DataLoader().format_comma_separated_list
 
     # Format user condition
-    user_str= "rev_user in (" + to_csv_str(to_string(users)) + ")"
+    user_str = "rev_user in (" + to_csv_str(to_string(users)) + ")"
 
     # Format timestamp condition
     ts_cond = "rev_timestamp >= %s and rev_timestamp < %s" % (start, end)

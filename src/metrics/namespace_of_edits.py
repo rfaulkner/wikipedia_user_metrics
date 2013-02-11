@@ -110,7 +110,7 @@ def _process_help(args):
 
     state = args[1]
     thread_args = NamespaceEditsArgsClass(state[0],state[1],state[2],state[3])
-    user_data = args[0]
+    users = args[0]
 
     if thread_args.log:
         logging.info(__name__ + '::Computing namespace edits. (PID = %s)' %
@@ -127,7 +127,7 @@ def _process_help(args):
 
     # Tally counts of namespace edits
     results = dict()
-    for user in user_data:
+    for user in users:
         results[str(user)] = OrderedDict()
         for ns in NamespaceEdits.VALID_NAMESPACES:
             results[str(user)][str(ns)] = 0
