@@ -193,12 +193,19 @@ def bytes_added_rev_len_query(rev_id, project):
         'parent_rev_id' : rev_id,
     }
 
-def bytes_added_rev_user_query(start, end):
+def rev_user_query(project, start, end):
     """ Produce all users that made a revision within period """
-    return query_store[bytes_added_rev_user_query.__name__] % {
-        'start': start,
-        'end': end,
-    }
+    conn = Connector(instance=DB_MAP[project])
+    query = query_store[rev_user_query.__name__] % \
+        {
+            'start': start,
+            'end': end,
+        }
+    query = " ".join(query.strip().splitlines())
+    conn._cur_.execute(query)
+    users = [str(row[0]) for row in conn._cur_]
+    return users
+rev_user_query.__query_name__ = 'rev_user_query'
 
 def revert_rate_past_revs_query(rev_id, page_id, n, project):
     """ Compute revision history pegged to a given rev """
@@ -385,7 +392,7 @@ query_store = {
                                 FROM %(project)s.revision
                                 WHERE rev_id = %(parent_rev_id)s
                             """,
-    bytes_added_rev_user_query.__name__:
+    rev_user_query.__query_name__:
                             """
                                 SELECT distinct rev_user
                                 FROM enwiki.revision
