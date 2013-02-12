@@ -139,11 +139,12 @@ def threshold_rev_query(uid, is_survival, namespace, project,
                 'uid' : uid}
     return " ".join(sql.strip().split('\n'))
 
-def live_account_query(users, namespace, project):
+@query_method_deco
+def live_account_query(users, project, args):
     """ Format query for live_account metric """
 
     user_cond = DataLoader().format_condition_in('ept_user', users)
-    ns_cond = format_namespace(namespace)
+    ns_cond = format_namespace(args.namespace)
 
     where_clause = 'log_action = "create"'
     if user_cond: where_clause += ' AND ' + user_cond
@@ -162,7 +163,7 @@ def live_account_query(users, namespace, project):
                     "from_clause" : from_clause,
                     "where_clause" : where_clause,
                 }
-    return " ".join(sql.split('\n'))
+    return " ".join(sql.strip().splitlines())
 
 @query_method_deco
 def rev_query(users, project, args):
