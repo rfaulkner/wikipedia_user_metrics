@@ -28,22 +28,27 @@ RequestMeta = recordtype('RequestMeta',
     'cohort_expr cohort_gen_timestamp metric time_series aggregator '
     'restrict project namespace date_start date_end interval t n')
 
-def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric):
+def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
     """
         Dynamically builds a record type given a metric handle
 
         All args must be strings representing a cohort, last updated
         timestamp, and metric respectively.
+
+            **cohort_expr**             - string. Cohort id from url.
+            **cohort_gen_timestamp**    - string. Timestamp of last cohort
+                                                    update.
+            **metric_expr**             - string. Metric id from url.
     """
     default_params = 'cohort_expr cohort_gen_timestamp metric '
     additional_params = ''
-    for val in QUERY_PARAMS_BY_METRIC[metric]:
+    for val in QUERY_PARAMS_BY_METRIC[metric_expr]:
         additional_params += val.query_var + ' '
     additional_params = additional_params[:-1]
     params = default_params + additional_params
 
-    arg_list = ['cohort_expr', 'cohort_gen_timestamp', 'metric'] + \
-               ['None'] * len(QUERY_PARAMS_BY_METRIC[metric])
+    arg_list = ['cohort_expr', 'cohort_gen_timestamp', 'metric_expr'] + \
+               ['None'] * len(QUERY_PARAMS_BY_METRIC[metric_expr])
     arg_str = "(" + ",".join(arg_list) + ")"
 
     rt = recordtype("RequestMeta", params)
