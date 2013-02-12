@@ -93,26 +93,10 @@ def query_method_deco(f):
         return results
     return wrapper
 
-
-def threshold_reg_query(users, project):
-    """ Get registered users for Threshold metric objects """
-    uid_str = DataLoader().\
-    format_comma_separated_list(
-        DataLoader().
-        cast_elems_to_string(users),
-        include_quotes=False)
-
-    # Get all registrations - this assumes that each user id corresponds
-    # to a valid registration event in the the logging table.
-    sql = query_store[threshold_reg_query.__name__] % {
-        'project' : project,
-        'uid_str' : uid_str
-    }
-    return " ".join(sql.strip().split('\n'))
-
-def threshold_rev_query(uid, is_survival, namespace, project,
-                        restrict, start_time, end_time, threshold_ts):
-    """ Get revisions associated with a UID for Threshold metrics """
+def rev_count_query(uid, is_survival, namespace, project,
+                    restrict, start_time, end_time, threshold_ts):
+    """ Get count of revisions associated with a UID for Threshold metrics """
+    conn = Connector(instance=DB_MAP[project])
 
     # The key difference between survival and threshold is that threshold
     # measures a level of activity before a point whereas survival
@@ -131,13 +115,21 @@ def threshold_rev_query(uid, is_survival, namespace, project,
                           'rev_timestamp <= "{1}"'.format(start_time,
                                                         end_time)
 
-    sql = query_store[threshold_rev_query.__name__] + timestamp_cond
-
-    sql = sql % {'project' : project,
+    query = query_store[rev_count_query.__name__] + timestamp_cond
+    query = query % {'project' : project,
                 'ts' : threshold_ts,
                 'ns' : ns_cond,
                 'uid' : uid}
-    return " ".join(sql.strip().split('\n'))
+    query =  " ".join(query.strip().splitlines())
+    conn._cur_.execute(query)
+    try:
+        count = int(conn._cur_.fetchone()[0])
+    except IndexError:
+        raise UMQueryCallError()
+    except ValueError:
+        raise UMQueryCallError()
+    return count
+rev_count_query.__query_name__ = 'rev_count_query'
 
 @query_method_deco
 def live_account_query(users, project, args):
@@ -164,6 +156,7 @@ def live_account_query(users, project, args):
                     "where_clause" : where_clause,
                 }
     return " ".join(sql.strip().splitlines())
+live_account_query.__query_name__ = 'live_account_query'
 
 @query_method_deco
 def rev_query(users, project, args):
@@ -350,30 +343,21 @@ def namespace_edits_rev_query(users, project, args):
 namespace_edits_rev_query.__query_name__ = 'namespace_edits_rev_query'
 
 @query_method_deco
-def user_registration_date(user, project, args):
+def user_registration_date(users, project, args):
     """ Returns user registration date from logging table """
+    users = DataLoader().cast_elems_to_string(users)
+    uid_str = DataLoader().format_comma_separated_list(users,
+                                                       include_quotes=False)
     query = query_store[user_registration_date.__query_name__] %\
             {
-                "uid" : user[0],
+                "uid" : uid_str,
                 "project" : project,
-                }
-    query = " ".join(query.strip().splitlines())
-    return query
+            }
+    return " ".join(query.strip().splitlines())
 user_registration_date.__query_name__ = 'user_registration_date'
 
 query_store = {
-    threshold_reg_query.__name__:
-                            """
-                                SELECT
-                                    log_user,
-                                    log_timestamp
-                                FROM %(project)s.logging
-                                WHERE log_action = 'create' AND
-                                    log_type='newusers'
-                                        and log_user in (%(uid_str)s)
-                            """,
-
-    threshold_rev_query.__name__:
+    rev_count_query.__query_name__:
                             """
                                 SELECT
                                     count(*) as revs
@@ -382,7 +366,7 @@ query_store = {
                                         ON  r.rev_page = p.page_id
                                 WHERE %(ns)s AND rev_user = %(uid)s
                             """,
-    live_account_query.__name__:
+    live_account_query.__query_name__:
                             """
                                 SELECT
                                     e.ept_user,
@@ -505,7 +489,7 @@ query_store = {
                             FROM %(project)s.logging
                             WHERE log_action = 'create' AND
                                 log_type='newusers' AND
-                                log_user = %(uid)s
+                                log_user in (%(uid)s)
                         """,
 }
 
