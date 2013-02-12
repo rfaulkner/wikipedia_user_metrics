@@ -4,6 +4,8 @@ __author__ = "Ryan Faulkner (adapted from Aaron Halfaker's implementation)"
 __date__ = "October 29th, 2012"
 __license__ = "GPL (version 2 or later)"
 
+from config import logging
+
 from collections import namedtuple
 import user_metric as um
 import collections
@@ -12,11 +14,7 @@ from dateutil.parser import parse as date_parse
 import os
 import src.utils.multiprocessing_wrapper as mpw
 from src.etl.aggregator import decorator_builder, weighted_rate
-from query_calls import revert_rate_future_revs_query, \
-                        revert_rate_past_revs_query, \
-                        revert_rate_user_revs_query, \
-                        user_registration_date
-from config import logging
+from . import query_mod
 
 # Definition of persistent state for RevertRate objects
 RevertRateArgsClass = collections.namedtuple('RevertRateArgs',
@@ -139,12 +137,12 @@ def __revert(rev_id, page_id, sha1, user_text, metric_args):
 def __history(rev_id, page_id, n, project='enwiki'):
     """ Produce the n revisions on a page before a given revision
             Returns a generator of revision objects """
-    return revert_rate_past_revs_query(rev_id, page_id, n, project)
+    return query_mod.revert_rate_past_revs_query(rev_id, page_id, n, project)
 
 def __future(rev_id, page_id, n, project='enwiki'):
     """ Produce the n revisions on a page after a given revision
             Returns a generator of revision objects """
-    return revert_rate_future_revs_query(rev_id, page_id, n, project)
+    return query_mod.revert_rate_future_revs_query(rev_id, page_id, n, project)
 
 def _process_help(args):
     """ Used by Threshold::process() for forking.
@@ -171,8 +169,9 @@ def _process_help(args):
         # 2. Compute end date based on 't'
         # 3. Get user revisions in time period
         try:
-            reg_date = user_registration_date(user, thread_args.project,
-                                              None)[0][1]
+            reg_date = query_mod.user_registration_date(user,
+                                                        thread_args.project,
+                                                        None)[0][1]
             reg_date_obj = date_parse(reg_date)
         except Exception:
             logging.error(__name__ + ':: No account create in logging table' \
@@ -182,8 +181,9 @@ def _process_help(args):
         end_date_obj = reg_date_obj + timedelta(hours=thread_args.t)
         query_args = namedtuple('QueryArgs', 'date_start date_end')\
             (reg_date_obj.strftime(date_frmt), end_date_obj.strftime(date_frmt))
-        revisions = revert_rate_user_revs_query(user, thread_args.project,
-            query_args)
+        revisions = query_mod.revert_rate_user_revs_query(user,
+                                                          thread_args.project,
+                                                          query_args)
         results_thread = mpw.build_thread_pool(revisions, _revision_proc,
                                                thread_args.rev_threads, state)
 

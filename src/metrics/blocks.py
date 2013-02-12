@@ -3,11 +3,11 @@ __author__ = "Ryan Faulkner and Aaron Halfaker"
 __date__ = "October 3rd, 2012"
 __license__ = "GPL (version 2 or later)"
 
+from config import logging
+
 from collections import namedtuple
 import user_metric as um
-from query_calls import blocks_user_map_query, blocks_user_query
-
-from config import logging
+from . import query_mod
 
 class Blocks(um.UserMetric):
     """
@@ -105,9 +105,9 @@ class Blocks(um.UserMetric):
                                         len(user_handle))
 
         # Data calls
-        user_map = blocks_user_map_query(users)
+        user_map = query_mod.blocks_user_map_query(users)
         query_args = namedtuple('QueryArgs', 'date_start')(self._start_ts_)
-        results = blocks_user_query(users, self._project_, query_args)
+        results = query_mod.blocks_user_query(users, self._project_, query_args)
 
         # Process rows - extract block and ban events
         for row in results:

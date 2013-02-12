@@ -4,12 +4,12 @@ __author__ = "Ryan Faulkner"
 __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
+from config import logging
+
 from dateutil.parser import parse as date_parse
 import user_metric as um
 from src.etl.aggregator import weighted_rate, decorator_builder
-from query_calls import time_to_threshold_revs_query
-
-from config import logging
+from . import query_mod
 
 LAST_EDIT = -1
 REGISTRATION = 0
@@ -163,9 +163,10 @@ class TimeToThreshold(um.UserMetric):
 
             # For each user gather their revisions
             for user in user_handle:
-                revs = time_to_threshold_revs_query(user,
-                                                    threshold_obj._project_,
-                                                    None)
+                revs = query_mod.time_to_threshold_revs_query\
+                    (user,
+                     threshold_obj._project_,
+                     None)
                 revs = [rev[0] for rev in revs]
                 minutes_to_threshold.append(
                     [user, self._get_minute_diff_result(revs)])

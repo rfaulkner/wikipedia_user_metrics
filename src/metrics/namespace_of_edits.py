@@ -4,13 +4,14 @@ __email__ = "rfaulkner@wikimedia.org"
 __date__ = "January 6th, 2013"
 __license__ = "GPL (version 2 or later)"
 
+from config import logging
+
 import user_metric as um
 import src.utils.multiprocessing_wrapper as mpw
 from collections import namedtuple, OrderedDict
 from src.etl.aggregator import decorator_builder
-from config import logging
 from os import getpid
-from query_calls import namespace_edits_rev_query
+from . import query_mod
 
 # Definition of persistent state for RevertRate objects
 NamespaceEditsArgsClass = namedtuple('NamespaceEditsArgs', 'project log '
@@ -122,9 +123,9 @@ def _process_help(args):
                                 (thread_args.date_start,
                                  thread_args.date_end)
 
-    query_results = namespace_edits_rev_query(users,
-                                              thread_args.project,
-                                              query_args)
+    query_results = query_mod.namespace_edits_rev_query(users,
+                                                        thread_args.project,
+                                                        query_args)
 
     # Tally counts of namespace edits
     results = dict()

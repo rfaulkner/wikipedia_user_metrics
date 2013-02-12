@@ -3,18 +3,15 @@ __author__ = "Ryan Faulkner"
 __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
+from config import logging
+
 from collections import namedtuple
 import collections
 import user_metric as um
 import os
 import src.etl.aggregator as agg
 import src.utils.multiprocessing_wrapper as mpw
-from query_calls import rev_query, \
-                        rev_len_query, \
-                        rev_user_query, \
-                        UMQueryCallError
-
-from config import logging
+from . import query_mod
 
 class BytesAdded(um.UserMetric):
     """
@@ -104,9 +101,9 @@ class BytesAdded(um.UserMetric):
             if log_progress:
                 logging.debug(__name__ +
                               '::Getting all distinct users')
-            users = rev_user_query(self._project_,
-                                   self._start_ts_,
-                                   self._end_ts_)
+            users = query_mod.rev_user_query(self._project_,
+                                             self._start_ts_,
+                                             self._end_ts_)
             if log_progress: logging.info(
                 __name__ + '::Retrieved %s users.' % len(users))
 
@@ -153,8 +150,8 @@ def _get_revisions(args):
     query_args = namedtuple('QueryArgs', 'date_start date_end namespace')\
         (arg_obj.start, arg_obj.end, arg_obj.namespace)
     try:
-        revs = rev_query(users, arg_obj.project, query_args)
-    except UMQueryCallError as e:
+        revs = query_mod.rev_query(users, arg_obj.project, query_args)
+    except query_mod.UMQueryCallError as e:
         logging.error('{0}:: {1}. PID={2}'.format(__name__,
                                                   e.message, os.getpid()))
         return []
@@ -225,9 +222,9 @@ def _process_help(args):
             parent_rev_len = 0
         else:
             try:
-                parent_rev_len = rev_len_query(parent_rev_id,
-                                               thread_args.project)
-            except UMQueryCallError:
+                parent_rev_len = query_mod.rev_len_query(parent_rev_id,
+                                                         thread_args.project)
+            except query_mod.UMQueryCallError:
                 missed_records += 1
                 logging.error(__name__ +
                               '::Could not produce rev diff for %s on '

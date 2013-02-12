@@ -3,16 +3,15 @@ __author__ = "Ryan Faulkner"
 __date__ = "December 6th, 2012"
 __license__ = "GPL (version 2 or later)"
 
+from config import logging
+
 from datetime import timedelta
 import collections
 import os
 import src.utils.multiprocessing_wrapper as mpw
 import user_metric as um
 from src.etl.aggregator import decorator_builder, boolean_rate
-from query_calls import user_registration_date, rev_count_query, \
-                        UMQueryCallError
-
-from config import logging
+from . import query_mod
 
 class Threshold(um.UserMetric):
     """
@@ -108,7 +107,8 @@ class Threshold(um.UserMetric):
         restrict = bool(kwargs['restrict'])
 
         # Get registration dates for users
-        users = user_registration_date(user_handle, self._project_, None)
+        users = query_mod.user_registration_date(user_handle,
+                                                 self._project_, None)
 
         # Process results
         args = [self._project_, self._namespace_, self._n_,
@@ -144,15 +144,15 @@ def _process_help(args):
             threshold_ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) +
                                               timedelta(hours=thread_args.t))
             uid = long(r[0])
-            count = rev_count_query(uid,
-                                    thread_args.survival,
-                                    thread_args.namespace,
-                                    thread_args.project,
-                                    thread_args.restrict,
-                                    thread_args.ts_start,
-                                    thread_args.ts_start,
-                                    threshold_ts)
-        except UMQueryCallError:
+            count = query_mod.rev_count_query(uid,
+                                              thread_args.survival,
+                                              thread_args.namespace,
+                                              thread_args.project,
+                                              thread_args.restrict,
+                                              thread_args.ts_start,
+                                              thread_args.ts_start,
+                                              threshold_ts)
+        except query_mod.UMQueryCallError:
             dropped_users += 1
             continue
 

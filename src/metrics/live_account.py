@@ -4,14 +4,15 @@ __email__ = "rfaulkner@wikimedia.org"
 __date__ = "January 6th, 2013"
 __license__ = "GPL (version 2 or later)"
 
+from config import logging
+
 import user_metric as um
 import src.utils.multiprocessing_wrapper as mpw
 from collections import namedtuple
-from config import logging
 from os import getpid
 from dateutil.parser import parse as date_parse
 from src.etl.aggregator import decorator_builder, boolean_rate
-from query_calls import live_account_query
+from . import query_mod
 
 # Definition of persistent state for RevertRate objects
 LiveAccountArgsClass = namedtuple('LiveAccountArgs',
@@ -130,7 +131,8 @@ def _process_help(args):
     # Query will return: (user id, time of registration, time of first
     # edit button click)
     query_args = namedtuple('QueryArgs', 'namespace')(thread_args.namespace)
-    query_results = live_account_query(users, thread_args.project, query_args)
+    query_results = query_mod.live_account_query(users, thread_args.project,
+                                                 query_args)
 
     # Iterate over results to determine boolean indicating whether
     # account is "live"

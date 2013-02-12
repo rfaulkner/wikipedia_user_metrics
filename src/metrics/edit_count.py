@@ -5,7 +5,7 @@ __license__ = "GPL (version 2 or later)"
 
 from collections import namedtuple
 import user_metric as um
-from query_calls import edit_count_user_query
+from . import query_mod
 
 class EditCount(um.UserMetric):
     """
@@ -76,7 +76,8 @@ class EditCount(um.UserMetric):
         # Query call
         query_args = namedtuple('QueryArgs', 'date_start date_end')\
             (self._start_ts_, self._end_ts_)
-        results = edit_count_user_query(users, self._project_, query_args)
+        results = query_mod.edit_count_user_query(users, self._project_,
+                                                  query_args)
 
         # Get edit counts from query - all users not appearing have
         # an edit count of 0
