@@ -186,12 +186,17 @@ def bytes_added_rev_query(start, end, users, namespace, project):
         'namespace' : ns_cond}
     return " ".join(sql.split('\n'))
 
-def bytes_added_rev_len_query(rev_id, project):
-    """ Get parent revision length """
-    return query_store[bytes_added_rev_len_query.__name__] % {
+def rev_len_query(rev_id, project):
+    """ Get parent revision length - returns long """
+    conn = Connector(instance=DB_MAP[project])
+    query = query_store[rev_len_query.__name__] % {
         'project' : project,
         'parent_rev_id' : rev_id,
     }
+    query = " ".join(query.strip().splitlines())
+    conn._cur_.execute(query)
+    return conn._cur_.fetch_one()[0]
+rev_len_query.__query_name__ = 'rev_len_query'
 
 def rev_user_query(project, start, end):
     """ Produce all users that made a revision within period """
@@ -386,7 +391,7 @@ query_store = {
                                     on page.page_id = revision.rev_page
                                 where %(namespace)s %(where_clause)s
                             """,
-    bytes_added_rev_len_query.__name__:
+    rev_len_query.__query_name__:
                             """
                                 SELECT rev_len
                                 FROM %(project)s.revision
