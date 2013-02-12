@@ -87,6 +87,7 @@ def query_method_deco(f):
         except ProgrammingError:
             logging.error(__name__ +
                           'Could not get edit counts - Query failed.')
+            raise UMQueryCallError()
         results = [row for row in conn._cur_]
         del conn
         return results
@@ -163,33 +164,30 @@ def live_account_query(users, namespace, project):
                 }
     return " ".join(sql.split('\n'))
 
-def bytes_added_rev_query(start, end, users, namespace, project):
+@query_method_deco
+def rev_query(users, project, args):
     """ Get revision length, user, and page """
-    ts_condition  = 'rev_timestamp >= "%s" and rev_timestamp < "%s"' % \
-                                                                (start, end)
-
-    # build the user set for inclusion into the query - if the user_handle is
-    # empty or None get all users for timeframe
-
-    # 1. Escape user_handle for SQL injection
-    # 2. Ensure the handles are iterable
-    users = escape_var(users)
-    if not hasattr(users, '__iter__'): users = [users]
-
+    # Format query conditions
+    ts_condition  = 'rev_timestamp >= "%(date_start)s" AND '\
+                    'rev_timestamp < "%(date_end)s"' %\
+                    {
+                        'date_start': args.date_start,
+                        'date_end': args.date_end
+                    }
     user_set = DataLoader().format_comma_separated_list(users,
         include_quotes=False)
     where_clause = 'rev_user in (%(user_set)s) and %(ts_condition)s' % {
         'user_set' : user_set, 'ts_condition' : ts_condition}
-
-    # format the namespace condition
-    ns_cond = format_namespace(namespace)
+    ns_cond = format_namespace(args.namespace)
     if ns_cond: ns_cond += ' and'
 
-    sql = query_store[bytes_added_rev_query.__name__] % {
+    query = query_store[rev_query.__query_name__] % {
         'where_clause' : where_clause,
         'project' : project,
         'namespace' : ns_cond}
-    return " ".join(sql.split('\n'))
+    query = " ".join(query.strip().splitlines())
+    return query
+rev_query.__query_name__ = 'rev_query'
 
 def rev_len_query(rev_id, project):
     """ Get parent revision length - returns long """
@@ -393,7 +391,7 @@ query_store = {
                                 WHERE %(where_clause)s
                                 GROUP BY 1
                             """,
-    bytes_added_rev_query.__name__:
+    rev_query.__query_name__:
                             """
                                 select
                                     rev_user,
