@@ -201,7 +201,7 @@ def rev_len_query(rev_id, project):
     query = " ".join(query.strip().splitlines())
     conn._cur_.execute(query)
     try:
-        len = conn._cur_.fetch_one()[0]
+        len = conn._cur_.fetchone()[0]
     except IndexError:
         raise UMQueryCallError()
     except KeyError:
