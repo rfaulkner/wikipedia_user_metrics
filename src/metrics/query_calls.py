@@ -14,6 +14,11 @@ from copy import deepcopy
 
 from config import logging
 
+class UMQueryCallError(Exception):
+    """ Basic exception class for UserMetric types """
+    def __init__(self, message="Query call failed."):
+        Exception.__init__(self, message)
+
 def escape_var(var):
     """
         Escapes either elements of a list (recursively visiting elements)
@@ -195,7 +200,15 @@ def rev_len_query(rev_id, project):
     }
     query = " ".join(query.strip().splitlines())
     conn._cur_.execute(query)
-    return conn._cur_.fetch_one()[0]
+    try:
+        len = conn._cur_.fetch_one()[0]
+    except IndexError:
+        raise UMQueryCallError()
+    except KeyError:
+        raise UMQueryCallError()
+    except ProgrammingError:
+        raise UMQueryCallError()
+    return len
 rev_len_query.__query_name__ = 'rev_len_query'
 
 def rev_user_query(project, start, end):
