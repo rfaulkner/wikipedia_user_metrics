@@ -121,9 +121,9 @@ class UserMetric(object):
         'init' : {
             'date_start' : ['str|datetime', 'Earliest date metric '
                                             'is measured.',
-                            datetime.now()],
+                            datetime.now() - timedelta(DEFAULT_DATA_RANGE)],
             'date_end' : ['str|datetime', 'Latest date metric is measured.',
-                          datetime.now() + timedelta(DEFAULT_DATA_RANGE)],
+                          datetime.now()],
 
             'project' : ['str', 'The project (language) being inspected.',
                          'enwiki'],
