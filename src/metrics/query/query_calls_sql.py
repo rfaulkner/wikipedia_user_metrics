@@ -69,11 +69,12 @@ def query_method_deco(f):
         if not hasattr(users, '__iter__'): users = [users]
 
         # get query and call
-        logging.debug(__name__ + ':: calling "%(method)s" in "%(project)s".' %
-                                 {
-                                    'method': f.__name__,
-                                    'project': project
-        })
+        if hasattr(args, 'log') and args.log:
+            logging.debug(__name__ + ':: calling "%(method)s" in "%(project)s".' %
+                                     {
+                                        'method': f.__name__,
+                                        'project': project
+            })
         query = f(users, project, args)
 
         try:
@@ -487,7 +488,8 @@ query_store = {
                                 log_user,
                                 log_timestamp
                             FROM %(project)s.logging
-                            WHERE log_action = 'create' AND
+                            WHERE (log_action = 'create' OR
+                                log_action = 'autocreate') AND
                                 log_type='newusers' AND
                                 log_user in (%(uid)s)
                         """,
