@@ -11,7 +11,7 @@ import src.utils.multiprocessing_wrapper as mpw
 from collections import namedtuple, OrderedDict
 from src.etl.aggregator import decorator_builder
 from os import getpid
-from . import query_mod
+from src.metrics import query_mod
 
 # Definition of persistent state for RevertRate objects
 NamespaceEditsArgsClass = namedtuple('NamespaceEditsArgs', 'project log '

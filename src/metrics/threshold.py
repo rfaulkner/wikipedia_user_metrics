@@ -11,7 +11,7 @@ import os
 import src.utils.multiprocessing_wrapper as mpw
 import user_metric as um
 from src.etl.aggregator import decorator_builder, boolean_rate
-from . import query_mod
+from src.metrics import query_mod
 
 class Threshold(um.UserMetric):
     """

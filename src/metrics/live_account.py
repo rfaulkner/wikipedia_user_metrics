@@ -12,7 +12,7 @@ from collections import namedtuple
 from os import getpid
 from dateutil.parser import parse as date_parse
 from src.etl.aggregator import decorator_builder, boolean_rate
-from . import query_mod
+from src.metrics import query_mod
 
 # Definition of persistent state for RevertRate objects
 LiveAccountArgsClass = namedtuple('LiveAccountArgs',

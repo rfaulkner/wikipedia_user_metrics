@@ -7,7 +7,7 @@ from config import logging
 
 from collections import namedtuple
 import user_metric as um
-from . import query_mod
+from src.metrics import query_mod
 
 class Blocks(um.UserMetric):
     """

@@ -14,7 +14,7 @@ from dateutil.parser import parse as date_parse
 import os
 import src.utils.multiprocessing_wrapper as mpw
 from src.etl.aggregator import decorator_builder, weighted_rate
-from . import query_mod
+from src.metrics import query_mod
 
 # Definition of persistent state for RevertRate objects
 RevertRateArgsClass = collections.namedtuple('RevertRateArgs',
@@ -235,8 +235,9 @@ if __name__ == "__main__":
     r = RevertRate()
     users = ['17792132', '17797320', '17792130', '17792131', '17792136',
              '17792137', '17792134', '17797328', '17797329', '17792138']
-
-    for r in r.process(users,num_threads=2,rev_threads=10, log_progress=True):
+    for i in xrange(5):
+        users += users
+    for r in r.process(users,num_threads=50,rev_threads=50, log_progress=True):
         print r
 
 

@@ -9,7 +9,7 @@ from config import logging
 from dateutil.parser import parse as date_parse
 import user_metric as um
 from src.etl.aggregator import weighted_rate, decorator_builder
-from . import query_mod
+from src.metrics import query_mod
 
 LAST_EDIT = -1
 REGISTRATION = 0

@@ -11,7 +11,7 @@ import user_metric as um
 import os
 import src.etl.aggregator as agg
 import src.utils.multiprocessing_wrapper as mpw
-from . import query_mod
+from src.metrics import query_mod
 
 class BytesAdded(um.UserMetric):
     """
