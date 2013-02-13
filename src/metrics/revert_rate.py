@@ -190,7 +190,6 @@ def _process_help(args):
         for r in results_thread:
             total_revisions += r[0]
             total_reverts += r[1]
-
         if not total_revisions:
             results_agg.append([user, 0.0, total_revisions])
         else:
@@ -207,7 +206,7 @@ def _revision_proc(args):
 
     state = args[1]
     thread_args = RevertRateArgsClass(state[0],state[1],state[2],state[3],
-                                      state[4],state[5],state[6])
+                                      state[4],state[6])
     rev_data = args[0]
 
     revision_count = 0.0
