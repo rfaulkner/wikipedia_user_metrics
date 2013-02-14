@@ -40,7 +40,6 @@
     In this way aggregators and metrics can be combined freely.  New aggregator
     methods can be written to perform different types of aggregation.
 
-
     Aggregator Methods
     ~~~~~~~~~~~~~~~~~~
 """
@@ -69,7 +68,7 @@ def decorator_builder(header):
                     for i in range(len(header)-1)):
                     return f(metric, **kwargs)
             else:
-                raise AggregatorException(
+                raise AggregatorError(
                     'This aggregator (%s) does not operate on this ' + \
                     'data type.' % f.__name__)
         return wrapper
@@ -200,5 +199,8 @@ def weighted_rate(iter, **kwargs):
     else:
         return [count, total_weight, 0.0]
 
-class AggregatorException(Exception): pass
+class AggregatorError(Exception):
+    """ Basic exception class for aggregators """
+    def __init__(self, message="Aggregation error."):
+        Exception.__init__(self, message)
 
