@@ -221,38 +221,28 @@ def rev_user_query(project, start, end):
     return users
 rev_user_query.__query_name__ = 'rev_user_query'
 
-def revert_rate_past_revs_query(rev_id, page_id, n, project, namespace):
+def page_rev_hist_query(rev_id, page_id, n, project, namespace,
+                                look_ahead=False):
     """ Compute revision history pegged to a given rev """
     conn = Connector(instance=DB_MAP[project])
-    ns_cond = format_namespace(namespace)
-    conn._cur_.execute(query_store[revert_rate_past_revs_query.__name__] %
-                       {
-                        'rev_id':  rev_id,
-                        'page_id': page_id,
-                        'n':       n,
-                        'project': project,
-                        'namespace': ns_cond
-    })
-    for row in conn._cur_:
-        yield row
-    del conn
 
-def revert_rate_future_revs_query(rev_id, page_id, n, project, namespace):
-    """ Compute revision future pegged to a given rev """
-    conn = Connector(instance=DB_MAP[project])
+    # Format namespace expression and comparator
     ns_cond = format_namespace(namespace)
-    conn._cur_.execute(
-                        query_store[revert_rate_future_revs_query.__name__] %
+    comparator =  '>' if look_ahead else '<'
+
+    conn._cur_.execute(query_store[page_rev_hist_query.__name__] %
                        {
                         'rev_id':  rev_id,
                         'page_id': page_id,
                         'n':       n,
                         'project': project,
-                        'namespace': ns_cond
+                        'namespace': ns_cond,
+                        'comparator': comparator,
     })
     for row in conn._cur_:
         yield row
     del conn
+page_rev_hist_query.__query_name__ = 'page_rev_hist_query'
 
 @query_method_deco
 def revert_rate_user_revs_query(user, project, args):
@@ -408,24 +398,13 @@ query_store = {
                                 WHERE rev_timestamp >= "%(start)s" AND
                                     rev_timestamp < "%(end)s"
                             """,
-    revert_rate_past_revs_query.__name__:
+    page_rev_hist_query.__query_name__:
                         """
                             SELECT rev_id, rev_user_text, rev_sha1
                             FROM %(project)s.revision JOIN %(project)s.page
                                 ON rev_page = page_id
                             WHERE rev_page = %(page_id)s
-                                AND rev_id < %(rev_id)s
-                                AND %(namespace)s
-                            ORDER BY rev_id DESC
-                            LIMIT %(n)s
-                        """,
-    revert_rate_future_revs_query.__name__:
-                        """
-                            SELECT rev_id, rev_user_text, rev_sha1
-                            FROM %(project)s.revision JOIN %(project)s.page
-                                ON rev_page = page_id
-                            WHERE rev_page = %(page_id)s
-                                AND rev_id > %(rev_id)s
+                                AND rev_id %(comparator)s %(rev_id)s
                                 AND %(namespace)s
                             ORDER BY rev_id ASC
                             LIMIT %(n)s
