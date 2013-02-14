@@ -4,13 +4,14 @@ __email__ = "rfaulkner@wikimedia.org"
 __date__ = "January 6th, 2013"
 __license__ = "GPL (version 2 or later)"
 
+from config import logging
+
 import user_metric as um
 import src.utils.multiprocessing_wrapper as mpw
 from collections import namedtuple, OrderedDict
 from src.etl.aggregator import decorator_builder
-from config import logging
 from os import getpid
-from query_calls import namespace_edits_rev_query
+from src.metrics import query_mod
 
 # Definition of persistent state for RevertRate objects
 NamespaceEditsArgsClass = namedtuple('NamespaceEditsArgs', 'project log '
@@ -110,7 +111,7 @@ def _process_help(args):
 
     state = args[1]
     thread_args = NamespaceEditsArgsClass(state[0],state[1],state[2],state[3])
-    user_data = args[0]
+    users = args[0]
 
     if thread_args.log:
         logging.info(__name__ + '::Computing namespace edits. (PID = %s)' %
@@ -118,16 +119,17 @@ def _process_help(args):
         logging.info(__name__ + '::From %s to %s. (PID = %s)' % (
             str(thread_args.date_start), str(thread_args.date_end), getpid()))
 
-    query_args = namedtuple('QueryArgs', 'date_start date_end '
-                            'project')(thread_args.date_start,
-                                       thread_args.date_end,
-                                       thread_args.project)
+    query_args = namedtuple('QueryArgs', 'date_start date_end')\
+                                (thread_args.date_start,
+                                 thread_args.date_end)
 
-    query_results = namespace_edits_rev_query(users, query_args)
+    query_results = query_mod.namespace_edits_rev_query(users,
+                                                        thread_args.project,
+                                                        query_args)
 
     # Tally counts of namespace edits
     results = dict()
-    for user in user_data:
+    for user in users:
         results[str(user)] = OrderedDict()
         for ns in NamespaceEdits.VALID_NAMESPACES:
             results[str(user)][str(ns)] = 0

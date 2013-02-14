@@ -49,6 +49,9 @@ def format_namespace(namespace):
     """
     ns_cond = ''
 
+    # Copy so as not to affect mutable ref
+    namespace = deepcopy(namespace)
+
     if hasattr(namespace, '__iter__'):
         if len(namespace) == 1:
             ns_cond = 'page_namespace = ' + str(namespace.pop())
@@ -69,11 +72,12 @@ def query_method_deco(f):
         if not hasattr(users, '__iter__'): users = [users]
 
         # get query and call
-        logging.debug(__name__ + ':: calling "%(method)s" in "%(project)s".' %
-                                 {
-                                    'method': f.__name__,
-                                    'project': project
-        })
+        if hasattr(args, 'log') and args.log:
+            logging.debug(__name__ + ':: calling "%(method)s" in "%(project)s".' %
+                                     {
+                                        'method': f.__name__,
+                                        'project': project
+            })
         query = f(users, project, args)
 
         try:
@@ -193,14 +197,14 @@ def rev_len_query(rev_id, project):
     query = " ".join(query.strip().splitlines())
     conn._cur_.execute(query)
     try:
-        len = conn._cur_.fetchone()[0]
+        rev_len = conn._cur_.fetchone()[0]
     except IndexError:
         raise UMQueryCallError()
     except KeyError:
         raise UMQueryCallError()
     except ProgrammingError:
         raise UMQueryCallError()
-    return len
+    return rev_len
 rev_len_query.__query_name__ = 'rev_len_query'
 
 def rev_user_query(project, start, end):
@@ -217,30 +221,34 @@ def rev_user_query(project, start, end):
     return users
 rev_user_query.__query_name__ = 'rev_user_query'
 
-def revert_rate_past_revs_query(rev_id, page_id, n, project):
+def revert_rate_past_revs_query(rev_id, page_id, n, project, namespace):
     """ Compute revision history pegged to a given rev """
     conn = Connector(instance=DB_MAP[project])
+    ns_cond = format_namespace(namespace)
     conn._cur_.execute(query_store[revert_rate_past_revs_query.__name__] %
                        {
                         'rev_id':  rev_id,
                         'page_id': page_id,
                         'n':       n,
-                        'project': project
+                        'project': project,
+                        'namespace': ns_cond
     })
     for row in conn._cur_:
         yield row
     del conn
 
-def revert_rate_future_revs_query(rev_id, page_id, n, project):
+def revert_rate_future_revs_query(rev_id, page_id, n, project, namespace):
     """ Compute revision future pegged to a given rev """
     conn = Connector(instance=DB_MAP[project])
+    ns_cond = format_namespace(namespace)
     conn._cur_.execute(
                         query_store[revert_rate_future_revs_query.__name__] %
                        {
                         'rev_id':  rev_id,
                         'page_id': page_id,
                         'n':       n,
-                        'project': project
+                        'project': project,
+                        'namespace': ns_cond
     })
     for row in conn._cur_:
         yield row
@@ -403,18 +411,22 @@ query_store = {
     revert_rate_past_revs_query.__name__:
                         """
                             SELECT rev_id, rev_user_text, rev_sha1
-                            FROM %(project)s.revision
+                            FROM %(project)s.revision JOIN %(project)s.page
+                                ON rev_page = page_id
                             WHERE rev_page = %(page_id)s
                                 AND rev_id < %(rev_id)s
+                                AND %(namespace)s
                             ORDER BY rev_id DESC
                             LIMIT %(n)s
                         """,
     revert_rate_future_revs_query.__name__:
                         """
                             SELECT rev_id, rev_user_text, rev_sha1
-                            FROM %(project)s.revision
+                            FROM %(project)s.revision JOIN %(project)s.page
+                                ON rev_page = page_id
                             WHERE rev_page = %(page_id)s
                                 AND rev_id > %(rev_id)s
+                                AND %(namespace)s
                             ORDER BY rev_id ASC
                             LIMIT %(n)s
                         """,
@@ -487,7 +499,8 @@ query_store = {
                                 log_user,
                                 log_timestamp
                             FROM %(project)s.logging
-                            WHERE log_action = 'create' AND
+                            WHERE (log_action = 'create' OR
+                                log_action = 'autocreate') AND
                                 log_type='newusers' AND
                                 log_user in (%(uid)s)
                         """,

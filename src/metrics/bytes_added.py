@@ -3,16 +3,15 @@ __author__ = "Ryan Faulkner"
 __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
-from MySQLdb import ProgrammingError
+from config import logging
+
+from collections import namedtuple
 import collections
 import user_metric as um
 import os
 import src.etl.aggregator as agg
 import src.utils.multiprocessing_wrapper as mpw
-from query_calls import bytes_added_rev_query, bytes_added_rev_len_query, \
-                        bytes_added_rev_user_query
-
-from config import logging
+from src.metrics import query_mod
 
 class BytesAdded(um.UserMetric):
     """
@@ -83,7 +82,7 @@ class BytesAdded(um.UserMetric):
                           'bytes_added_pos', 'bytes_added_neg', 'edit_count']
 
     @um.UserMetric.pre_process_users
-    def process(self, user_handle, **kwargs):
+    def process(self, users, **kwargs):
         """ Setup metrics gathering using multiprocessing """
 
         self.apply_default_kwargs(kwargs,'process')
@@ -92,25 +91,26 @@ class BytesAdded(um.UserMetric):
         log_progress = bool(kwargs['log_progress'])
         log_frequency = int(kwargs['log_frequency'])
 
-        if user_handle:
-            if not hasattr(user_handle, '__iter__'):
-                user_handle = [user_handle]
-            # build the argument lists for each thread
+        if users:
+            if not hasattr(users, '__iter__'):
+                users = [users]
 
-        if not user_handle:
-            sql = bytes_added_rev_user_query(self._start_ts_, self._end_ts_)
-
+        # If the user list is empty pull from the revision table within
+        # the query timeframe
+        if not users:
+            if log_progress:
+                logging.debug(__name__ +
+                              '::Getting all distinct users')
+            users = query_mod.rev_user_query(self._project_,
+                                             self._start_ts_,
+                                             self._end_ts_)
             if log_progress: logging.info(
-                __name__ + '::Getting all distinct users: " %s "' % sql)
-            user_handle = [str(row[0]) for row in
-                           self._data_source_.execute_SQL(sql)]
-            if log_progress: logging.info(
-                __name__ + '::Retrieved %s users.' % len(user_handle))
+                __name__ + '::Retrieved %s users.' % len(users))
 
         # get revisions
         args = [log_progress, self._start_ts_,
                 self._end_ts_, self._project_, self._namespace_]
-        revs = mpw.build_thread_pool(user_handle,_get_revisions,k,args)
+        revs = mpw.build_thread_pool(users,_get_revisions,k,args)
 
         # Start worker threads and aggregate results for bytes added
         args = [log_progress, log_frequency, self._project_]
@@ -119,7 +119,7 @@ class BytesAdded(um.UserMetric):
 
         # Add any missing users - O(n)
         tallied_users = set([str(r[0]) for r in self._results])
-        for user in user_handle:
+        for user in users:
             if not tallied_users.__contains__(str(user)):
                 # Add a row indicating no activity for that user
                 self._results.append([user,0,0,0,0,0])
@@ -132,28 +132,30 @@ def _get_revisions(args):
     users = args[0]
     state = args[1]
     arg_obj = MethodArgsClass(state[0], state[1], state[2], state[3], state[4])
-    conn = um.dl.Connector(instance='slave')
-
-    if arg_obj.log: logging.info('Computing revisions, PID = %s' % os.getpid())
-
-    rev_query = bytes_added_rev_query(arg_obj.start, arg_obj.end, users, arg_obj.namespace,
-                          arg_obj.project)
 
     if arg_obj.log:
         logging.info(__name__ +
                      '::Querying revisions for %(count)s users '
                      '(project = %(project)s, '
-                     'namespace = %(namespace)s)... ' % {
-                  'count' : len(users),
-                  'project' : arg_obj.project,
-                  'namespace' : arg_obj.namespace}
+                     'namespace = %(namespace)s, '
+                     'PID = %(pid)s)... ' %
+                     {
+                         'count': len(users),
+                         'project': arg_obj.project,
+                         'namespace': arg_obj.namespace,
+                         'pid': os.getpid()
+                     }
         )
+
+    query_args = namedtuple('QueryArgs', 'date_start date_end namespace')\
+        (arg_obj.start, arg_obj.end, arg_obj.namespace)
     try:
-        return list(conn.execute_SQL(rev_query))
-    except ProgrammingError:
-       raise um.UserMetric.UserMetricError(
-           message=str(BytesAdded) + '::Could not get revisions '
-                                     'for specified users(s) - Query Failed.')
+        revs = query_mod.rev_query(users, arg_obj.project, query_args)
+    except query_mod.UMQueryCallError as e:
+        logging.error('{0}:: {1}. PID={2}'.format(__name__,
+                                                  e.message, os.getpid()))
+        return []
+    return revs
 
 def _process_help(args):
 
@@ -187,8 +189,6 @@ def _process_help(args):
     revs = args[0]
     state = args[1]
     thread_args = BytesAddedArgsClass(state[0],state[1],state[2])
-
-    conn = um.dl.Connector(instance='slave')
     bytes_added = dict()
 
     # Get the difference for each revision length from the parent
@@ -221,19 +221,15 @@ def _process_help(args):
         if parent_rev_id == 0:
             parent_rev_len = 0
         else:
-            sql = bytes_added_rev_len_query(parent_rev_id, thread_args.project)
             try:
-                parent_rev_len = conn.execute_SQL(sql)[0][0]
-            except IndexError:
+                parent_rev_len = query_mod.rev_len_query(parent_rev_id,
+                                                         thread_args.project)
+            except query_mod.UMQueryCallError:
                 missed_records += 1
+                logging.error(__name__ +
+                              '::Could not produce rev diff for %s on '
+                              'rev_id %s.' % (user, str(parent_rev_id)))
                 continue
-            except TypeError:
-                missed_records += 1
-                continue
-            except ProgrammingError:
-                raise um.UserMetric.UserMetricError(message=str(BytesAdded) +
-                        '::Could not produce rev diff for %s on rev_id %s.' % (
-                                user, str(parent_rev_id)))
 
         # Update the bytes added hash - ignore revision if either rev length
         # is undetermined
@@ -283,7 +279,8 @@ if __name__ == "__main__":
     # namespace=[0,1]).process(user_handle=['156171','13234584'],
     #    log_progress=True, num_threads=10): print r
 
-    for r in BytesAdded().process(user_handle=['156171','13234584'],
+    for r in BytesAdded(date_start='20120101000000').process(['156171',
+                                                              '13234584'],
         num_threads=10,
         log_progress=True):
             print r

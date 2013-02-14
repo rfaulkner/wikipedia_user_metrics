@@ -3,15 +3,15 @@ __author__ = "Ryan Faulkner"
 __date__ = "December 6th, 2012"
 __license__ = "GPL (version 2 or later)"
 
+from config import logging
+
 from datetime import timedelta
 import collections
 import os
 import src.utils.multiprocessing_wrapper as mpw
 import user_metric as um
 from src.etl.aggregator import decorator_builder, boolean_rate
-from query_calls import threshold_reg_query, threshold_rev_query
-
-from config import logging
+from src.metrics import query_mod
 
 class Threshold(um.UserMetric):
     """
@@ -106,20 +106,15 @@ class Threshold(um.UserMetric):
         survival = bool(kwargs['survival'])
         restrict = bool(kwargs['restrict'])
 
-        # Format condition on user ids.  if no user handle exists there is no
-        # condition.
-        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
-        if not user_handle: user_handle.append(-1) # No user is matched
-
-        reg_query = threshold_reg_query(user_handle, self._project_)
-        self._data_source_._cur_.execute(reg_query)
+        # Get registration dates for users
+        users = query_mod.user_registration_date(user_handle,
+                                                 self._project_, None)
 
         # Process results
-        user_data = [r for r in self._data_source_._cur_]
         args = [self._project_, self._namespace_, self._n_,
                 self._t_, log_progress, survival, restrict,
                 self._start_ts_, self._end_ts_]
-        self._results = mpw.build_thread_pool(user_data,_process_help,k,args)
+        self._results = mpw.build_thread_pool(users,_process_help,k,args)
 
         return self
 
@@ -142,7 +137,6 @@ def _process_help(args):
     # only proceed if there is user data
     if not len(user_data): return []
 
-    conn = um.dl.Connector(instance='slave')
     results = list()
     dropped_users = 0
     for r in user_data:
@@ -150,20 +144,15 @@ def _process_help(args):
             threshold_ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) +
                                               timedelta(hours=thread_args.t))
             uid = long(r[0])
-            rev_query = threshold_rev_query(uid,
-                                            thread_args.survival,
-                                            thread_args.namespace,
-                                            thread_args.project,
-                                            thread_args.restrict,
-                                            thread_args.ts_start,
-                                            thread_args.ts_start,
-                                            threshold_ts)
-            conn._cur_.execute(rev_query)
-            count = int(conn._cur_.fetchone()[0])
-        except IndexError:
-            dropped_users += 1
-            continue
-        except ValueError:
+            count = query_mod.rev_count_query(uid,
+                                              thread_args.survival,
+                                              thread_args.namespace,
+                                              thread_args.project,
+                                              thread_args.restrict,
+                                              thread_args.ts_start,
+                                              thread_args.ts_start,
+                                              threshold_ts)
+        except query_mod.UMQueryCallError:
             dropped_users += 1
             continue
 

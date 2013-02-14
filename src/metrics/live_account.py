@@ -4,15 +4,15 @@ __email__ = "rfaulkner@wikimedia.org"
 __date__ = "January 6th, 2013"
 __license__ = "GPL (version 2 or later)"
 
+from config import logging
+
 import user_metric as um
 import src.utils.multiprocessing_wrapper as mpw
-from src.etl.data_loader import Connector
 from collections import namedtuple
-from config import logging
 from os import getpid
 from dateutil.parser import parse as date_parse
 from src.etl.aggregator import decorator_builder, boolean_rate
-from query_calls import live_account_query
+from src.metrics import query_mod
 
 # Definition of persistent state for RevertRate objects
 LiveAccountArgsClass = namedtuple('LiveAccountArgs',
@@ -115,14 +115,13 @@ def _process_help(args):
     state = args[1]
     thread_args = LiveAccountArgsClass(state[0],state[1],state[2],state[3],
                                         state[4],state[5])
-    user_data = args[0]
-    conn = Connector(instance='slave')
+    users = args[0]
 
     # Log progress
     if thread_args.log:
-        logging.info(__name__ + '::Computing live account. (PID = %s)' %
+        logging.debug(__name__ + '::Computing live account. (PID = %s)' %
                                 getpid())
-        logging.info(__name__ + '::From %s to %s. (PID = %s)' % (
+        logging.debug(__name__ + '::From %s to %s. (PID = %s)' % (
             str(thread_args.date_start), str(thread_args.date_end), getpid()))
 
     # Extract edit button click from edit_page_tracking table (namespace,
@@ -131,14 +130,14 @@ def _process_help(args):
     #
     # Query will return: (user id, time of registration, time of first
     # edit button click)
-    la_query = live_account_query(user_data, thread_args.namespace,
-                                thread_args.project)
-    conn._cur_.execute(la_query)
+    query_args = namedtuple('QueryArgs', 'namespace')(thread_args.namespace)
+    query_results = query_mod.live_account_query(users, thread_args.project,
+                                                 query_args)
 
     # Iterate over results to determine boolean indicating whether
     # account is "live"
-    results = { long(user) : -1 for user in user_data}
-    for row in conn._cur_:
+    results = { long(user) : -1 for user in users}
+    for row in query_results:
         try:
             diff = (date_parse(row[2]) - date_parse(row[1])).total_seconds()
             diff /= 60 # get the difference in minutes

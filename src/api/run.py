@@ -87,6 +87,7 @@ import multiprocessing as mp
 import collections
 from collections import OrderedDict
 from re import sub, search
+from shutil import copyfile
 
 from src.metrics.users import MediaWikiUser
 import src.etl.data_loader as dl
@@ -529,6 +530,7 @@ class APIMethods(object):
     def __init__(self):
         """ Load cached data from pickle file. """
         global pkl_data
+        global bad_pickle
 
         # Open the pickled data for reading.
         try:
@@ -538,7 +540,23 @@ class APIMethods(object):
 
         # test whether the open was successful
         if pkl_file:
-            pkl_data = cPickle.load(pkl_file)
+            try:
+                pkl_data = cPickle.load(pkl_file)
+            except ValueError:
+                # Generally due to a "insecure string pickle"
+                logging.error(__name__ + ':: Could not access pickle data.')
+                pkl_data = OrderedDict()
+
+                # Move the bad pickle data into a new file and recreate the
+                # original as an empty file
+                src = settings.__data_file_dir__ + 'api_data.pkl'
+                dest = settings.__data_file_dir__ + 'api_data.pkl.bad'
+
+                copyfile(src, dest)
+                os.remove(src)
+                with open(src, 'wb'):
+                    pass
+
             pkl_file.close()
 
     def close(self):

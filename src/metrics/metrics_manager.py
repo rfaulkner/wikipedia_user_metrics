@@ -33,7 +33,7 @@ INTERVALS_PER_THREAD = 10
 MAX_THREADS = 5
 
 USER_THREADS=100
-REVISION_THREADS=100
+REVISION_THREADS=50
 
 # Registered metrics types
 metric_dict = {
@@ -150,7 +150,7 @@ def process_data_request(metric_handle, users, **kwargs):
                 })
 
             metric_obj.process(users, num_threads=USER_THREADS,
-                rev_threads=REVISION_THREADS, **kwargs)
+                rev_threads=REVISION_THREADS, log_progress=True, **kwargs)
             r = um.aggregator(aggregator_func, metric_obj, metric_obj.header())
             results['metric'][r.data[0]] = " ".join(to_string(r.data[1:]))
             results['header'] = " ".join(to_string(r.header))
