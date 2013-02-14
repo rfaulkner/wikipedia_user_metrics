@@ -20,7 +20,7 @@ from src.metrics import query_mod
 RevertRateArgsClass = collections.namedtuple('RevertRateArgs',
                                              'project log_progress '
                                              'look_ahead look_back t '
-                                             'rev_threads')
+                                             'rev_threads namespace')
 class RevertRate(um.UserMetric):
     """
         Skeleton class for "RevertRate" metric:
@@ -112,7 +112,8 @@ class RevertRate(um.UserMetric):
         log_progress = bool(kwargs['log_progress'])
 
         args = [self._project_, log_progress, self.look_ahead,
-                self.look_back, self.t, self._end_ts_, k_r]
+                self.look_back, self.t, self._end_ts_, k_r,
+                self._namespace_]
         self._results = mpw.build_thread_pool(user_handle, _process_help,
                                               k, args)
 
@@ -122,11 +123,11 @@ def __revert(rev_id, page_id, sha1, user_text, metric_args):
     """ Returns the revision corresponding to a revision if it exists. """
     history = {}
     for rev in __history(rev_id, page_id, metric_args.look_back,
-                         project=metric_args.project):
+                         metric_args.project, metric_args.namespace):
         history[rev[RevertRate.REV_SHA1_IDX]] = rev
 
     for rev in __future(rev_id, page_id, metric_args.look_ahead,
-                        project=metric_args.project):
+                        metric_args.project, metric_args.namespace):
         if rev[RevertRate.REV_SHA1_IDX] in history and \
            rev[RevertRate.REV_SHA1_IDX] != sha1:
             if user_text == rev[RevertRate.REV_USER_TEXT_IDX]:
@@ -134,23 +135,26 @@ def __revert(rev_id, page_id, sha1, user_text, metric_args):
             else:
                 return rev
 
-def __history(rev_id, page_id, n, project='enwiki'):
+def __history(rev_id, page_id, n, project, namespace):
     """ Produce the n revisions on a page before a given revision
             Returns a generator of revision objects """
-    return query_mod.revert_rate_past_revs_query(rev_id, page_id, n, project)
+    return query_mod.revert_rate_past_revs_query(rev_id, page_id, n, project,
+                                                 namespace)
 
-def __future(rev_id, page_id, n, project='enwiki'):
+def __future(rev_id, page_id, n, project, namespace):
     """ Produce the n revisions on a page after a given revision
             Returns a generator of revision objects """
-    return query_mod.revert_rate_future_revs_query(rev_id, page_id, n, project)
+    return query_mod.revert_rate_future_revs_query(rev_id, page_id, n, project,
+                                                   namespace)
 
 def _process_help(args):
     """ Used by Threshold::process() for forking.
         Should not be called externally. """
 
     state = args[1]
-    thread_args = RevertRateArgsClass(state[0],state[1],state[2],
-                                      state[3],state[4],state[6])
+    thread_args = RevertRateArgsClass(state[0], state[1], state[2],
+                                      state[3], state[4], state[6],
+                                      state[7])
     user_data = args[0]
 
     if thread_args.log_progress:
@@ -178,7 +182,7 @@ def _process_help(args):
                                      ' for "{0}".'.format(user))
             continue
         date_frmt = um.UserMetric.DATETIME_STR_FORMAT
-        end_date_obj = reg_date_obj + timedelta(hours=thread_args.t)
+        end_date_obj = reg_date_obj + timedelta(hours=int(thread_args.t))
         query_args = namedtuple('QueryArgs', 'date_start date_end')\
             (reg_date_obj.strftime(date_frmt), end_date_obj.strftime(date_frmt))
         revisions = query_mod.revert_rate_user_revs_query(user,
@@ -205,8 +209,9 @@ def _revision_proc(args):
     """ helper method for computing reverts """
 
     state = args[1]
-    thread_args = RevertRateArgsClass(state[0],state[1],state[2],state[3],
-                                      state[4],state[6])
+    thread_args = RevertRateArgsClass(state[0], state[1], state[2],
+                                      state[3], state[4], state[6],
+                                      state[7])
     rev_data = args[0]
 
     revision_count = 0.0
