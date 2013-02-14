@@ -6,14 +6,47 @@
   <li class="active">{{m}}</li>
 </ul>
 
-<h2>Review</h2>
+<h2>Job review</h2>
 {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
 <p>This page will allow you to review a request before firing it.</p>
-<table class="table table-bordered">
-	<tr><th scope="row">cohort:</th><td>{{c}}</td></tr>
-	<tr><th scope="row">metric:</th><td>{{m}}</td></tr>
-</table>
 
-<p><a class="btn btn-primary" href="/run/{{c + '/' + m }}">Run</a></p><!-- replace this with a form-->
-
+<div class="row">
+      <div class="span6">
+	<form class="form-inline">
+	<fieldset>
+		<legend>Output</legend>
+		<label class="radio"><input type="radio" name="optionsRadios" id="optionsRadios1" value="option1" checked>JSON</label>
+		<label class="radio"><input type="radio" name="optionsRadios" id="optionsRadios2" value="option2">CSV</label>
+		<label class="radio"><input type="radio" name="optionsRadios" id="optionsRadios3" value="option3">plot</label>
+		<button type="submit" class="btn">Update</button>
+  	</fieldset>
+	</form>
+	<form>
+	<fieldset>
+		<legend>Global parameters</legend>
+		<label>Parameter</label>
+		<input type="text" placeholder="Foo">
+		<label class="checkbox"><input type="checkbox">Flag</label>
+		<button type="submit" class="btn">Update</button>
+  	</fieldset>
+	</form>
+	<form>
+	<fieldset>
+		<legend>Metric parameters</legend>
+		<label>Parameter</label>
+		<input type="text" placeholder="Foo">
+		<label class="checkbox"><input type="checkbox">Flag</label>
+		<button type="submit" class="btn">Update</button>
+  	</fieldset>
+	</form>
+      </div>
+      <div class="span6">
+	<legend>Review</legend>
+	<table class="table table-bordered">
+		<tr><th scope="row">cohort:</th><td>{{c}}</td></tr>
+		<tr><th scope="row">metric:</th><td>{{m}}</td></tr>
+	</table>
+	<p><a class="btn btn-primary" href="/run/{{c + '/' + m }}">Run</a></p><!-- replace this with a form-->
+      </div>
+    </div>
 {% endblock %}
