@@ -1,7 +1,48 @@
 
 """
     This module contains methods that provide functionality for aggregating
-    metrics data.
+    metrics data.  This is essential to user metrics computations as often
+    it is necessary to work with some aggregate form of large user data sets.
+
+    Registering an aggregator with a UserMetric derived class
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Aggregators are "registered" with UserMetric classes in order that they
+    may be called at runtime.  The API documentation contains instructions
+    on how these aggregators may be bound to queries.  For the purposes of
+    simply defining an aggregator for a metric however, the example of the
+    "boolean_rate" aggregator method on the "Threshold" metric serves to
+    illustrate how this is accomplished independent of the API::
+
+        # Build "rate" decorator
+        threshold_editors_agg = boolean_rate
+        threshold_editors_agg = decorator_builder(Threshold.header())(
+            threshold_editors_agg)
+
+        setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_FLAG, True)
+        setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_NAME,
+            'threshold_editors_agg')
+        setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
+                                              'threshold_reached','rate'])
+        setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 1})
+
+    The attributes set above are defined in the user_mertric module::
+
+        # 1. flag attribute for a type of metric aggregation methods
+        # 2. header attribute for a type of metric aggregation methods
+        # 3. name attribute for a type of metric aggregation methods
+        # 4. keyword arg attribute for a type of metric aggregation methods
+        METRIC_AGG_METHOD_FLAG = 'metric_agg_flag'
+        METRIC_AGG_METHOD_HEAD = 'metric_agg_head'
+        METRIC_AGG_METHOD_NAME = 'metric_agg_name'
+        METRIC_AGG_METHOD_KWARGS = 'metric_agg_kwargs'
+
+    In this way aggregators and metrics can be combined freely.  New aggregator
+    methods can be written to perform different types of aggregation.
+
+
+    Aggregator Methods
+    ~~~~~~~~~~~~~~~~~~
 """
 
 __author__ = "ryan faulkner"
@@ -15,6 +56,10 @@ def decorator_builder(header):
     """
         Decorator method to annotate aggregation methods to ensure the correct
         data model is exposed by.
+
+        ::
+
+            metric_agg = decorator_builder(Metric.header())(metric_agg)
     """
     def eval_data_model(f):
         def wrapper(metric, **kwargs):
@@ -38,14 +83,14 @@ def identity(x):
 def list_sum_indices(l, indices):
     """
         Sums the elements of list indicated by numeric list `indices`.  The
-        elements must be summable (i.e. e1 + e2 is allowed for all e1 and e2).
+        elements must be summable (i.e. e1 + e2 is allowed for all e1 and e2)::
 
-        Returns: <list of summed elements>
+            Returns: <list of summed elements>
 
-        e.g.
-        >>> l = [['1',1,50],['2',4,1],['3',2,6]]
-        >>> list_sum_indices(l,[1,2])
-        [7, 57]
+            e.g.
+            >>> l = [['1',1,50],['2',4,1],['3',2,6]]
+            >>> list_sum_indices(l,[1,2])
+            [7, 57]
     """
     return list(reduce(lambda x,y: x+y,
         [array([elem.__getitem__(i) for i in indices]) for elem in l]))
@@ -54,14 +99,14 @@ def list_sum_by_group(l, group_index):
     """
         Sums the elements of list keyed on `key_index`. The elements must be
         summable (i.e. e1 + e2 is allowed for all e1 and e2).  All elements
-        outside of key are summed on matching keys.
+        outside of key are summed on matching keys::
 
-        Returns: <list of summed and keyed elements>
+            Returns: <list of summed and keyed elements>
 
-        e.g.
-        >>> l = [[2,1],[1,4],[2,2]]
-        >>> list_sum_by_group(l,0)
-        [[1,4], [2,3]]
+            e.g.
+            >>> l = [[2,1],[1,4],[2,2]]
+            >>> list_sum_by_group(l,0)
+            [[1,4], [2,3]]
     """
     d=dict()
     for i in l:
@@ -79,14 +124,14 @@ def list_average_by_group(l, group_index):
         The elements must be summable (i.e. e1 + e2 is allowed for all e1 and
         e2).  All elements outside of key are summed on matching keys. This
         duplicates the code of `list_sum_by_group` since it needs to compute
-        counts in the loop also.
+        counts in the loop also::
 
-        Returns: <list of averaged and keyed elements>
+            Returns: <list of averaged and keyed elements>
 
-        e.g.
-        >>> l = [[2,1],[1,4],[2,2]]
-        >>> list_average(l,0)
-        [[1, 4.0], [2, 1.5]]
+            e.g.
+            >>> l = [[2,1],[1,4],[2,2]]
+            >>> list_average(l,0)
+            [[1, 4.0], [2, 1.5]]
     """
     d=dict()
     counts=dict()
