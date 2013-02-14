@@ -27,13 +27,13 @@ import src.etl.data_loader as dl
 import src.etl.aggregator as agg
 import src.etl.time_series_process_methods as tspm
 
-from config import logging
+from config import logging, settings
 
 INTERVALS_PER_THREAD = 10
 MAX_THREADS = 5
 
-USER_THREADS=100
-REVISION_THREADS=50
+USER_THREADS = settings.__user_thread_max__
+REVISION_THREADS = settings.__rev_thread_max__
 
 # Registered metrics types
 metric_dict = {

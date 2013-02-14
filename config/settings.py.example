@@ -11,6 +11,8 @@ __web_app_module__ = 'web_interface'
 __system_user__ = 'rfaulk'
 
 __query_module__ = 'query_calls_noop'
+__user_thread_max__ = 100
+__rev_thread_max__ = 50
 
 # Database connection settings
 # ============================
