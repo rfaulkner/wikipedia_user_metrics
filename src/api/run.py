@@ -2,7 +2,15 @@
 # -*- coding: utf-8 -*-
 
 """
-    Entry point for flask web server implementin Wikimedia Metrics API.
+    This module defines the entry point for flask_ web server implementation
+    Wikimedia User Metrics API.  This module utilizes flask functionality
+    to define leverage Jinja2_ templating system.  This module is consumable
+    by the Apache web server via WSGI interface via mod_wsgi.  An Apache
+    server can be pointed to api.wsgi such that Apache may be used as a
+    wrapper in this way.
+
+    .. _flask: http://flask.pocoo.org
+    .. _Jinja2: http://jinja.pocoo.org/docs/
 
     Job Queue and Processing
     ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -65,15 +73,17 @@
         | ut_tag  | int(4) unsigned | NO   | PRI | NULL    |       |
         +---------+-----------------+------+-----+---------+-------+
 
-    +-------------+-----------------+------+-----+---------+----------------+
-    | Field       | Type            | Null | Key | Default | Extra          |
-    +-------------+-----------------+------+-----+---------+----------------+
-    | utm_id      | int(5) unsigned | NO   | PRI | NULL    | auto_increment |
-    | utm_name    | varchar(255)    | NO   |     |         |                |
-    | utm_notes   | varchar(255)    | YES  |     | NULL    |                |
-    | utm_touched | datetime        | YES  |     | NULL    |                |
-    +-------------+-----------------+------+-----+---------+----------------+
+        +-------------+-----------------+------+-----+---------+----------------+
+        | Field       | Type            | Null | Key | Default | Extra          |
+        +-------------+-----------------+------+-----+---------+----------------+
+        | utm_id      | int(5) unsigned | NO   | PRI | NULL    | auto_increment |
+        | utm_name    | varchar(255)    | NO   |     |         |                |
+        | utm_notes   | varchar(255)    | YES  |     | NULL    |                |
+        | utm_touched | datetime        | YES  |     | NULL    |                |
+        +-------------+-----------------+------+-----+---------+----------------+
 
+    View & Method Definitions
+    ~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 from flask import Flask, render_template, Markup, jsonify, \
     redirect, url_for, make_response, request, escape

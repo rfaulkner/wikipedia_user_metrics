@@ -1,6 +1,93 @@
 """
-    The engine for the metrics API.  Stores definitions an backend
-    API operations.
+    The engine for the metrics API which stores definitions an backend API
+    operations.  This module defines the communication between API requests
+    and UserMetric objects, how and where request responses are stored, and
+    how cohorts are parsed from API request URLs.
+
+    Communication between URL requests and UserMetric
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    RequestMeta is a recordtype_ type (a mutable namedtuple) that is
+    dynamically built at runtime to store API request parameters.  The
+    list REQUEST_META_QUERY_STR contains all the possible query string
+    variables that may be accepted by a request while REQUEST_META_BASE
+    defines the URL path meta data (cohort and metric handles).  The
+    factory method RequestMetaFactory is invoked by run.py to build
+    a RequestMeta object.  For example::
+
+        rm = RequestMetaFactory("cohort name", "cohort timestamp", "metric")
+
+    Finally, a mediator_ pattern via the varMapping namedtuple type is
+    used to bind the names of URL request variables to corresponding UserMetric
+    parameter names.  The definition of the mapping lives in this module.
+    The factory method returns the newly built RequestMeta which may then
+    be populated with parameter values.  The ``process_request_params`` method
+    applies defaults to RequestMeta objects.  The run module handles assigning
+    request values to RequestMeta attributes and coordinating the passage of
+    this data to UserMetric objects via metrics_manager_ using the
+    ``process_metrics`` method.
+
+    .. _recordtype: http://www.python.org/
+    .. _mediator: http://en.wikipedia.org/wiki/Mediator_pattern
+    .. _metrics_manager: http://www.python.org/
+
+    Data Storage and Retrieval
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    This portion of the API engine is concerned with extracting and storing
+    data at runtime to service API requests.  This includes all of the
+    interaction with the ``usertags`` and ``usertags_meta`` SQL tables that
+    define user cohorts.  The following methods are involved with extracting
+    this data::
+
+        get_users(cohort_expr)
+        get_cohort_id(utm_name)
+        get_cohort_refresh_datetime(utm_id)
+
+    The other portion of data storage and retrieval is concerned with providing
+    functionality that enables responses to be cached.  Request responses are
+    currently cached in the ``pkl_data`` OrderedDict_ defined in the run
+    module.  This object stores responses in a nested fashion using URL request
+    variables and their corresponding values.  For example, the url
+    ``http://metrics-api.wikimedia.org/cohorts/e3_ob2b/revert_rate?t=10000``
+    maps to::
+
+        pkl_data['cohort_expr <==> e3_ob2b']['metric <==> revert_rate']
+        ['date_start <==> xx']['date_start <==> yy']['t <==> 10000']
+
+    The list of key values for a given request is referred to as it's "key
+    signature".  The order of parameters is perserved.
+
+    The ``get_data`` method requires a reference to ``pkl_data``. Given this
+    reference and a RequestMeta object the method attempts to find an entry
+    for the request if one exists.  The ``set_data`` method does much the
+    same operation but performs storage into the hash reference passed.
+    The method ``get_url_from_keys`` builds URLs from nested hash references
+    using the key list and ``build_key_tree`` recursively builds a tree
+    representation of all of the key paths in the hash reference.
+
+    .. _OrderedDict: http://docs.python.org/2/library/collections.html
+
+    Cohort request parsing
+    ~~~~~~~~~~~~~~~~~~~~~~
+
+    This set of methods allows boolean expressions of cohort IDs to be
+    synthesized and interpreted in the portion of the URL path that is
+    bound to the user cohort name.  This set of methods, invoked at the top
+    level via ``parse_cohorts`` takes an expression of the form::
+
+        http://metrics-api.wikimedia.org/cohorts/1&2~3~4/bytes_added
+
+    The portion of the path ``1&2~3~4``, resolves to the boolean expression
+    "1 AND 2 OR 3 OR 4".  The cohorts that correspond to the numeric ID values
+    in ``usertags_meta`` are resolved to sets of user ID longs which are then
+    operated on with union and intersect operations to yield a custom user
+    list.  The power of this functionality lies in that it allows subsets of
+    users to be selected based on prior conditions that includes them in a
+    given cohort.
+
+    Method Definitions
+    ~~~~~~~~~~~~~~~~~~
 """
 __author__ = "ryan faulkner"
 __email__ = "rfaulkner@wikimedia.org"
@@ -37,7 +124,7 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
 
             **cohort_expr**             - string. Cohort id from url.
             **cohort_gen_timestamp**    - string. Timestamp of last cohort
-                                                    update.
+            update.
             **metric_expr**             - string. Metric id from url.
     """
     default_params = 'cohort_expr cohort_gen_timestamp metric '
@@ -151,6 +238,10 @@ def process_request_params(request_meta):
     agg_key = mm.get_agg_key(request_meta.aggregator, request_meta.metric)
     request_meta.aggregator = request_meta.aggregator if agg_key else None
 
+#
+# Data retrieval and storage methods
+#
+# ==================================
 
 def get_users(cohort_expr):
     """ get users from cohort """
