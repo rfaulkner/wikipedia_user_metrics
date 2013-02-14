@@ -333,7 +333,7 @@ def output(cohort, metric):
     try:
         process_request_params(rm)
     except MetricsAPIError as e:
-        return redirect(url_for('cohorts') + '?error=' + e.message)
+        return redirect(url_for('all_cohorts') + '?error=' + e.message)
 
     # Determine if the request maps to an existing response.  If so return it.
     # Otherwise compute.
