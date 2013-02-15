@@ -5,11 +5,12 @@ __license__ = "GPL (version 2 or later)"
 
 from config import logging
 
+from numpy import median
 from collections import namedtuple
 import collections
 import user_metric as um
 import os
-from src.etl.aggregator import list_sum_by_group, median_agg, decorator_builder
+from src.etl.aggregator import list_sum_by_group, numpy_op, decorator_builder
 import src.utils.multiprocessing_wrapper as mpw
 from src.metrics import query_mod
 
@@ -279,8 +280,8 @@ def _process_help(args):
 # DEFINE METRIC AGGREGATORS
 # ==========================
 
-# Build "rate" decorator
-ba_median_agg = median_agg
+# Build "median" decorator
+ba_median_agg = numpy_op
 ba_median_agg = decorator_builder(BytesAdded.header())(ba_median_agg)
 
 setattr(ba_median_agg, um.METRIC_AGG_METHOD_FLAG, True)
@@ -290,7 +291,10 @@ setattr(ba_median_agg, um.METRIC_AGG_METHOD_HEAD, ['net_median',
                                                    'pos_median',
                                                    'neg_median',
                                                    'count_median'])
-setattr(ba_median_agg, um.METRIC_AGG_METHOD_KWARGS, {'valid_idx' : [1,2,3,4,5]})
+setattr(ba_median_agg, um.METRIC_AGG_METHOD_KWARGS, {
+                                                     'valid_idx': [1,2,3,4,5],
+                                                     'op': median
+                                                    })
 
 # Used for testing
 if __name__ == "__main__":
