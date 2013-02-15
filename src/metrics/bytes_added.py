@@ -9,7 +9,7 @@ from collections import namedtuple
 import collections
 import user_metric as um
 import os
-import src.etl.aggregator as agg
+from src.etl.aggregator import list_sum_by_group, median_agg, decorator_builder
 import src.utils.multiprocessing_wrapper as mpw
 from src.metrics import query_mod
 
@@ -114,8 +114,11 @@ class BytesAdded(um.UserMetric):
 
         # Start worker threads and aggregate results for bytes added
         args = [log_progress, log_frequency, self._project_]
-        self._results = agg.list_sum_by_group(
-            mpw.build_thread_pool(revs,_process_help,k,args),0)
+        self._results = list_sum_by_group(
+                                          mpw.build_thread_pool(revs,
+                                                                _process_help,
+                                                                k,
+                                                                args), 0)
 
         # Add any missing users - O(n)
         tallied_users = set([str(r[0]) for r in self._results])
@@ -271,6 +274,23 @@ def _process_help(args):
                 total_rows - missed_records,total_rows, os.getpid()))
 
     return results
+
+# ==========================
+# DEFINE METRIC AGGREGATORS
+# ==========================
+
+# Build "rate" decorator
+ba_median_agg = median_agg
+ba_median_agg = decorator_builder(BytesAdded.header())(ba_median_agg)
+
+setattr(ba_median_agg, um.METRIC_AGG_METHOD_FLAG, True)
+setattr(ba_median_agg, um.METRIC_AGG_METHOD_NAME, 'ba_median_agg')
+setattr(ba_median_agg, um.METRIC_AGG_METHOD_HEAD, ['net_median',
+                                                   'abs_median',
+                                                   'pos_median',
+                                                   'neg_median',
+                                                   'count_median'])
+setattr(ba_median_agg, um.METRIC_AGG_METHOD_KWARGS, {'valid_idx' : [1,2,3,4,5]})
 
 # Used for testing
 if __name__ == "__main__":

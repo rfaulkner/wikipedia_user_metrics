@@ -15,7 +15,7 @@ from dateutil.parser import parse as date_parse
 import user_metric as um
 import threshold as th
 from blocks import Blocks
-from bytes_added import BytesAdded
+from bytes_added import BytesAdded, ba_median_agg
 from survival import Survival, survival_editors_agg
 from revert_rate import RevertRate, revert_rate_avg
 from time_to_threshold import TimeToThreshold, ttt_avg_agg
@@ -58,6 +58,7 @@ aggregator_dict = {
     'average+revert_rate' : revert_rate_avg,
     'average+edit_rate' : edit_rate_agg,
     'average+time_to_threshold' : ttt_avg_agg,
+    'median+bytes_added' : ba_median_agg,
     }
 
 def get_metric_names(): return metric_dict.keys()
