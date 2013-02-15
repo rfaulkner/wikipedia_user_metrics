@@ -219,9 +219,9 @@ def weighted_rate(iter, **kwargs):
         return [count, total_weight, 0.0]
 
 
-def median_agg(iter, **kwargs):
+def numpy_op(iter, **kwargs):
     """
-        Computes the median values from an iterator exposing a dataset.
+        Computes specified numpy op from an iterator exposing a dataset.
 
             **iter** - assumed to be a UserMetric class with _results defined
             as a list of datapoints
@@ -229,7 +229,8 @@ def median_agg(iter, **kwargs):
 
     # Retrieve indices on data for which to compute medians
     valid_idx = kwargs['valid_idx'] if 'valid_idx' in kwargs else [1]
-    medians = list()
+    op = kwargs['op'] if 'op' in kwargs else median
+    values = list()
 
     # Convert data points to numpy array
     if hasattr(iter, '_results'):
@@ -246,8 +247,8 @@ def median_agg(iter, **kwargs):
 
     # Compute the median of each specified data index
     for idx in valid_idx:
-        medians.append(median(results[idx, :]))
-    return medians
+        values.append(op(results[idx, :]))
+    return values
 
 
 class AggregatorError(Exception):
