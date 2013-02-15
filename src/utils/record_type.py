@@ -1,4 +1,10 @@
-
+"""
+    Defines the recordtype method which returns a type definition object
+    that allows for the creation of mutable objects with specified
+    attributes.  These are essentially identical to collections.namedtuple
+    except that the attributes may be changed after the namedtuple objects are
+    created.
+"""
 __all__ = ['recordtype']
 __author__ = "http://code.activestate.com/recipes/576555/"
 
@@ -16,28 +22,29 @@ def recordtype(typename, field_names, verbose=False, **default_kwds):
         default: If provided, the default value for all fields without an
             explicit default in `field_defaults`.
 
-        >>> Point = recordtype('Point', 'x y', default=0)
-        >>> Point.__doc__           # docstring for the new class
-        'Point(x, y)'
-        >>> Point()                 # instantiate with defaults
-        Point(x=0, y=0)
-        >>> p = Point(11, y=22)     # instantiate with positional args or keywords
-        >>> p[0] + p.y              # accessible by name and index
-        33
-        >>> p.x = 100; p[1] =200    # modifiable by name and index
-        >>> p
-        Point(x=100, y=200)
-        >>> x, y = p               # unpack
-        >>> x, y
-        (100, 200)
-        >>> d = p.todict()         # convert to a dictionary
-        >>> d['x']
-        100
-        >>> Point(**d) == p        # convert from a dictionary
-        True
+            >>> Point = recordtype('Point', 'x y', default=0)
+            >>> Point.__doc__           # docstring for the new class
+            'Point(x, y)'
+            >>> Point()                 # instantiate with defaults
+            Point(x=0, y=0)
+            >>> p = Point(11, y=22)     # instantiate with positional args/keywords
+            >>> p[0] + p.y              # accessible by name and index
+            33
+            >>> p.x = 100; p[1] =200    # modifiable by name and index
+            >>> p
+            Point(x=100, y=200)
+            >>> x, y = p               # unpack
+            >>> x, y
+            (100, 200)
+            >>> d = p.todict()         # convert to a dictionary
+            >>> d['x']
+            100
+            >>> Point(**d) == p        # convert from a dictionary
+            True
     """
     # Parse and validate the field names.  Validation serves two purposes,
-    # generating informative error messages and preventing template injection attacks.
+    # generating informative error messages and preventing template
+    # injection attacks.
     if isinstance(field_names, basestring):
         # names separated by whitespace and/or commas
         field_names = field_names.replace(',', ' ').split()

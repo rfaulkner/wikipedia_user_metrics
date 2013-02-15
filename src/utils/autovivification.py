@@ -1,13 +1,18 @@
+"""
+    Dictionary type that allows for dynamic allocation of nested key values
+    without prior defintion.
+"""
 
 __author__ = "Ryan Faulkner"
 __date__ = "20/18/2012"
 __license__ = "GPL (version 2 or later)"
 
+
 class AutoVivification(dict):
     """
-        Implementation of perl's autovivification feature.  Dictionaries where keys are built dynamically.
+        Implementation of perl's autovivification feature.  Dictionaries
+        where keys are built dynamically::
 
-        e.g.
             >>> import sys
             >>> sys.path.append(<E3_analysis_home>)
             >>> import src.etl.autovivification as a
