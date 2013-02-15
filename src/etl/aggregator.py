@@ -50,7 +50,7 @@ __date__ = "12/12/2012"
 __license__ = "GPL (version 2 or later)"
 
 from itertools import izip
-from numpy import array
+from numpy import array, median, transpose
 
 
 def decorator_builder(header):
@@ -217,6 +217,37 @@ def weighted_rate(iter, **kwargs):
         return [count, total_weight, weighted_sum / count]
     else:
         return [count, total_weight, 0.0]
+
+
+def median_agg(iter, **kwargs):
+    """
+        Computes the median values from an iterator exposing a dataset.
+
+            **iter** - assumed to be a UserMetric class with _results defined
+            as a list of datapoints
+    """
+
+    # Retrieve indices on data for which to compute medians
+    valid_idx = kwargs['valid_idx'] if 'valid_idx' in kwargs else [1]
+    medians = list()
+
+    # Convert data points to numpy array
+    if hasattr(iter, '_results'):
+        results = array(iter._results)
+    else:
+        results = list()
+        for i in iter:
+            results.append(i)
+        results = array(iter._results)
+
+    # Transpose the array and convert it's elements to 'uint8'
+    results = transpose(results)
+    results = results.astype('uint8')
+
+    # Compute the median of each specified data index
+    for idx in valid_idx:
+        medians.append(median(results[idx, :]))
+    return medians
 
 
 class AggregatorError(Exception):
