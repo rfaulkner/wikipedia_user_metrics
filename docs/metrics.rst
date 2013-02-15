@@ -1,8 +1,21 @@
 
+Metrics Manager
+================
+
+Metrics Manager Module
+-----------------------
+
+.. automodule:: src.metrics.metrics_manager
+   :members:
+
 User Metrics
 ============
 
-Modules for generating and storing atomic metrics for E3 and WMF projects.
+This set of module definitions are based on Wikimedia Foundation user metrics_
+that are used to perform measurements primarily on new users in an effort to
+better understand the evolving Wikipedia communities.
+
+.. _metrics: http://meta.wikimedia.org/wiki/Research:Metrics
 
 UserMetric Module
 -----------------
