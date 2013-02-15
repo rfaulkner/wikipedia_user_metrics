@@ -44,16 +44,6 @@ DataLoader Class
 .. autoclass:: src.etl.data_loader.DataLoader
    :members:
 
-ExperimentsLoader Module
-------------------------
-
-.. automodule:: src.etl.experiments_loader
-
-ExperimentsLoader Class
-~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autoclass:: src.etl.experiments_loader.ExperimentsLoader
-   :members:
 
 TableLoader Module
 ------------------
@@ -76,15 +66,3 @@ WPAPI Class
 
 .. autoclass:: src.etl.wpapi.WPAPI
    :members:
-
-DataFilter Module
------------------
-
-.. automodule:: src.etl.data_filter
-
-DataFilter Class
-~~~~~~~~~~~~~~~~
-
-.. autoclass:: src.etl.data_filter.DataFilter
-   :members:
-
