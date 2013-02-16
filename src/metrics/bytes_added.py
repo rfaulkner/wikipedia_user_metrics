@@ -5,12 +5,12 @@ __license__ = "GPL (version 2 or later)"
 
 from config import logging
 
-from numpy import median
+from numpy import median, min, max
 from collections import namedtuple
 import collections
 import user_metric as um
 import os
-from src.etl.aggregator import list_sum_by_group, numpy_op, decorator_builder
+from src.etl.aggregator import list_sum_by_group, build_numpy_op_agg
 import src.utils.multiprocessing_wrapper as mpw
 from src.metrics import query_mod
 
@@ -280,21 +280,30 @@ def _process_help(args):
 # DEFINE METRIC AGGREGATORS
 # ==========================
 
-# Build "median" decorator
-ba_median_agg = numpy_op
-ba_median_agg = decorator_builder(BytesAdded.header())(ba_median_agg)
+metric_header = BytesAdded.header()
 
-setattr(ba_median_agg, um.METRIC_AGG_METHOD_FLAG, True)
-setattr(ba_median_agg, um.METRIC_AGG_METHOD_NAME, 'ba_median_agg')
-setattr(ba_median_agg, um.METRIC_AGG_METHOD_HEAD, ['net_median',
-                                                   'abs_median',
-                                                   'pos_median',
-                                                   'neg_median',
-                                                   'count_median'])
-setattr(ba_median_agg, um.METRIC_AGG_METHOD_KWARGS, {
-                                                     'valid_idx': [1,2,3,4,5],
-                                                     'op': median
-                                                    })
+
+# Build "median" decorator
+agg_header = ['net_median', 'abs_median', 'pos_median', 'neg_median',
+              'count_median']
+valid_idx = [1,2,3,4,5]
+ba_median_agg = build_numpy_op_agg(median, valid_idx, metric_header,
+                                   agg_header, 'ba_median_agg')
+
+
+# Build "min" decorator
+agg_header = ['net_min', 'abs_min', 'pos_min', 'neg_min',
+              'count_min']
+ba_min_agg = build_numpy_op_agg(min, valid_idx, metric_header,
+    agg_header, 'ba_min_agg')
+
+
+# Build "max" decorator
+agg_header = ['net_max', 'abs_max', 'pos_max', 'neg_max',
+              'count_max']
+ba_max_agg = build_numpy_op_agg(max, valid_idx, metric_header,
+    agg_header, 'ba_max_agg')
+
 
 # Used for testing
 if __name__ == "__main__":
