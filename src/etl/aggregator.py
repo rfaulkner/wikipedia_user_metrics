@@ -51,6 +51,10 @@ __license__ = "GPL (version 2 or later)"
 
 from itertools import izip
 from numpy import array, median, transpose
+from src.metrics.user_metric import METRIC_AGG_METHOD_FLAG, \
+    METRIC_AGG_METHOD_HEAD, \
+    METRIC_AGG_METHOD_KWARGS, \
+    METRIC_AGG_METHOD_NAME
 
 
 def decorator_builder(header):
@@ -249,6 +253,25 @@ def numpy_op(iter, **kwargs):
     for idx in valid_idx:
         values.append(op(results[idx, :]))
     return values
+
+
+def build_numpy_op_agg(op, valid_idx, metric_header, agg_header,
+                       method_handle):
+    """
+        Builder method for ``numpy_op`` aggregator.
+    """
+    agg_method = numpy_op
+    agg_method = decorator_builder(metric_header)(agg_method)
+
+    setattr(agg_method, METRIC_AGG_METHOD_FLAG, True)
+    setattr(agg_method, METRIC_AGG_METHOD_NAME, method_handle)
+    setattr(agg_method, METRIC_AGG_METHOD_HEAD, agg_header)
+    setattr(agg_method, METRIC_AGG_METHOD_KWARGS,
+            {
+            'valid_idx': valid_idx,
+            'op': op
+            })
+    return  agg_method
 
 
 class AggregatorError(Exception):
