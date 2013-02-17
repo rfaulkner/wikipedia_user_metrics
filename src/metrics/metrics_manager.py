@@ -41,7 +41,8 @@ from bytes_added import BytesAdded, ba_median_agg, ba_min_agg, ba_max_agg
 from survival import Survival, survival_editors_agg
 from revert_rate import RevertRate, revert_rate_avg
 from time_to_threshold import TimeToThreshold, ttt_avg_agg
-from edit_rate import EditRate, edit_rate_agg
+from edit_rate import EditRate, edit_rate_agg, er_max_agg, er_min_agg, \
+    er_median_agg
 from namespace_of_edits import NamespaceEdits, namespace_edits_sum
 from live_account import LiveAccount, live_accounts_agg
 
@@ -87,6 +88,9 @@ aggregator_dict = \
         'median+bytes_added': ba_median_agg,
         'min+bytes_added': ba_min_agg,
         'max+bytes_added': ba_max_agg,
+        'median+edit_rate': er_median_agg,
+        'min+edit_rate': er_min_agg,
+        'max+edit_rate': er_max_agg,
     }
 
 
