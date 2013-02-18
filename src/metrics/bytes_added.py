@@ -14,6 +14,7 @@ from src.etl.aggregator import list_sum_by_group, build_numpy_op_agg
 import src.utils.multiprocessing_wrapper as mpw
 from src.metrics import query_mod
 
+
 class BytesAdded(um.UserMetric):
     """
         Produces a float value that reflects the rate of edit behaviour:
@@ -50,28 +51,38 @@ class BytesAdded(um.UserMetric):
     """
 
     # Structure that defines parameters for BytesAdded class
-    _param_types = {
-        'init' : {},
-        'process' : {
-            'log_progress' : ['bool', 'Enable logging for processing.', False],
-            'log_frequency' : ['int', 'Revision frequency on which to log '
-                                      '(ie. log every n revisions)', 1000],
-            'num_threads' : ['int',   'Number of worker processes.', 1]
+    _param_types = \
+        {
+            'init': {},
+            'process':
+                    {
+                        'log_progress': ['bool',
+                                         'Enable logging for processing.',
+                                         False],
+                        'log_frequency': ['int',
+                                          'Revision frequency on which to '
+                                          'log (ie. log every n revisions)',
+                                          1000],
+                        'num_threads': ['int',
+                                        'Number of worker processes.',
+                                        1]
+                    }
         }
-    }
 
     # Define the metrics data model meta
-    _data_model_meta = {
-        'id_fields' : [0],
-        'date_fields' : [],
-        'float_fields' : [],
-        'integer_fields' : [1,2,3,4,5],
-        'boolean_fields' : [],
+    _data_model_meta = \
+        {
+            'id_fields': [0],
+            'date_fields': [],
+            'float_fields': [],
+            'integer_fields': [1, 2, 3, 4, 5],
+            'boolean_fields': [],
         }
 
-    _agg_indices = {
-        'list_sum_indices' : _data_model_meta['integer_fields'] +
-                             _data_model_meta['float_fields'],
+    _agg_indices = \
+        {
+            'list_sum_indices': _data_model_meta['integer_fields'] +
+            _data_model_meta['float_fields'],
         }
 
     @um.pre_metrics_init
@@ -79,14 +90,16 @@ class BytesAdded(um.UserMetric):
         um.UserMetric.__init__(self, **kwargs)
 
     @staticmethod
-    def header(): return ['user_id', 'bytes_added_net', 'bytes_added_absolute',
-                          'bytes_added_pos', 'bytes_added_neg', 'edit_count']
+    def header():
+
+        return ['user_id', 'bytes_added_net', 'bytes_added_absolute',
+                'bytes_added_pos', 'bytes_added_neg', 'edit_count']
 
     @um.UserMetric.pre_process_users
     def process(self, users, **kwargs):
         """ Setup metrics gathering using multiprocessing """
 
-        self.apply_default_kwargs(kwargs,'process')
+        self.apply_default_kwargs(kwargs, 'process')
 
         k = kwargs['num_threads']
         log_progress = bool(kwargs['log_progress'])
@@ -105,34 +118,37 @@ class BytesAdded(um.UserMetric):
             users = query_mod.rev_user_query(self._project_,
                                              self._start_ts_,
                                              self._end_ts_)
-            if log_progress: logging.info(
-                __name__ + '::Retrieved %s users.' % len(users))
+            if log_progress:
+                logging.info(__name__ +
+                             '::Retrieved %s users.' % len(users))
 
         # get revisions
         args = [log_progress, self._start_ts_,
                 self._end_ts_, self._project_, self._namespace_]
-        revs = mpw.build_thread_pool(users,_get_revisions,k,args)
+        revs = mpw.build_thread_pool(users, _get_revisions, k, args)
 
         # Start worker threads and aggregate results for bytes added
         args = [log_progress, log_frequency, self._project_]
-        self._results = list_sum_by_group(
-                                          mpw.build_thread_pool(revs,
-                                                                _process_help,
-                                                                k,
-                                                                args), 0)
+        self._results = \
+            list_sum_by_group(mpw.build_thread_pool(revs,
+                                                    _process_help,
+                                                    k,
+                                                    args), 0)
 
         # Add any missing users - O(n)
         tallied_users = set([str(r[0]) for r in self._results])
         for user in users:
             if not tallied_users.__contains__(str(user)):
                 # Add a row indicating no activity for that user
-                self._results.append([user,0,0,0,0,0])
+                self._results.append([user, 0, 0, 0, 0, 0])
         return self
 
+
 def _get_revisions(args):
+    """ Retrieve total set of revision records for users within timeframe """
 
     MethodArgsClass = collections.namedtuple('MethodArg',
-        'log start end project namespace')
+                                             'log start end project namespace')
     users = args[0]
     state = args[1]
     arg_obj = MethodArgsClass(state[0], state[1], state[2], state[3], state[4])
@@ -149,10 +165,13 @@ def _get_revisions(args):
                          'namespace': arg_obj.namespace,
                          'pid': os.getpid()
                      }
-        )
+                     )
 
-    query_args = namedtuple('QueryArgs', 'date_start date_end namespace')\
-        (arg_obj.start, arg_obj.end, arg_obj.namespace)
+    query_args = \
+        namedtuple('QueryArgs',
+                   'date_start date_end namespace')(arg_obj.start,
+                                                    arg_obj.end,
+                                                    arg_obj.namespace)
     try:
         revs = query_mod.rev_query(users, arg_obj.project, query_args)
     except query_mod.UMQueryCallError as e:
@@ -160,6 +179,7 @@ def _get_revisions(args):
                                                   e.message, os.getpid()))
         return []
     return revs
+
 
 def _process_help(args):
 
@@ -189,10 +209,10 @@ def _process_help(args):
     """
 
     BytesAddedArgsClass = collections.namedtuple('BytesAddedArgs',
-        'is_log freq project')
+                                                 'is_log freq project')
     revs = args[0]
     state = args[1]
-    thread_args = BytesAddedArgsClass(state[0],state[1],state[2])
+    thread_args = BytesAddedArgsClass(state[0], state[1], state[2])
     bytes_added = dict()
 
     # Get the difference for each revision length from the parent
@@ -202,10 +222,10 @@ def _process_help(args):
     total_rows = len(revs)
 
     if thread_args.is_log:
-        logging.info(
-            __name__ + '::Processing revision data '
-                       '(%s rows) by user... (PID = %s)' % (
-                total_rows, os.getpid()))
+        logging.info(__name__ +
+                     '::Processing revision data '
+                     '(%s rows) by user... (PID = %s)' %
+                     (total_rows, os.getpid()))
 
     for row in revs:
         try:
@@ -259,12 +279,13 @@ def _process_help(args):
             bytes_added[user][3] += bytes_added_bit
         bytes_added[user][4] += 1
 
-
         if thread_args.freq and row_count % thread_args.freq == 0 and \
-           thread_args.is_log:
+                thread_args.is_log:
             logging.info(
-                __name__ + '::Processed %s of %s records. (PID = %s)' % (
-                    row_count, total_rows, os.getpid()))
+                __name__ + '::Processed %s of %s records. '
+                           '(PID = %s)' % (row_count,
+                                           total_rows,
+                                           os.getpid()))
 
         row_count += 1
 
@@ -272,7 +293,7 @@ def _process_help(args):
     if thread_args.is_log:
         logging.info(
             __name__ + '::Processed %s out of %s records. (PID = %s)' % (
-                total_rows - missed_records,total_rows, os.getpid()))
+                total_rows - missed_records, total_rows, os.getpid()))
 
     return results
 
@@ -286,7 +307,7 @@ metric_header = BytesAdded.header()
 # Build "median" decorator
 agg_header = ['net_median', 'abs_median', 'pos_median', 'neg_median',
               'count_median']
-valid_idx = [1,2,3,4,5]
+valid_idx = [1, 2, 3, 4, 5]
 ba_median_agg = build_numpy_op_agg(median, valid_idx, metric_header,
                                    agg_header, 'ba_median_agg')
 
@@ -295,14 +316,14 @@ ba_median_agg = build_numpy_op_agg(median, valid_idx, metric_header,
 agg_header = ['net_min', 'abs_min', 'pos_min', 'neg_min',
               'count_min']
 ba_min_agg = build_numpy_op_agg(min, valid_idx, metric_header,
-    agg_header, 'ba_min_agg')
+                                agg_header, 'ba_min_agg')
 
 
 # Build "max" decorator
 agg_header = ['net_max', 'abs_max', 'pos_max', 'neg_max',
               'count_max']
 ba_max_agg = build_numpy_op_agg(max, valid_idx, metric_header,
-    agg_header, 'ba_max_agg')
+                                agg_header, 'ba_max_agg')
 
 
 # Used for testing
@@ -312,8 +333,8 @@ if __name__ == "__main__":
     # namespace=[0,1]).process(user_handle=['156171','13234584'],
     #    log_progress=True, num_threads=10): print r
 
-    for r in BytesAdded(date_start='20120101000000').process(['156171',
-                                                              '13234584'],
-        num_threads=10,
-        log_progress=True):
-            print r
+    for r in BytesAdded(date_start='20120101000000').\
+        process(['156171', '13234584'],
+                num_threads=10,
+                log_progress=True):
+        print r
