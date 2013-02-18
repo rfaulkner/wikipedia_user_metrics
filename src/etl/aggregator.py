@@ -49,12 +49,16 @@ __author__ = "ryan faulkner"
 __date__ = "12/12/2012"
 __license__ = "GPL (version 2 or later)"
 
+from collections import namedtuple
 from itertools import izip
-from numpy import array, median, transpose
+from numpy import array, transpose
 from src.metrics.user_metric import METRIC_AGG_METHOD_FLAG, \
     METRIC_AGG_METHOD_HEAD, \
     METRIC_AGG_METHOD_KWARGS, \
     METRIC_AGG_METHOD_NAME
+
+# Type used to carry aggregator meta data
+AggregatorMeta = namedtuple('AggregatorMeta', 'field_name index op')
 
 
 def decorator_builder(header):
@@ -228,8 +232,7 @@ def numpy_op(iter, **kwargs):
 
     # Retrieve indices on data for which to compute medians
     data_type = kwargs['data_type'] if 'data_type' in kwargs else 'float16'
-    valid_idx = kwargs['valid_idx'] if 'valid_idx' in kwargs else [1]
-    op = kwargs['op'] if 'op' in kwargs else median
+    agg_meta = kwargs['agg_meta']
     values = list()
 
     # Convert data points to numpy array
@@ -246,27 +249,31 @@ def numpy_op(iter, **kwargs):
     results = results.astype(data_type)
 
     # Compute the median of each specified data index
-    for idx in valid_idx:
-        values.append(op(results[idx, :]))
+    for agg_meta_obj in agg_meta:
+        if not hasattr(agg_meta_obj, 'op') or \
+                not hasattr(agg_meta_obj, 'index'):
+            raise AggregatorError(__name__ + ':: Use AggregatorMeta object to '
+                                             'pass aggregator meta data.')
+        values.append(agg_meta_obj.op(results[agg_meta_obj.index, :]))
     return values
 
 
-def build_numpy_op_agg(op, valid_idx, metric_header, agg_header,
-                       method_handle):
+def build_numpy_op_agg(agg_meta_list, metric_header, method_handle):
     """
         Builder method for ``numpy_op`` aggregator.
     """
     agg_method = numpy_op
     agg_method = decorator_builder(metric_header)(agg_method)
+    agg_meta_header = [o.field_name for o in agg_meta_list]
 
     setattr(agg_method, METRIC_AGG_METHOD_FLAG, True)
     setattr(agg_method, METRIC_AGG_METHOD_NAME, method_handle)
-    setattr(agg_method, METRIC_AGG_METHOD_HEAD, agg_header)
+    setattr(agg_method, METRIC_AGG_METHOD_HEAD, agg_meta_header)
     setattr(agg_method, METRIC_AGG_METHOD_KWARGS,
             {
-            'valid_idx': valid_idx,
-            'op': op
-            })
+                'agg_meta': agg_meta_list
+            }
+            )
     return agg_method
 
 
