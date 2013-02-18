@@ -79,11 +79,6 @@ def decorator_builder(header):
     return eval_data_model
 
 
-def identity(x):
-    """ The identity aggregator - returns whatever was put in """
-    return x
-
-
 def list_sum_indices(l, indices):
     """
         Sums the elements of list indicated by numeric list `indices`.  The
@@ -272,7 +267,7 @@ def build_numpy_op_agg(op, valid_idx, metric_header, agg_header,
             'valid_idx': valid_idx,
             'op': op
             })
-    return  agg_method
+    return agg_method
 
 
 class AggregatorError(Exception):
