@@ -10,7 +10,8 @@ from collections import namedtuple
 import collections
 import user_metric as um
 import os
-from src.etl.aggregator import list_sum_by_group, build_numpy_op_agg
+from src.etl.aggregator import list_sum_by_group, build_numpy_op_agg, \
+    AggregatorMeta
 import src.utils.multiprocessing_wrapper as mpw
 from src.metrics import query_mod
 
@@ -301,29 +302,39 @@ def _process_help(args):
 # DEFINE METRIC AGGREGATORS
 # ==========================
 
+def _build_agg_meta(op, field_prefix_names):
+    """
+        Builder helper method for building module aggregators via
+        ``build_numpy_op_agg``.
+    """
+    return [AggregatorMeta(name + op.__name__, index, op)
+     for name, index in field_prefix_names.iteritems()]
+
+
 metric_header = BytesAdded.header()
+
+field_prefixes = {
+    'net_': 1,
+    'abs_': 2,
+    'pos_': 3,
+    'neg_': 4,
+    'count_': 5,
+}
 
 
 # Build "median" decorator
-agg_header = ['net_median', 'abs_median', 'pos_median', 'neg_median',
-              'count_median']
-valid_idx = [1, 2, 3, 4, 5]
-ba_median_agg = build_numpy_op_agg(median, valid_idx, metric_header,
-                                   agg_header, 'ba_median_agg')
+ba_median_agg = build_numpy_op_agg(_build_agg_meta(median, field_prefixes),
+    metric_header, 'ba_median_agg')
 
 
 # Build "min" decorator
-agg_header = ['net_min', 'abs_min', 'pos_min', 'neg_min',
-              'count_min']
-ba_min_agg = build_numpy_op_agg(min, valid_idx, metric_header,
-                                agg_header, 'ba_min_agg')
+ba_min_agg = build_numpy_op_agg(_build_agg_meta(min, field_prefixes),
+    metric_header, 'ba_min_agg')
 
 
 # Build "max" decorator
-agg_header = ['net_max', 'abs_max', 'pos_max', 'neg_max',
-              'count_max']
-ba_max_agg = build_numpy_op_agg(max, valid_idx, metric_header,
-                                agg_header, 'ba_max_agg')
+ba_max_agg = build_numpy_op_agg(_build_agg_meta(max, field_prefixes),
+    metric_header, 'ba_max_agg')
 
 
 # Used for testing
