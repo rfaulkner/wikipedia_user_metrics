@@ -232,6 +232,7 @@ def numpy_op(iter, **kwargs):
     """
 
     # Retrieve indices on data for which to compute medians
+    data_type = kwargs['data_type'] if 'data_type' in kwargs else 'float16'
     valid_idx = kwargs['valid_idx'] if 'valid_idx' in kwargs else [1]
     op = kwargs['op'] if 'op' in kwargs else median
     values = list()
@@ -247,7 +248,7 @@ def numpy_op(iter, **kwargs):
 
     # Transpose the array and convert it's elements to 'uint8'
     results = transpose(results)
-    results = results.astype('uint8')
+    results = results.astype(data_type)
 
     # Compute the median of each specified data index
     for idx in valid_idx:
