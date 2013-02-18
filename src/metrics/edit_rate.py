@@ -10,6 +10,7 @@ from src.etl.aggregator import weighted_rate, decorator_builder, \
     build_numpy_op_agg
 from numpy import median, min, max
 
+
 class EditRate(um.UserMetric):
     """
         Produces a float value that reflects the rate of edit behaviour
@@ -61,13 +62,13 @@ class EditRate(um.UserMetric):
         'id_fields': [0],
         'date_fields': [3],
         'float_fields': [2],
-        'integer_fields': [1,4],
+        'integer_fields': [1, 4],
         'boolean_fields': [],
     }
 
     _agg_indices = {
         'list_sum_indices': _data_model_meta['integer_fields'] +
-                            _data_model_meta['float_fields'],
+        _data_model_meta['float_fields'],
     }
 
     @um.pre_metrics_init
@@ -150,24 +151,27 @@ setattr(edit_rate_agg, um.METRIC_AGG_METHOD_FLAG, True)
 setattr(edit_rate_agg, um.METRIC_AGG_METHOD_NAME, 'edit_rate_agg')
 setattr(edit_rate_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
                                                    'total_weight', 'rate'])
-setattr(edit_rate_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx': 2})
+setattr(edit_rate_agg, um.METRIC_AGG_METHOD_KWARGS, {
+    'val_idx': 2,
+    'data_type': 'float16'
+})
 
 metric_header = EditRate.header()
 
 # Build "median" decorator
 agg_header = ['median_count', 'median_rate']
-valid_idx = [1,2]
+valid_idx = [1, 2]
 er_median_agg = build_numpy_op_agg(median, valid_idx, metric_header,
-    agg_header, 'er_median_agg')
+                                   agg_header, 'er_median_agg')
 
 
 # Build "min" decorator
 agg_header = ['min_count', 'min_rate']
 er_min_agg = build_numpy_op_agg(min, valid_idx, metric_header,
-    agg_header, 'er_min_agg')
+                                agg_header, 'er_min_agg')
 
 
 # Build "max" decorator
 agg_header = ['max_count', 'max_rate']
 er_max_agg = build_numpy_op_agg(max, valid_idx, metric_header,
-    agg_header, 'er_max_agg')
+                                agg_header, 'er_max_agg')
