@@ -54,11 +54,12 @@ def format_namespace(namespace):
 
     if hasattr(namespace, '__iter__'):
         if len(namespace) == 1:
-            ns_cond = 'page_namespace = ' + str(namespace.pop())
+            ns_cond = 'page_namespace = ' + escape_var(str(namespace.pop()))
         else:
             ns_cond = 'page_namespace in (' + \
                       ",".join(DataLoader().
-                                cast_elems_to_string(list(namespace))) + ')'
+                                cast_elems_to_string(
+                          escape_var(list(namespace)))) + ')'
     return ns_cond
 
 def query_method_deco(f):
