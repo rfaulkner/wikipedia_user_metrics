@@ -256,8 +256,6 @@ def metric(metric=''):
 @app.route('/user/<string:user>/<string:metric>')
 def user_request(user, metric):
     """ View for requesting metrics for a single user """
-
-    user = str(escape(user))
     url = request.url.split(request.url_root)[1]
 
     # If it is a user name convert to ID
@@ -269,7 +267,8 @@ def user_request(user, metric):
         logging.debug(__name__ + '::Getting user id from name.')
         conn = dl.Connector(instance='slave')
         conn._cur_.execute('SELECT user_id FROM {0}.user WHERE ' \
-                           'user_name = "{1}"'.format(project, user))
+                           'user_name = "{1}"'.format(project,
+                                                      str(escape(user))))
         try:
             user_id = str(conn._cur_.fetchone()[0])
             url = sub(user,user_id, url)
