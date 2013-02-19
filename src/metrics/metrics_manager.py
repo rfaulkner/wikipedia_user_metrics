@@ -40,7 +40,7 @@ from blocks import Blocks, block_rate_agg
 from bytes_added import BytesAdded, ba_median_agg, ba_min_agg, ba_max_agg
 from survival import Survival, survival_editors_agg
 from revert_rate import RevertRate, revert_rate_avg
-from time_to_threshold import TimeToThreshold, ttt_avg_agg
+from time_to_threshold import TimeToThreshold, ttt_avg_agg, ttt_stats_agg
 from edit_rate import EditRate, edit_rate_agg, er_stats_agg
 from namespace_of_edits import NamespaceEdits, namespace_edits_sum
 from live_account import LiveAccount, live_accounts_agg
@@ -89,6 +89,7 @@ aggregator_dict = \
         'max+bytes_added': ba_max_agg,
         'dist+edit_rate': er_stats_agg,
         'average+blocks': block_rate_agg,
+        'dist+time_to_threshold': ttt_stats_agg,
     }
 
 

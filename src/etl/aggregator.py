@@ -277,6 +277,16 @@ def build_numpy_op_agg(agg_meta_list, metric_header, method_handle):
     return agg_method
 
 
+def build_agg_meta(op_list, field_prefix_names):
+    """
+        Builder helper method for building module aggregators via
+        ``build_numpy_op_agg``.
+    """
+    return [AggregatorMeta(name + op.__name__, index, op)
+            for name, index in field_prefix_names.iteritems()
+            for op in op_list]
+
+
 class AggregatorError(Exception):
     """ Basic exception class for aggregators """
     def __init__(self, message="Aggregation error."):

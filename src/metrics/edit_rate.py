@@ -7,7 +7,7 @@ from dateutil.parser import parse as date_parse
 import user_metric as um
 import edit_count as ec
 from src.etl.aggregator import weighted_rate, decorator_builder, \
-    build_numpy_op_agg, AggregatorMeta
+    build_numpy_op_agg, build_agg_meta
 from numpy import median, min, max
 
 
@@ -156,25 +156,16 @@ setattr(edit_rate_agg, um.METRIC_AGG_METHOD_KWARGS, {
     'data_type': 'float16'
 })
 
-
-def _build_agg_meta(op_list, field_prefix_names):
-    """
-        Builder helper method for building module aggregators via
-        ``build_numpy_op_agg``.
-    """
-    return [AggregatorMeta(name + op.__name__, index, op)
-            for name, index in field_prefix_names.iteritems()
-            for op in op_list]
-
 metric_header = EditRate.header()
 
-field_prefixes = {
-    'count_': 1,
-    'rate_': 2,
+field_prefixes = \
+    {
+        'count_': 1,
+        'rate_': 2,
     }
 
-# Build "median" decorator
+# Build "dist" decorator
 op_list = [median, min, max]
-er_stats_agg = build_numpy_op_agg(_build_agg_meta(op_list, field_prefixes),
-                                   metric_header,
-                                   'er_stats_agg')
+er_stats_agg = build_numpy_op_agg(build_agg_meta(op_list, field_prefixes),
+                                  metric_header,
+                                  'er_stats_agg')
