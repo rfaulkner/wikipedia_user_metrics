@@ -115,14 +115,15 @@ def rev_count_query(uid, is_survival, namespace, project,
     # Format condition on timestamps
     if restrict:
         timestamp_cond += ' and rev_timestamp > "{0}" and '\
-                          'rev_timestamp <= "{1}"'.format(start_time,
-                                                        end_time)
+                          'rev_timestamp <= "{1}"'.format(
+            escape_var(start_time), escape_var(end_time))
 
     query = query_store[rev_count_query.__name__] + timestamp_cond
     query = query % {'project' : project,
-                'ts' : threshold_ts,
+                'ts' : escape_var(threshold_ts),
                 'ns' : ns_cond,
-                'uid' : uid}
+                'uid' : long(uid)
+    }
     query =  " ".join(query.strip().splitlines())
     conn._cur_.execute(query)
     try:
@@ -190,8 +191,8 @@ def rev_len_query(rev_id, project):
     """ Get parent revision length - returns long """
     conn = Connector(instance=DB_MAP[project])
     query = query_store[rev_len_query.__name__] % {
-        'project' : project,
-        'parent_rev_id' : rev_id,
+        'project' : escape_var(project),
+        'parent_rev_id' : int(rev_id),
     }
     query = " ".join(query.strip().splitlines())
     conn._cur_.execute(query)
@@ -211,8 +212,8 @@ def rev_user_query(project, start, end):
     conn = Connector(instance=DB_MAP[project])
     query = query_store[rev_user_query.__name__] % \
         {
-            'start': start,
-            'end': end,
+            'start': escape_var(start),
+            'end': escape_var(end),
         }
     query = " ".join(query.strip().splitlines())
     conn._cur_.execute(query)
@@ -221,7 +222,7 @@ def rev_user_query(project, start, end):
 rev_user_query.__query_name__ = 'rev_user_query'
 
 def page_rev_hist_query(rev_id, page_id, n, project, namespace,
-                                look_ahead=False):
+                        look_ahead=False):
     """ Compute revision history pegged to a given rev """
     conn = Connector(instance=DB_MAP[project])
 
@@ -231,10 +232,10 @@ def page_rev_hist_query(rev_id, page_id, n, project, namespace,
 
     conn._cur_.execute(query_store[page_rev_hist_query.__name__] %
                        {
-                        'rev_id':  rev_id,
-                        'page_id': page_id,
-                        'n':       n,
-                        'project': project,
+                        'rev_id':  long(rev_id),
+                        'page_id': long(page_id),
+                        'n':       int(n),
+                        'project': escape_var(project),
                         'namespace': ns_cond,
                         'comparator': comparator,
     })
@@ -268,7 +269,8 @@ def blocks_user_map_query(users):
     """ Obtain map to generate uname to uid"""
     # Get usernames for user ids to detect in block events
     conn = Connector(instance='slave')
-    user_str = DataLoader().format_comma_separated_list(users)
+    user_str = DataLoader().format_comma_separated_list(
+        escape_var(users))
 
     query = query_store[blocks_user_map_query.__name__] % \
         { 'users': user_str }
