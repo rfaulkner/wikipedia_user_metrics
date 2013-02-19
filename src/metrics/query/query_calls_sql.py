@@ -66,9 +66,6 @@ def query_method_deco(f):
     """ Decorator that handles setup and tear down of user
         query dependent on user cohort & project """
     def wrapper(users, project, args):
-        # Escape user_handle for SQL injection
-        users = escape_var(users)
-
         # ensure the handles are iterable
         if not hasattr(users, '__iter__'): users = [users]
 
@@ -79,7 +76,8 @@ def query_method_deco(f):
                                         'method': f.__name__,
                                         'project': project
             })
-        query = f(users, project, args)
+        # Call query escaping user and project variables for SQL injection
+        query = f(escape_var(users), escape_var(project), args)
 
         try:
             conn = Connector(instance=DB_MAP[project])
@@ -170,8 +168,8 @@ def rev_query(users, project, args):
     ts_condition  = 'rev_timestamp >= "%(date_start)s" AND '\
                     'rev_timestamp < "%(date_end)s"' %\
                     {
-                        'date_start': args.date_start,
-                        'date_end': args.date_end
+                        'date_start': escape_var(args.date_start),
+                        'date_end': escape_var(args.date_end)
                     }
     user_set = DataLoader().format_comma_separated_list(users,
         include_quotes=False)
@@ -252,8 +250,8 @@ def revert_rate_user_revs_query(user, project, args):
     {
         'user' : user[0],
         'project' : project,
-        'start_ts' : args.date_start,
-        'end_ts' : args.date_end
+        'start_ts' : escape_var(args.date_start),
+        'end_ts' : escape_var(args.date_end),
     }
 revert_rate_user_revs_query.__query_name__ = 'revert_rate_user_revs_query'
 
@@ -291,7 +289,7 @@ def blocks_user_query(users, project, args):
     query = query_store[blocks_user_query.__query_name__] % \
                        {
                            'user_str' : user_str,
-                           'timestamp': args.date_start,
+                           'timestamp': escape_var(args.date_start),
                            'project' : project
                        }
     query = " ".join(query.strip().splitlines())
@@ -303,7 +301,8 @@ def edit_count_user_query(users, project, args):
     """  Obtain rev counts by user """
     user_str = DataLoader().format_comma_separated_list(users)
     ts_condition  = 'and rev_timestamp >= "%s" and rev_timestamp < "%s"' % \
-                        (args.date_start, args.date_end)
+                        (escape_var(args.date_start),
+                         escape_var(args.date_end))
     query  = query_store[edit_count_user_query.__query_name__] % \
                     {
                         'users' : user_str,
@@ -329,7 +328,8 @@ def namespace_edits_rev_query(users, project, args):
     user_str = "rev_user in (" + to_csv_str(to_string(users)) + ")"
 
     # Format timestamp condition
-    ts_cond = "rev_timestamp >= %s and rev_timestamp < %s" % (start, end)
+    ts_cond = "rev_timestamp >= %s and rev_timestamp < %s" % \
+    (escape_var(start), escape_var(end))
 
     query = query_store[namespace_edits_rev_query.__query_name__] % \
         {
