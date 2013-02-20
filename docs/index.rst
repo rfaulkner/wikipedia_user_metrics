@@ -15,6 +15,8 @@ Contents:
    Installing the e3_analysis package <install>
    ETL Modules <etl>
    Metrics Modules <metrics>
+   API Modules <api>
+   Utilities Modules <util>
    Experiments Log <experiments_log>
 
 Indices and tables

@@ -8,11 +8,14 @@ from config import logging
 
 from dateutil.parser import parse as date_parse
 import user_metric as um
-from src.etl.aggregator import weighted_rate, decorator_builder
+from src.etl.aggregator import weighted_rate, decorator_builder, \
+    build_numpy_op_agg, build_agg_meta
 from src.metrics import query_mod
+from numpy import median, min, max
 
 LAST_EDIT = -1
 REGISTRATION = 0
+
 
 class TimeToThreshold(um.UserMetric):
     """
@@ -48,26 +51,28 @@ class TimeToThreshold(um.UserMetric):
 
     # Structure that defines parameters for TimeToThreshold class
     _param_types = {
-        'init' : {
-            'threshold_type_class' : ['str', 'Type of threshold to use.',
-                                      'edit_count_threshold'],
-            },
-        'process' : {},
+        'init':
+        {
+            'threshold_type_class': ['str',
+                                     'Type of threshold to use.',
+                                     'edit_count_threshold'],
+        },
+        'process': {},
     }
 
     # Define the metrics data model meta
     _data_model_meta = {
-        'id_fields' : [0],
-        'date_fields' : [],
-        'float_fields' : [],
-        'integer_fields' : [1],
-        'boolean_fields' : [],
-        }
+        'id_fields': [0],
+        'date_fields': [],
+        'float_fields': [],
+        'integer_fields': [1],
+        'boolean_fields': [],
+    }
 
     _agg_indices = {
-        'list_sum_indices' : _data_model_meta['integer_fields'] +
-                             _data_model_meta['float_fields'],
-        }
+        'list_sum_indices': _data_model_meta['integer_fields'] +
+        _data_model_meta['float_fields'],
+    }
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
@@ -75,25 +80,26 @@ class TimeToThreshold(um.UserMetric):
         um.UserMetric.__init__(self, **kwargs)
 
         # Add the parameter definitions from the threshold type
-        self.apply_default_kwargs(kwargs,'init')
+        self.apply_default_kwargs(kwargs, 'init')
 
         try:
             self._threshold_obj_ = self.__threshold_types[
-                                   kwargs['threshold_type_class']](**kwargs)
+                kwargs['threshold_type_class']](**kwargs)
         except NameError:
             logging.error(__name__ + '::Invalid threshold class. '
                                      'Using default (EditCountThreshold).')
             self._threshold_obj_ = self.EditCountThreshold(**kwargs)
 
     @staticmethod
-    def header(): return ['user_id', 'minutes_diff']
+    def header():
+        return ['user_id', 'minutes_diff']
 
     @um.UserMetric.pre_process_users
     def process(self, user_handle, **kwargs):
         """ Wrapper for specific threshold objects """
-        self.apply_default_kwargs(kwargs,'process')
-        self._results =  self._threshold_obj_.process(user_handle, self,
-            **kwargs)
+        self.apply_default_kwargs(kwargs, 'process')
+        self._results = self._threshold_obj_.process(user_handle, self,
+                                                     **kwargs)
         return self
 
     class EditCountThreshold():
@@ -106,13 +112,13 @@ class TimeToThreshold(um.UserMetric):
 
         # Structure that defines parameters for TimeToThreshold class
         _param_types = {
-            'init' : {
-                'first_edit' : ['int',
-                                'Event that initiates measurement period.',
-                                REGISTRATION],
-                'threshold_edit' : ['int', 'Threshold event.',1],
-                },
-            'process' : {}
+            'init': {
+                'first_edit': ['int',
+                               'Event that initiates measurement period.',
+                               REGISTRATION],
+                'threshold_edit': ['int', 'Threshold event.', 1],
+            },
+            'process': {}
         }
 
         def __init__(self, **kwargs):
@@ -132,8 +138,8 @@ class TimeToThreshold(um.UserMetric):
                     in kwargs else self._param_types['init']['first_edit'][2]
 
                 self._threshold_edit_ = int(kwargs['threshold_edit']) if \
-                    'threshold_edit' in kwargs else \
-                        self._param_types['init']['threshold_edit'][2]
+                    'threshold_edit' in kwargs else self._param_types[
+                        'init']['threshold_edit'][2]
 
             except ValueError:
                 raise um.UserMetric.UserMetricError(
@@ -160,13 +166,11 @@ class TimeToThreshold(um.UserMetric):
             if not hasattr(user_handle, '__iter__'):
                 user_handle = [user_handle]
 
-
             # For each user gather their revisions
             for user in user_handle:
-                revs = query_mod.time_to_threshold_revs_query\
-                    (user,
-                     threshold_obj._project_,
-                     None)
+                revs = query_mod.\
+                    time_to_threshold_revs_query(user, threshold_obj._project_,
+                                                 None)
                 revs = [rev[0] for rev in revs]
                 minutes_to_threshold.append(
                     [user, self._get_minute_diff_result(revs)])
@@ -203,7 +207,7 @@ class TimeToThreshold(um.UserMetric):
             time_diff = dat_obj_end - dat_obj_start
             return int(time_diff.seconds / 60) + abs(time_diff.days) * 24
 
-    __threshold_types = { 'edit_count_threshold' : EditCountThreshold }
+    __threshold_types = {'edit_count_threshold': EditCountThreshold}
 
 # ==========================
 # DEFINE METRIC AGGREGATORS
@@ -216,12 +220,26 @@ ttt_avg_agg = decorator_builder(TimeToThreshold.header())(ttt_avg_agg)
 setattr(ttt_avg_agg, um.METRIC_AGG_METHOD_FLAG, True)
 setattr(ttt_avg_agg, um.METRIC_AGG_METHOD_NAME, 'ttt_avg_agg')
 setattr(ttt_avg_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
-                                                   'total_weight', 'average'])
-setattr(ttt_avg_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 1})
+                                                 'total_weight',
+                                                 'average'])
+setattr(ttt_avg_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx': 1})
+
+
+metric_header = TimeToThreshold.header()
+
+field_prefixes = {
+    'time_diff_': 1,
+}
+
+# Build "dist" decorator
+op_list = [median, min, max]
+ttt_stats_agg = build_numpy_op_agg(build_agg_meta(op_list, field_prefixes),
+                                   metric_header,
+                                   'ttt_stats_agg')
 
 
 if __name__ == "__main__":
     for i in TimeToThreshold(threshold_type_class='edit_count_threshold',
-        first_edit=0, threshold_edit=1).process([13234584]): print i
-
-
+                             first_edit=0,
+                             threshold_edit=1).process([13234584]):
+        print i

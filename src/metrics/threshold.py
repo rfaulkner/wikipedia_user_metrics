@@ -13,6 +13,7 @@ import user_metric as um
 from src.etl.aggregator import decorator_builder, boolean_rate
 from src.metrics import query_mod
 
+
 class Threshold(um.UserMetric):
     """
         Boolean measure: Did an editor reach some threshold of activity (e.g.
@@ -38,37 +39,37 @@ class Threshold(um.UserMetric):
 
     # Structure that defines parameters for Threshold class
     _param_types = {
-        'init' : {
-            't' : ['int', 'The time in minutes until the threshold.',24],
-            'n' : ['int', 'Revision threshold that is '
-                          'to be exceeded in time `t`.',1],
-            },
-        'process' : {
-            'log_progress' : ['bool', 'Enable logging for processing.',False],
-            'num_threads' : ['int', 'Number of worker processes over users.',
-                             1],
-            'survival' : ['bool', 'Indicates whether this is '
-                                  'to be processed as the survival metric.',
-                          False],
-            'restrict' : ['bool', 'Restrict threshold calculations to those '
-                                  'users registered between `date_start` and '
-                                  '`date_end`',
-                          False],
+        'init': {
+            't': ['int', 'The time in minutes until the threshold.', 24],
+            'n': ['int', 'Revision threshold that is '
+                         'to be exceeded in time `t`.', 1],
+        },
+        'process': {
+            'log_progress': ['bool', 'Enable logging for processing.', False],
+            'num_threads': ['int', 'Number of worker processes over users.',
+                            1],
+            'survival': ['bool', 'Indicates whether this is '
+                                 'to be processed as the survival metric.',
+                         False],
+            'restrict': ['bool', 'Restrict threshold calculations to those '
+                                 'users registered between `date_start` and '
+                                 '`date_end`',
+                         False],
         }
     }
 
     # Define the metrics data model meta
     _data_model_meta = {
-        'id_fields' : [0],
-        'date_fields' : [],
-        'float_fields' : [],
-        'integer_fields' : [],
-        'boolean_fields' : [1],
-        }
+        'id_fields': [0],
+        'date_fields': [],
+        'float_fields': [],
+        'integer_fields': [],
+        'boolean_fields': [1],
+    }
 
     _agg_indices = {
-        'list_sum_indices' : _data_model_meta['boolean_fields'],
-        }
+        'list_sum_indices': _data_model_meta['boolean_fields'],
+    }
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
@@ -99,7 +100,7 @@ class Threshold(um.UserMetric):
                 determine survival rather than a threshold metric
         """
 
-        self.apply_default_kwargs(kwargs,'process')
+        self.apply_default_kwargs(kwargs, 'process')
 
         k = kwargs['num_threads']
         log_progress = bool(kwargs['log_progress'])
@@ -114,35 +115,42 @@ class Threshold(um.UserMetric):
         args = [self._project_, self._namespace_, self._n_,
                 self._t_, log_progress, survival, restrict,
                 self._start_ts_, self._end_ts_]
-        self._results = mpw.build_thread_pool(users,_process_help,k,args)
+        self._results = mpw.build_thread_pool(users, _process_help, k, args)
 
         return self
+
 
 def _process_help(args):
     """ Used by Threshold::process() for forking.
         Should not be called externally. """
 
     ThresholdArgsClass = collections.namedtuple('ThresholdArgs',
-        'project namespace n t log_progress survival restrict ts_start ts_end')
+                                                'project namespace n t '
+                                                'log_progress survival '
+                                                'restrict ts_start ts_end')
     user_data = args[0]
     state = args[1]
-    thread_args = ThresholdArgsClass(state[0],state[1],state[2],
-        state[3],state[4],state[5],state[6],state[7],state[8])
+    thread_args = ThresholdArgsClass(state[0], state[1], state[2], state[3],
+                                     state[4], state[5], state[6], state[7],
+                                     state[8])
 
     if thread_args.log_progress:
-        logging.info(__name__ + ' :: Processing revision data ' + \
-        '(%s users) by user... (PID = %s)' % (len(user_data), os.getpid()))
+        logging.info(__name__ + ' :: Processing revision data ' +
+                                '(%s users) by user... (PID = %s)' % (
+                                    len(user_data), os.getpid()))
         logging.info(__name__ + ' :: ' + str(thread_args))
 
     # only proceed if there is user data
-    if not len(user_data): return []
+    if not len(user_data):
+        return []
 
     results = list()
     dropped_users = 0
     for r in user_data:
         try:
             threshold_ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) +
-                                              timedelta(hours=thread_args.t))
+                                                        timedelta(hours=
+                                                        thread_args.t))
             uid = long(r[0])
             count = query_mod.rev_count_query(uid,
                                               thread_args.survival,
@@ -157,13 +165,14 @@ def _process_help(args):
             continue
 
         if count < thread_args.n:
-            results.append((r[0],0))
+            results.append((r[0], 0))
         else:
-            results.append((r[0],1))
+            results.append((r[0], 1))
 
-    if thread_args.log_progress: logging.info(
-        __name__ + '::Processed PID = %s.  Dropped users = %s.' % (
-            os.getpid(), str(dropped_users)))
+    if thread_args.log_progress:
+        logging.info(__name__ + '::Processed PID = %s.  '
+                                'Dropped users = %s.' % (
+                                    os.getpid(), str(dropped_users)))
 
     return results
 
@@ -175,12 +184,15 @@ threshold_editors_agg = decorator_builder(Threshold.header())(
 
 setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_FLAG, True)
 setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_NAME,
-    'threshold_editors_agg')
+        'threshold_editors_agg')
 setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
-                                      'threshold_reached','rate'])
-setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 1})
+                                                           'threshold_reached',
+                                                           'rate'])
+setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx': 1})
 
 # testing
 if __name__ == "__main__":
-    for r in Threshold(namespace=[0,4]).process([13234584, 156171],
-        num_threads=0, log_progress=True).__iter__(): print r
+    for r in Threshold(namespace=[0, 4]).process([13234584, 156171],
+                                                 num_threads=0,
+                                                 log_progress=True).__iter__():
+        print r

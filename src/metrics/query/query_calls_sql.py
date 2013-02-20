@@ -54,20 +54,18 @@ def format_namespace(namespace):
 
     if hasattr(namespace, '__iter__'):
         if len(namespace) == 1:
-            ns_cond = 'page_namespace = ' + str(namespace.pop())
+            ns_cond = 'page_namespace = ' + escape_var(str(namespace.pop()))
         else:
             ns_cond = 'page_namespace in (' + \
                       ",".join(DataLoader().
-                                cast_elems_to_string(list(namespace))) + ')'
+                                cast_elems_to_string(
+                          escape_var(list(namespace)))) + ')'
     return ns_cond
 
 def query_method_deco(f):
     """ Decorator that handles setup and tear down of user
         query dependent on user cohort & project """
     def wrapper(users, project, args):
-        # Escape user_handle for SQL injection
-        users = escape_var(users)
-
         # ensure the handles are iterable
         if not hasattr(users, '__iter__'): users = [users]
 
@@ -78,7 +76,8 @@ def query_method_deco(f):
                                         'method': f.__name__,
                                         'project': project
             })
-        query = f(users, project, args)
+        # Call query escaping user and project variables for SQL injection
+        query = f(escape_var(users), escape_var(project), args)
 
         try:
             conn = Connector(instance=DB_MAP[project])
@@ -116,14 +115,15 @@ def rev_count_query(uid, is_survival, namespace, project,
     # Format condition on timestamps
     if restrict:
         timestamp_cond += ' and rev_timestamp > "{0}" and '\
-                          'rev_timestamp <= "{1}"'.format(start_time,
-                                                        end_time)
+                          'rev_timestamp <= "{1}"'.format(
+            escape_var(start_time), escape_var(end_time))
 
     query = query_store[rev_count_query.__name__] + timestamp_cond
     query = query % {'project' : project,
-                'ts' : threshold_ts,
+                'ts' : escape_var(threshold_ts),
                 'ns' : ns_cond,
-                'uid' : uid}
+                'uid' : long(uid)
+    }
     query =  " ".join(query.strip().splitlines())
     conn._cur_.execute(query)
     try:
@@ -169,8 +169,8 @@ def rev_query(users, project, args):
     ts_condition  = 'rev_timestamp >= "%(date_start)s" AND '\
                     'rev_timestamp < "%(date_end)s"' %\
                     {
-                        'date_start': args.date_start,
-                        'date_end': args.date_end
+                        'date_start': escape_var(args.date_start),
+                        'date_end': escape_var(args.date_end)
                     }
     user_set = DataLoader().format_comma_separated_list(users,
         include_quotes=False)
@@ -191,8 +191,8 @@ def rev_len_query(rev_id, project):
     """ Get parent revision length - returns long """
     conn = Connector(instance=DB_MAP[project])
     query = query_store[rev_len_query.__name__] % {
-        'project' : project,
-        'parent_rev_id' : rev_id,
+        'project' : escape_var(project),
+        'parent_rev_id' : int(rev_id),
     }
     query = " ".join(query.strip().splitlines())
     conn._cur_.execute(query)
@@ -212,8 +212,8 @@ def rev_user_query(project, start, end):
     conn = Connector(instance=DB_MAP[project])
     query = query_store[rev_user_query.__name__] % \
         {
-            'start': start,
-            'end': end,
+            'start': escape_var(start),
+            'end': escape_var(end),
         }
     query = " ".join(query.strip().splitlines())
     conn._cur_.execute(query)
@@ -221,38 +221,28 @@ def rev_user_query(project, start, end):
     return users
 rev_user_query.__query_name__ = 'rev_user_query'
 
-def revert_rate_past_revs_query(rev_id, page_id, n, project, namespace):
+def page_rev_hist_query(rev_id, page_id, n, project, namespace,
+                        look_ahead=False):
     """ Compute revision history pegged to a given rev """
     conn = Connector(instance=DB_MAP[project])
-    ns_cond = format_namespace(namespace)
-    conn._cur_.execute(query_store[revert_rate_past_revs_query.__name__] %
-                       {
-                        'rev_id':  rev_id,
-                        'page_id': page_id,
-                        'n':       n,
-                        'project': project,
-                        'namespace': ns_cond
-    })
-    for row in conn._cur_:
-        yield row
-    del conn
 
-def revert_rate_future_revs_query(rev_id, page_id, n, project, namespace):
-    """ Compute revision future pegged to a given rev """
-    conn = Connector(instance=DB_MAP[project])
+    # Format namespace expression and comparator
     ns_cond = format_namespace(namespace)
-    conn._cur_.execute(
-                        query_store[revert_rate_future_revs_query.__name__] %
+    comparator =  '>' if look_ahead else '<'
+
+    conn._cur_.execute(query_store[page_rev_hist_query.__name__] %
                        {
-                        'rev_id':  rev_id,
-                        'page_id': page_id,
-                        'n':       n,
-                        'project': project,
-                        'namespace': ns_cond
+                        'rev_id':  long(rev_id),
+                        'page_id': long(page_id),
+                        'n':       int(n),
+                        'project': escape_var(project),
+                        'namespace': ns_cond,
+                        'comparator': comparator,
     })
     for row in conn._cur_:
         yield row
     del conn
+page_rev_hist_query.__query_name__ = 'page_rev_hist_query'
 
 @query_method_deco
 def revert_rate_user_revs_query(user, project, args):
@@ -261,8 +251,8 @@ def revert_rate_user_revs_query(user, project, args):
     {
         'user' : user[0],
         'project' : project,
-        'start_ts' : args.date_start,
-        'end_ts' : args.date_end
+        'start_ts' : escape_var(args.date_start),
+        'end_ts' : escape_var(args.date_end),
     }
 revert_rate_user_revs_query.__query_name__ = 'revert_rate_user_revs_query'
 
@@ -279,7 +269,8 @@ def blocks_user_map_query(users):
     """ Obtain map to generate uname to uid"""
     # Get usernames for user ids to detect in block events
     conn = Connector(instance='slave')
-    user_str = DataLoader().format_comma_separated_list(users)
+    user_str = DataLoader().format_comma_separated_list(
+        escape_var(users))
 
     query = query_store[blocks_user_map_query.__name__] % \
         { 'users': user_str }
@@ -300,7 +291,7 @@ def blocks_user_query(users, project, args):
     query = query_store[blocks_user_query.__query_name__] % \
                        {
                            'user_str' : user_str,
-                           'timestamp': args.date_start,
+                           'timestamp': escape_var(args.date_start),
                            'project' : project
                        }
     query = " ".join(query.strip().splitlines())
@@ -312,7 +303,8 @@ def edit_count_user_query(users, project, args):
     """  Obtain rev counts by user """
     user_str = DataLoader().format_comma_separated_list(users)
     ts_condition  = 'and rev_timestamp >= "%s" and rev_timestamp < "%s"' % \
-                        (args.date_start, args.date_end)
+                        (escape_var(args.date_start),
+                         escape_var(args.date_end))
     query  = query_store[edit_count_user_query.__query_name__] % \
                     {
                         'users' : user_str,
@@ -338,7 +330,8 @@ def namespace_edits_rev_query(users, project, args):
     user_str = "rev_user in (" + to_csv_str(to_string(users)) + ")"
 
     # Format timestamp condition
-    ts_cond = "rev_timestamp >= %s and rev_timestamp < %s" % (start, end)
+    ts_cond = "rev_timestamp >= %s and rev_timestamp < %s" % \
+    (escape_var(start), escape_var(end))
 
     query = query_store[namespace_edits_rev_query.__query_name__] % \
         {
@@ -408,24 +401,13 @@ query_store = {
                                 WHERE rev_timestamp >= "%(start)s" AND
                                     rev_timestamp < "%(end)s"
                             """,
-    revert_rate_past_revs_query.__name__:
+    page_rev_hist_query.__query_name__:
                         """
                             SELECT rev_id, rev_user_text, rev_sha1
                             FROM %(project)s.revision JOIN %(project)s.page
                                 ON rev_page = page_id
                             WHERE rev_page = %(page_id)s
-                                AND rev_id < %(rev_id)s
-                                AND %(namespace)s
-                            ORDER BY rev_id DESC
-                            LIMIT %(n)s
-                        """,
-    revert_rate_future_revs_query.__name__:
-                        """
-                            SELECT rev_id, rev_user_text, rev_sha1
-                            FROM %(project)s.revision JOIN %(project)s.page
-                                ON rev_page = page_id
-                            WHERE rev_page = %(page_id)s
-                                AND rev_id > %(rev_id)s
+                                AND rev_id %(comparator)s %(rev_id)s
                                 AND %(namespace)s
                             ORDER BY rev_id ASC
                             LIMIT %(n)s

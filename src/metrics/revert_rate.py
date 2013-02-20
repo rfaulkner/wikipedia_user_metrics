@@ -138,14 +138,14 @@ def __revert(rev_id, page_id, sha1, user_text, metric_args):
 def __history(rev_id, page_id, n, project, namespace):
     """ Produce the n revisions on a page before a given revision
             Returns a generator of revision objects """
-    return query_mod.revert_rate_past_revs_query(rev_id, page_id, n, project,
-                                                 namespace)
+    return query_mod.page_rev_hist_query(rev_id, page_id, n, project,
+                                                 namespace, look_ahead=False)
 
 def __future(rev_id, page_id, n, project, namespace):
     """ Produce the n revisions on a page after a given revision
             Returns a generator of revision objects """
-    return query_mod.revert_rate_future_revs_query(rev_id, page_id, n, project,
-                                                   namespace)
+    return query_mod.page_rev_hist_query(rev_id, page_id, n, project,
+                                                   namespace, look_ahead=True)
 
 def _process_help(args):
     """ Used by Threshold::process() for forking.

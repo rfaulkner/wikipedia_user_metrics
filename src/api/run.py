@@ -2,7 +2,15 @@
 # -*- coding: utf-8 -*-
 
 """
-    Entry point for flask web server implementin Wikimedia Metrics API.
+    This module defines the entry point for flask_ web server implementation
+    Wikimedia User Metrics API.  This module utilizes flask functionality
+    to define leverage Jinja2_ templating system.  This module is consumable
+    by the Apache web server via WSGI interface via mod_wsgi.  An Apache
+    server can be pointed to api.wsgi such that Apache may be used as a
+    wrapper in this way.
+
+    .. _flask: http://flask.pocoo.org
+    .. _Jinja2: http://jinja.pocoo.org/docs/
 
     Job Queue and Processing
     ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -65,15 +73,17 @@
         | ut_tag  | int(4) unsigned | NO   | PRI | NULL    |       |
         +---------+-----------------+------+-----+---------+-------+
 
-    +-------------+-----------------+------+-----+---------+----------------+
-    | Field       | Type            | Null | Key | Default | Extra          |
-    +-------------+-----------------+------+-----+---------+----------------+
-    | utm_id      | int(5) unsigned | NO   | PRI | NULL    | auto_increment |
-    | utm_name    | varchar(255)    | NO   |     |         |                |
-    | utm_notes   | varchar(255)    | YES  |     | NULL    |                |
-    | utm_touched | datetime        | YES  |     | NULL    |                |
-    +-------------+-----------------+------+-----+---------+----------------+
+        +-------------+-----------------+------+-----+---------+
+        | Field       | Type            | Null | Key | Default |
+        +-------------+-----------------+------+-----+---------+
+        | utm_id      | int(5) unsigned | NO   | PRI | NULL    |
+        | utm_name    | varchar(255)    | NO   |     |         |
+        | utm_notes   | varchar(255)    | YES  |     | NULL    |
+        | utm_touched | datetime        | YES  |     | NULL    |
+        +-------------+-----------------+------+-----+---------+
 
+    View & Method Definitions
+    ~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 from flask import Flask, render_template, Markup, jsonify, \
     redirect, url_for, make_response, request, escape
@@ -119,10 +129,10 @@ queue_data = dict()
 # Error codes for web requests
 global error_codes
 error_codes = {
-    0 : 'Job already running.',
-    1 : 'Badly Formatted timestamp',
-    2 : 'Could not locate stored request.',
-    3 : 'Could not find User ID.',
+    0: 'Job already running.',
+    1: 'Badly Formatted timestamp',
+    2: 'Could not locate stored request.',
+    3: 'Could not find User ID.',
 }
 
 # Queue for storing all active processes
@@ -130,11 +140,9 @@ global processQ
 processQ = list()
 
 # Class defining all objects contained on the processQ
-QStructClass = collections.namedtuple('QStruct',
-    'id process request url queue status')
+QStructClass = collections.namedtuple('QStruct', 'id process request url '
+                                                 'queue status')
 
-# The default value for non-assigned and valid values in the query string
-DEFAULT_QUERY_VAL = 'present'
 
 # REGEX to identify refresh flags in the URL
 REFRESH_REGEX = r'refresh[^&]*&|\?refresh[^&]*$|&refresh[^&]*$'
@@ -145,14 +153,18 @@ REFRESH_REGEX = r'refresh[^&]*&|\?refresh[^&]*$|&refresh[^&]*$'
 #
 #######
 
+
 def get_errors(request_args):
     error = ''
     if 'error' in request_args:
         try:
             error = error_codes[int(request_args['error'])]
-        except KeyError: pass
-        except ValueError: pass
+        except KeyError:
+            pass
+        except ValueError:
+            pass
     return error
+
 
 def process_metrics(p, rm):
     """ Worker process for requests -
@@ -173,8 +185,8 @@ def process_metrics(p, rm):
         users = get_users(rm.cohort_expr)
 
     # unpack RequestMeta into dict using MEDIATOR
-    args = { attr.metric_var : getattr(rm, attr.query_var)
-             for attr in QUERY_PARAMS_BY_METRIC[rm.metric] }
+    args = {attr.metric_var: getattr(rm, attr.query_var)
+            for attr in QUERY_PARAMS_BY_METRIC[rm.metric]}
     logging.info(__name__ + '::Calling %s with args = %s.' % (rm.metric,
                                                               str(args)))
 
@@ -192,6 +204,7 @@ def process_metrics(p, rm):
 #
 #######
 
+
 @app.route('/')
 def api_root():
     """ View for root url - API instructions """
@@ -200,11 +213,14 @@ def api_root():
     conn._cur_.execute('select utm_name from usertags_meta')
     data = [r[0] for r in conn._cur_]
     del conn
-    return render_template('index.html', cohort_data=data, m_list=mm.get_metric_names())
+    return render_template('index.html', cohort_data=data,
+                           m_list=mm.get_metric_names())
+
 
 @app.route('/about/')
 def about():
     return render_template('about.html')
+
 
 @app.route('/contact/')
 def contact():
@@ -227,6 +243,7 @@ def tags():
     del conn
     return render_template('tags.html', data=utm)
 
+
 @app.route('/metrics/', methods=['POST', 'GET'])
 def all_metrics():
     """ Display a list of available metrics """
@@ -235,6 +252,7 @@ def all_metrics():
         return metric(request.form['selectMetric'])
     else:
         return render_template('all_metrics.html')
+
 
 @app.route('/metrics/<string:metric>')
 def metric(metric=''):
@@ -267,8 +285,6 @@ def single_user(user=''):
 @app.route('/users/<string:user>/<string:metric>')
 def user_request(user, metric):
     """ View for requesting metrics for a single user """
-
-    user = str(escape(user))
     url = request.url.split(request.url_root)[1]
 
     # If it is a user name convert to ID
@@ -276,20 +292,22 @@ def user_request(user, metric):
         # Extract project from query string
         # @TODO `project` should match what's in REQUEST_META_QUERY_STR
         project = request.args['project'] if 'project' in request.args \
-                                                            else 'enwiki'
+            else 'enwiki'
         logging.debug(__name__ + '::Getting user id from name.')
         conn = dl.Connector(instance='slave')
-        conn._cur_.execute('SELECT user_id FROM {0}.user WHERE ' \
-                           'user_name = "{1}"'.format(project, user))
+        conn._cur_.execute('SELECT user_id FROM {0}.user WHERE '
+                           'user_name = "{1}"'.format(project,
+                                                      str(escape(user))))
         try:
             user_id = str(conn._cur_.fetchone()[0])
-            url = sub(user,user_id, url)
+            url = sub(user, user_id, url)
         except Exception:
             logging.error(error_codes[3])
             return redirect(url_for('all_cohorts') + '?error=3')
 
     url = sub('users','cohorts', url)
     return redirect(url)
+
 
 @app.route('/cohorts/', methods=['POST', 'GET'])
 def all_cohorts():
@@ -308,6 +326,7 @@ def all_cohorts():
         del conn
         return render_template('all_cohorts.html', data=o, error=error)
 
+
 @app.route('/cohorts/<string:cohort>')
 def cohort(cohort=''):
     """ View single cohort page """
@@ -316,7 +335,8 @@ def cohort(cohort=''):
         return redirect(url_for('all_cohorts'))
     else:
         return render_template('cohort.html', c_str=cohort,
-            m_list=mm.get_metric_names(), error=error)
+                               m_list=mm.get_metric_names(), error=error)
+
 
 @app.route('/cohorts/<string:cohort>/<string:metric>')
 def cohort_job_review(cohort, metric):
@@ -334,7 +354,7 @@ def output(cohort, metric):
     # Check for refresh flag - drop from url
     refresh = True if 'refresh' in request.args else False
     if refresh:
-        url = sub(REFRESH_REGEX,'',url)
+        url = sub(REFRESH_REGEX, '', url)
 
     # Get the refresh date of the cohort
     try:
@@ -346,20 +366,15 @@ def output(cohort, metric):
                                  'time of cohort.')
 
     # Build a request. Populate with request parameters from query args.
+    # Filter the input discarding any url junk
     rm = RequestMetaFactory(cohort, cohort_refresh_ts, metric)
-    for param in REQUEST_META_QUERY_STR:
-        if param in request.args and hasattr(rm, param):
-            if not request.args[param]:
-                # Assign a value indicating presence of a query var
-                setattr(rm, param, DEFAULT_QUERY_VAL)
-            else:
-                setattr(rm, param, request.args[param])
+    filter_request_input(request, rm)
 
     # Process defaults for request parameters
     try:
         process_request_params(rm)
     except MetricsAPIError as e:
-        return redirect(url_for('cohorts') + '?error=' + e.message)
+        return redirect(url_for('all_cohorts') + '?error=' + e.message)
 
     # Determine if the request maps to an existing response.  If so return it.
     # Otherwise compute.
@@ -374,7 +389,8 @@ def output(cohort, metric):
             if not cmp(rm, p.request) and p.status[0] == 'pending':
                 is_pending_job = True
 
-        if not is_pending_job: # Queue the job
+        # Queue the job
+        if not is_pending_job:
 
             q = mp.Queue()
             p = mp.Process(target=process_metrics, args=(q, rm))
@@ -383,9 +399,9 @@ def output(cohort, metric):
             global_id += 1
 
             logging.info(__name__ + '::Appending request %s to the queue...'
-                % rm)
-            processQ.append(QStructClass(global_id,p,rm,url,q,['pending']))
-
+                                    % rm)
+            processQ.append(QStructClass(global_id, p, rm, url, q,
+                                         ['pending']))
             return render_template('processing.html', url_str=str(rm))
         else:
             return redirect(url_for('job_queue') + '?error=0')
@@ -401,8 +417,8 @@ def job_queue():
         return {
             'failure': 'error',
             'pending': 'warning',
-        	'success': 'success'
-        	}.get(em, '') 
+            'success': 'success'
+        }.get(em, '')
 
     p_list = list()
     p_list.append(Markup('<thead><tr><th>is_alive</th><th>PID</th><th>url'
@@ -412,11 +428,12 @@ def job_queue():
 
             # Pull data off of the queue and add it to the queue data
             while not p.queue.empty():
-                if not queue_data.has_key(p.id):
+                if not p.id in queue_data:
                     queue_data[p.id] = json.loads(p.queue.get().data)
                 else:
-                    for k,v in queue_data[p.id]:
-                        if hasattr(v,'__iter__'): queue_data[p.id][k].extend(v)
+                    for k, v in queue_data[p.id]:
+                        if hasattr(v, '__iter__'):
+                            queue_data[p.id][k].extend(v)
 
             # once a process has finished working remove it and put its
             # contents into the cache
@@ -431,24 +448,25 @@ def job_queue():
         except Exception as e:
             p.status[0] = 'failure'
             logging.error(__name__ + "::Could not update request: %s.  "
-                                     "Exception: %s" % (p.url, e.message) )
+                                     "Exception: %s" % (p.url, e.message))
 
         # Log the status of the job
         response_url = "".join(['<a href="',
-                                request.url_root, p.url + '">', p.url, '</a>'])
-	
-        p_list.append(Markup('<tr class="'+ error_class(p.status[0])+'"><td>'))
+                               request.url_root, p.url + '">', p.url, '</a>'])
+        p_list.append(Markup('<tr class="' + error_class(p.status[0]) +
+                             '"><td>'))
         p_list.append("</td><td>".join([str(p.process.is_alive()),
                                         str(p.process.pid),
-                                  escape(Markup(response_url)), p.status[0]]))
+                                        escape(Markup(response_url)),
+                                        p.status[0]]))
         p_list.append(Markup('</td></tr>'))
-
     p_list.append(Markup('\n</tbody>'))
 
     if error:
         return render_template('queue.html', procs=p_list, error=error)
     else:
         return render_template('queue.html', procs=p_list)
+
 
 @app.route('/all_requests')
 def all_requests():
@@ -464,8 +482,11 @@ def all_requests():
         while stack_trace:
             if stack_trace[-1]:
                 ptr = stack_trace[-1][1]
-                try: stack_trace.append(ptr.next())
-                except StopIteration: stack_trace.pop() # no more children
+                try:
+                    stack_trace.append(ptr.next())
+                except StopIteration:
+                    # no more children
+                    stack_trace.pop()
             else:
                 key_sigs.append([elem[0] for elem in stack_trace[:-1]])
                 stack_trace.pop()
@@ -478,6 +499,7 @@ def all_requests():
                                  request.url_root, url + '">', url, '</a>']))
     return render_template('all_requests.html', urls=url_list)
 
+
 @app.route('/stored/<string:cohort>/<string:metric>')
 def stored_requests(cohort, metric):
     """ View for processing stored requests """
@@ -486,9 +508,8 @@ def stored_requests(cohort, metric):
 
     # Parse the cohort and metric IDs
     try:
-        hash_ref = hash_ref[
-                   'cohort_expr' + HASH_KEY_DELIMETER + cohort][
-                   'metric' + HASH_KEY_DELIMETER + metric]
+        hash_ref = hash_ref['cohort_expr' + HASH_KEY_DELIMETER + cohort][
+            'metric' + HASH_KEY_DELIMETER + metric]
     except Exception:
         logging.error(__name__ + '::Request not found for: %s' % request.url)
         return redirect(url_for('cohorts') + '?error=2')
@@ -497,8 +518,8 @@ def stored_requests(cohort, metric):
     for param in REQUEST_META_QUERY_STR:
         if param in request.args:
             try:
-                hash_ref = hash_ref[
-                           param + HASH_KEY_DELIMETER + request.args[param]]
+                hash_ref = hash_ref[param + HASH_KEY_DELIMETER +
+                                    request.args[param]]
             except KeyError:
                 logging.error(__name__ + '::Request not found for: %s' %
                                          request.url)
@@ -515,6 +536,7 @@ def stored_requests(cohort, metric):
 # Define Custom Classes
 #
 #######
+
 
 class APIMethods(object):
     """ Provides initialization and boilerplate for API execution """
@@ -570,7 +592,8 @@ class APIMethods(object):
         except Exception:
             logging.error(__name__ + '::Could not pickle data.')
         finally:
-            if hasattr(pkl_file, 'close'): pkl_file.close()
+            if hasattr(pkl_file, 'close'):
+                pkl_file.close()
 
 ######
 #
@@ -578,9 +601,11 @@ class APIMethods(object):
 #
 #######
 
+
 if __name__ == '__main__':
 
-    a = APIMethods() # initialize API data - get the instance
+    # initialize API data - get the instance
+    a = APIMethods()
     try:
         app.run(debug=True)
     finally:

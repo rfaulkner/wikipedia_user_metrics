@@ -6,7 +6,10 @@ __license__ = "GPL (version 2 or later)"
 from dateutil.parser import parse as date_parse
 import user_metric as um
 import edit_count as ec
-from src.etl.aggregator import weighted_rate, decorator_builder
+from src.etl.aggregator import weighted_rate, decorator_builder, \
+    build_numpy_op_agg, build_agg_meta
+from numpy import median, min, max
+
 
 class EditRate(um.UserMetric):
     """
@@ -41,28 +44,32 @@ class EditRate(um.UserMetric):
 
     # Structure that defines parameters for EditRate class
     _param_types = {
-        'init' : {
-            'time_unit' : ['int', 'Type of time unit to '
-                                  'normalize by (HOUR=0, DAY=1).', DAY],
-            'time_unit_count' : ['int', 'Number of time units to normalize '
-                                        'by (e.g. per two days).', 1],
-            },
-        'process' : {}
+        'init': {}
+    }
+    _param_types = {
+        'init': {
+            'time_unit': ['int', 'Type of time unit to normalize by '
+                                 '(HOUR=0, DAY=1).', DAY],
+            'time_unit_count': ['int',
+                                'Number of time units to normalize '
+                                'by (e.g. per two days).', 1],
+        },
+        'process': {}
     }
 
     # Define the metrics data model meta
     _data_model_meta = {
-        'id_fields' : [0],
-        'date_fields' : [2],
-        'float_fields' : [1],
-        'integer_fields' : [3],
-        'boolean_fields' : [],
-        }
+        'id_fields': [0],
+        'date_fields': [3],
+        'float_fields': [2],
+        'integer_fields': [1, 4],
+        'boolean_fields': [],
+    }
 
     _agg_indices = {
-        'list_sum_indices' : _data_model_meta['integer_fields'] +
-                             _data_model_meta['float_fields'],
-        }
+        'list_sum_indices': _data_model_meta['integer_fields'] +
+        _data_model_meta['float_fields'],
+    }
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
@@ -71,8 +78,9 @@ class EditRate(um.UserMetric):
         self._time_unit_ = kwargs['time_unit']
 
     @staticmethod
-    def header(): return ['user_id', 'edit_count', 'edit_rate', 'start_time',
-                          'period_len']
+    def header():
+        return ['user_id', 'edit_count', 'edit_rate',
+                'start_time', 'period_len']
 
     @um.UserMetric.pre_process_users
     def process(self, user_handle, **kwargs):
@@ -89,17 +97,17 @@ class EditRate(um.UserMetric):
                     Value or list of values representing user handle(s).
 
             - Return:
-                - Dictionary. key(string): user handle, value(Float): edit counts
+                - Dictionary. key(string): user handle, value(Float):
+                edit counts
         """
-
-        self.apply_default_kwargs(kwargs,'process')
+        self.apply_default_kwargs(kwargs, 'process')
 
         # Extract edit count for given parameters
         edit_rate = list()
-        e = ec.EditCount(date_start = self._start_ts_,
-            date_end = self._end_ts_,
-            datasource = self._data_source_,
-            namespace=self._namespace_).process(user_handle)
+        e = ec.EditCount(date_start=self._start_ts_,
+                         date_end=self._end_ts_,
+                         datasource=self._data_source_,
+                         namespace=self._namespace_).process(user_handle)
 
         try:
             start_ts_obj = date_parse(self._start_ts_)
@@ -142,5 +150,22 @@ edit_rate_agg = decorator_builder(EditRate.header())(edit_rate_agg)
 setattr(edit_rate_agg, um.METRIC_AGG_METHOD_FLAG, True)
 setattr(edit_rate_agg, um.METRIC_AGG_METHOD_NAME, 'edit_rate_agg')
 setattr(edit_rate_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
-                                                   'total_weight','rate'])
-setattr(edit_rate_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 2})
+                                                   'total_weight', 'rate'])
+setattr(edit_rate_agg, um.METRIC_AGG_METHOD_KWARGS, {
+    'val_idx': 2,
+    'data_type': 'float16'
+})
+
+metric_header = EditRate.header()
+
+field_prefixes = \
+    {
+        'count_': 1,
+        'rate_': 2,
+    }
+
+# Build "dist" decorator
+op_list = [median, min, max]
+er_stats_agg = build_numpy_op_agg(build_agg_meta(op_list, field_prefixes),
+                                  metric_header,
+                                  'er_stats_agg')
