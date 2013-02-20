@@ -195,6 +195,10 @@ HASH_KEY_DELIMETER = " <==> "
 # Datetime string format to be used throughout the API
 DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
+# The default value for non-assigned and valid values in the query string
+DEFAULT_QUERY_VAL = 'present'
+
+
 def process_request_params(request_meta):
     """
         Applies defaults and consistency to RequestMeta data
@@ -237,6 +241,26 @@ def process_request_params(request_meta):
     # set the aggregator if there is one
     agg_key = mm.get_agg_key(request_meta.aggregator, request_meta.metric)
     request_meta.aggregator = request_meta.aggregator if agg_key else None
+
+
+def filter_request_input(request, request_meta_obj):
+    """
+        Filters for relevant request data and sets RequestMeta object.
+
+            **request_meta_obj** - RequestMeta object to store relevant request
+            data
+            **request** - Flask request object containing all request data
+    """
+    if not hasattr(request, 'args'):
+        raise MetricsAPIError('Flask request must have "args" attribute.')
+
+    for param in REQUEST_META_QUERY_STR:
+        if param in request.args and hasattr(request_meta_obj, param):
+            if not request.args[param]:
+                # Assign a value indicating presence of a query var
+                setattr(request_meta_obj, param, DEFAULT_QUERY_VAL)
+            else:
+                setattr(request_meta_obj, param, request.args[param])
 
 #
 # Data retrieval and storage methods
