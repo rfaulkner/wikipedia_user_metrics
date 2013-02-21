@@ -4,14 +4,14 @@ __email__ = "rfaulkner@wikimedia.org"
 __date__ = "January 6th, 2013"
 __license__ = "GPL (version 2 or later)"
 
-from config import logging
+from user_metrics.config import logging
 
 import user_metric as um
-import src.utils.multiprocessing_wrapper as mpw
+import user_metrics.utils.multiprocessing_wrapper as mpw
 from collections import namedtuple, OrderedDict
-from src.etl.aggregator import decorator_builder
+from user_metrics.etl.aggregator import decorator_builder
 from os import getpid
-from src.metrics import query_mod
+from user_metrics.metrics import query_mod
 
 # Definition of persistent state for RevertRate objects
 NamespaceEditsArgsClass = namedtuple('NamespaceEditsArgs', 'project log '
@@ -36,7 +36,7 @@ class NamespaceEdits(um.UserMetric):
         For example to produce the above datapoint for a user id one could
         call: ::
 
-            >>> from src.metrics.namespace_of_edits import NamespaceEdits
+            >>> from user_metrics.metrics.namespace_of_edits import NamespaceEdits
             >>> users = ['17792132', '17797320', '17792130', '17792131',
                             '17792136', 13234584, 156171]
             >>> n = NamespaceEdits(date_start='20110101000000')

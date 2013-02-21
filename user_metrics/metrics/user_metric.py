@@ -48,7 +48,7 @@ __author__ = "Ryan Faulkner"
 __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
-import src.etl.data_loader as dl
+import user_metrics.etl.data_loader as dl
 from collections import namedtuple
 from dateutil.parser import parse as date_parse
 from datetime import datetime, timedelta

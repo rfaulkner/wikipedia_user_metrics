@@ -7,7 +7,7 @@ __author__  = "ryan faulkner"
 __date__    = "01/28/2013"
 __email__   = 'rfaulkner@wikimedia.org'
 
-from src.etl.data_loader import Connector
+from user_metrics.etl.data_loader import Connector
 from dateutil.parser import parse as date_parse
 
 MEDIAWIKI_DB_INSTANCE           = 'slave'

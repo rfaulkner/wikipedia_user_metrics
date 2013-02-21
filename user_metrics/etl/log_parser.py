@@ -12,7 +12,7 @@ import re
 import logging
 import json
 import gzip
-import config.settings as projSet
+import user_metrics.config.settings as projSet
 
 # CONFIGURE THE LOGGER
 logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')

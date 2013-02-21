@@ -5,7 +5,7 @@ __license__ = "GPL (version 2 or later)"
 
 import user_metric as um
 import threshold as th
-from src.etl.aggregator import decorator_builder, boolean_rate
+from user_metrics.etl.aggregator import decorator_builder, boolean_rate
 
 class Survival(um.UserMetric):
     """
@@ -23,7 +23,7 @@ class Survival(um.UserMetric):
 
         usage e.g.: ::
 
-            >>> import src.etl.threshold as t
+            >>> import user_metrics.etl.threshold as t
             >>> for r in t.Threshold().process([13234584]).__iter__(): print r
             (13234584L, 1)
 

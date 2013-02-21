@@ -52,7 +52,7 @@ __license__ = "GPL (version 2 or later)"
 from collections import namedtuple
 from itertools import izip
 from numpy import array, transpose
-from src.metrics.user_metric import METRIC_AGG_METHOD_FLAG, \
+from user_metrics.metrics.user_metric import METRIC_AGG_METHOD_FLAG, \
     METRIC_AGG_METHOD_HEAD, \
     METRIC_AGG_METHOD_KWARGS, \
     METRIC_AGG_METHOD_NAME

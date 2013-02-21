@@ -95,16 +95,16 @@ __date__ = "january 11 2012"
 __license__ = "GPL (version 2 or later)"
 
 from flask import escape, redirect, url_for
-from src.utils.record_type import *
+from user_metrics.utils.record_type import *
 from dateutil.parser import parse as date_parse
 from datetime import timedelta, datetime
 from re import search
 from collections import OrderedDict, namedtuple
 
-import src.etl.data_loader as dl
-import src.metrics.metrics_manager as mm
+import user_metrics.etl.data_loader as dl
+import user_metrics.metrics.metrics_manager as mm
 
-from config import logging
+from user_metrics.config import logging
 
 # Regex that matches a MediaWiki user ID
 MW_UID_REGEX = r'^[0-9]{5}[0-9]*$'

@@ -45,11 +45,11 @@ from edit_rate import EditRate, edit_rate_agg, er_stats_agg
 from namespace_of_edits import NamespaceEdits, namespace_edits_sum
 from live_account import LiveAccount, live_accounts_agg
 
-import src.etl.data_loader as dl
-import src.etl.aggregator as agg
-import src.etl.time_series_process_methods as tspm
+import user_metrics.etl.data_loader as dl
+import user_metrics.etl.aggregator as agg
+import user_metrics.etl.time_series_process_methods as tspm
 
-from config import logging, settings
+from user_metrics.config import logging, settings
 
 INTERVALS_PER_THREAD = 10
 MAX_THREADS = 5

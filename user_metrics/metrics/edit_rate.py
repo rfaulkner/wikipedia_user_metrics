@@ -6,7 +6,7 @@ __license__ = "GPL (version 2 or later)"
 from dateutil.parser import parse as date_parse
 import user_metric as um
 import edit_count as ec
-from src.etl.aggregator import weighted_rate, decorator_builder, \
+from user_metrics.etl.aggregator import weighted_rate, decorator_builder, \
     build_numpy_op_agg, build_agg_meta
 from numpy import median, min, max
 

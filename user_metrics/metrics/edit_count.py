@@ -5,7 +5,7 @@ __license__ = "GPL (version 2 or later)"
 
 from collections import namedtuple
 import user_metric as um
-from src.metrics import query_mod
+from user_metrics.metrics import query_mod
 
 class EditCount(um.UserMetric):
     """

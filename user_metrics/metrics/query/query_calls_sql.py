@@ -8,11 +8,11 @@ __email__ = "rfaulkner@wikimedia.org"
 __date__ = "january 30th, 2013"
 __license__ = "GPL (version 2 or later)"
 
-from src.etl.data_loader import DataLoader, Connector, DB_MAP
+from user_metrics.etl.data_loader import DataLoader, Connector, DB_MAP
 from MySQLdb import escape_string, ProgrammingError
 from copy import deepcopy
 
-from config import logging
+from user_metrics.config import logging
 
 class UMQueryCallError(Exception):
     """ Basic exception class for UserMetric types """

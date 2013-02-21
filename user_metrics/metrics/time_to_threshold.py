@@ -4,13 +4,13 @@ __author__ = "Ryan Faulkner"
 __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
-from config import logging
+from user_metrics.config import logging
 
 from dateutil.parser import parse as date_parse
 import user_metric as um
-from src.etl.aggregator import weighted_rate, decorator_builder, \
+from user_metrics.etl.aggregator import weighted_rate, decorator_builder, \
     build_numpy_op_agg, build_agg_meta
-from src.metrics import query_mod
+from user_metrics.metrics import query_mod
 from numpy import median, min, max
 
 LAST_EDIT = -1
@@ -35,7 +35,7 @@ class TimeToThreshold(um.UserMetric):
         Below is an example of how we can generate the time taken to reach the
         first edit and the last edit from registration : ::
 
-            >>> import src.metrics.time_to_threshold as t
+            >>> import user_metrics.metrics.time_to_threshold as t
             >>> t.TimeToThreshold(t.TimeToThreshold.EditCountThreshold,
                 first_edit=0, threshold_edit=1).process([13234584]).
                     __iter__().next()

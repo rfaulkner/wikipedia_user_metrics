@@ -3,7 +3,7 @@
     This module provides a set of methods for handling multi-threading
     patterns more easily. ::
 
-        >>> import src.utils.multiprocessing_wrapper as mpw
+        >>> import user_metrics.utils.multiprocessing_wrapper as mpw
         >>> mpw.build_thread_pool(['one','two'],len,2,[])
         [2,2]
 """

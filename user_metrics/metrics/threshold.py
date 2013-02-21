@@ -3,15 +3,15 @@ __author__ = "Ryan Faulkner"
 __date__ = "December 6th, 2012"
 __license__ = "GPL (version 2 or later)"
 
-from config import logging
+from user_metrics.config import logging
 
 from datetime import timedelta
 import collections
 import os
-import src.utils.multiprocessing_wrapper as mpw
+import user_metrics.utils.multiprocessing_wrapper as mpw
 import user_metric as um
-from src.etl.aggregator import decorator_builder, boolean_rate
-from src.metrics import query_mod
+from user_metrics.etl.aggregator import decorator_builder, boolean_rate
+from user_metrics.metrics import query_mod
 
 
 class Threshold(um.UserMetric):
@@ -32,7 +32,7 @@ class Threshold(um.UserMetric):
 
         usage e.g.: ::
 
-            >>> import src.etl.threshold as t
+            >>> import user_metrics.etl.threshold as t
             >>> for r in t.Threshold().process([13234584]).__iter__(): print r
             (13234584L, 1)
     """

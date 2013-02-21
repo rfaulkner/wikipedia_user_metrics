@@ -4,7 +4,7 @@ __author__ = "Ryan Faulkner (adapted from Aaron Halfaker's implementation)"
 __date__ = "October 29th, 2012"
 __license__ = "GPL (version 2 or later)"
 
-from config import logging
+from user_metrics.config import logging
 
 from collections import namedtuple
 import user_metric as um
@@ -12,9 +12,9 @@ import collections
 from datetime import timedelta
 from dateutil.parser import parse as date_parse
 import os
-import src.utils.multiprocessing_wrapper as mpw
-from src.etl.aggregator import decorator_builder, weighted_rate
-from src.metrics import query_mod
+import user_metrics.utils.multiprocessing_wrapper as mpw
+from user_metrics.etl.aggregator import decorator_builder, weighted_rate
+from user_metrics.metrics import query_mod
 
 # Definition of persistent state for RevertRate objects
 RevertRateArgsClass = collections.namedtuple('RevertRateArgs',
@@ -42,7 +42,7 @@ class RevertRate(um.UserMetric):
         For example to produce the above datapoint for a user id one could
         call: ::
 
-            >>> import src.metrics.revert_rate as rr
+            >>> import user_metrics.metrics.revert_rate as rr
             >>>     r = RevertRate(date_start='2008-01-01 00:00:00',
                                     date_end='2008-05-01 00:00:00')
             >>> for r in r.process('156171',num_threads=0,rev_threads=10,

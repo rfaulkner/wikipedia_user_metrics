@@ -3,12 +3,12 @@ __author__ = "Ryan Faulkner and Aaron Halfaker"
 __date__ = "October 3rd, 2012"
 __license__ = "GPL (version 2 or later)"
 
-from config import logging
+from user_metrics.config import logging
 
 from collections import namedtuple
 import user_metric as um
-from src.metrics import query_mod
-from src.etl.aggregator import weighted_rate, decorator_builder
+from user_metrics.metrics import query_mod
+from user_metrics.etl.aggregator import weighted_rate, decorator_builder
 
 
 class Blocks(um.UserMetric):
@@ -34,7 +34,7 @@ class Blocks(um.UserMetric):
 
         Example: ::
 
-            >>> import src.metrics.blocks as b
+            >>> import user_metrics.metrics.blocks as b
             >>> block_obj = b.Blocks(date_start='2011-01-01 00:00:00')
             >>> for r in block_obj.process(['11174885', '15132776']).
             __iter__(): print r

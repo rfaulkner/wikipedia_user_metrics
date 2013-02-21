@@ -3,17 +3,17 @@ __author__ = "Ryan Faulkner"
 __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
-from config import logging
+from user_metrics.config import logging
 
 from numpy import median, min, max
 from collections import namedtuple
 import collections
 import user_metric as um
 import os
-from src.etl.aggregator import list_sum_by_group, build_numpy_op_agg, \
+from user_metrics.etl.aggregator import list_sum_by_group, build_numpy_op_agg, \
     build_agg_meta
-import src.utils.multiprocessing_wrapper as mpw
-from src.metrics import query_mod
+import user_metrics.utils.multiprocessing_wrapper as mpw
+from user_metrics.metrics import query_mod
 
 
 class BytesAdded(um.UserMetric):
@@ -36,7 +36,7 @@ class BytesAdded(um.UserMetric):
 
             usage e.g.: ::
 
-                >>> import src.,metrics.bytes_added as ba
+                >>> import user_metrics.,metrics.bytes_added as ba
                 >>> for r in ba.BytesAdded(date_start='2012-07-30 00:00:00').
                     process([13234584], num_threads=0).__iter__(): r
                 ['13234584', 2, 2, 2, 0, 1]

@@ -15,11 +15,11 @@ from dateutil.parser import parse as date_parse
 import operator
 import json
 
-import src.metrics.revert_rate as rr
-import src.metrics.user_metric as um
+import user_metrics.metrics.revert_rate as rr
+import user_metrics.metrics.user_metric as um
 from multiprocessing import Process, Queue
 
-from config import logging
+from user_metrics.config import logging
 
 # Determines the amount of time to wait before picking completed threads off
 # of the queue

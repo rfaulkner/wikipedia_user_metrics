@@ -15,7 +15,7 @@ class AutoVivification(dict):
 
             >>> import sys
             >>> sys.path.append(<E3_analysis_home>)
-            >>> import src.etl.autovivification as a
+            >>> import user_metrics.etl.autovivification as a
             >>> o = a.AutoVivification()
             >>> o['1']['2']['3'] = 'tryme'
             >>> o

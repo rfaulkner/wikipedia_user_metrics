@@ -89,19 +89,19 @@ from flask import Flask, render_template, Markup, jsonify, \
     redirect, url_for, make_response, request, escape
 
 import cPickle
-from config import logging
+from user_metrics.config import logging
 import os
 import json
-import config.settings as settings
+import user_metrics.config.settings as settings
 import multiprocessing as mp
 import collections
 from collections import OrderedDict
 from re import sub, search
 from shutil import copyfile
 
-from src.metrics.users import MediaWikiUser
-import src.etl.data_loader as dl
-import src.metrics.metrics_manager as mm
+from user_metrics.metrics.users import MediaWikiUser
+import user_metrics.etl.data_loader as dl
+import user_metrics.metrics.metrics_manager as mm
 
 from engine import *
 

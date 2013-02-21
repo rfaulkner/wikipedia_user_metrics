@@ -54,9 +54,9 @@ import sys
 import MySQLdb
 import logging
 import operator
-import config.settings as projSet
+import user_metrics.config.settings as projSet
 
-from config import logging
+from user_metrics.config import logging
 
 # Maps project to MW db instance
 DB_MAP = { 'enwiki' : 'slave' }
