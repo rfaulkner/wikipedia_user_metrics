@@ -9,17 +9,12 @@ __date__ = "11/06/2012"
 __license__ = "GPL (version 2 or later)"
 
 import sys
-import e3_settings as s
-sys.path.append(s.__E3_Analysis_Home__)
+from user_metrics.config import settings as s, logging
 
-import logging
 import datetime
 import argparse
 import src.metrics.bytes_added as ba
 from src.metrics.user_metric import UserMetric
-
-# CONFIGURE THE LOGGER
-logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 EDIT_COUNT_IDX = 5
 
@@ -33,9 +28,9 @@ def main(args):
     end_ts = UserMetric._get_timestamp(args.date_end)
     filename = 'dau_out_' + start_ts[:8] + '-' + end_ts[:8] + '.tsv'
 
-    with open(s.__data_home__ + filename,'w') as file_obj:
+    with open(s.__data_file_dir__ + filename,'w') as file_obj:
 
-        logging.info('Writing results to "%s"' % s.__data_home__ + filename)
+        logging.info('Writing results to "%s"' % s.__data_file_dir__ + filename)
 
         try:
             file_obj.write("\t".join(ba.BytesAdded.header()) + '\n')
@@ -43,8 +38,12 @@ def main(args):
             logging.error('Could not write to file "%s":.' % args.output_file)
             return
 
-        for row in ba.BytesAdded(date_start=args.date_start, date_end=args.date_end).process(
-            log_progress=True,log_frequency=args.log_frequency, num_threads=args.num_threads).__iter__():
+        # @TODO - set users for call to BytesAdded::process
+        users = []
+        for row in ba.BytesAdded(date_start=args.date_start,
+                                 date_end=args.date_end).\
+            process(users, log_progress=True,log_frequency=args.log_frequency,
+                    num_threads=args.num_threads).__iter__():
             try:
                 if row[EDIT_COUNT_IDX] >= args.min_edit:
                     file_obj.write("\t".join([str(e) for e in row]) + '\n')

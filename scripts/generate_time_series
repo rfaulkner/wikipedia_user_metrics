@@ -10,17 +10,13 @@ __date__ = "12/07/2012"
 __license__ = "GPL (version 2 or later)"
 
 import sys
-import e3_settings as s
-sys.path.append(s.__E3_Analysis_Home__)
+from user_metrics.config import logging
 
 import datetime
-import logging
 import argparse
 import src.etl.data_loader as dl
 import src.etl.time_series_process_methods as tspm
 
-# CONFIGURE THE LOGGER
-logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 def main(args):
 
@@ -33,8 +29,10 @@ def main(args):
 
     # Write to a tsv
     try:
-        dl.DataLoader().list_to_xsv(tspm.DataTypeMethods.DATA_TYPE[args.data_type](args, interval),
-        outfile=args.outfile)
+        # @TODO - DataTypeMethods does not exist! Replace ...
+        dl.DataLoader().list_to_xsv(tspm.DataTypeMethods.
+                                    DATA_TYPE[args.data_type](args, interval),
+                                    outfile=args.outfile)
     except KeyError:
         logging.info('Invalid data type.')
 

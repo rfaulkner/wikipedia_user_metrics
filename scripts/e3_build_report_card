@@ -10,13 +10,11 @@ __date__ = "12/13/2012"
 __license__ = "GPL (version 2 or later)"
 
 import sys
-import e3_settings as s
-sys.path.append(s.__E3_Analysis_Home__)
 
-import scripts.e3_experiment_definitions as e_def
-import src.etl.aggregator as agg
-import src.metrics.revert_rate as rr
-import src.metrics.threshold as th
+import helper.e3_experiment_definitions as e_def
+import user_metrics.etl.aggregator as agg
+import user_metrics.metrics.revert_rate as rr
+import user_metrics.metrics.threshold as th
 
 def main(args):
 
@@ -41,6 +39,7 @@ def main(args):
     e_def.experiments['acux2']['user_list'](user_list_acux2)
     e_def.experiments['acux3']['user_list'](user_list_acux3)
 
+    # @TODO - agg.reverted_revs_agg no longer exists! Replace..
     print 'Revert rates - cta4, acux2, acux3'
     print agg.reverted_revs_agg(r.process(user_list_cta4.keys(),num_threads=20,rev_threads=40, log_progress=False))
     print agg.reverted_revs_agg(r.process(user_list_acux2.keys(),num_threads=20,rev_threads=40, log_progress=False))

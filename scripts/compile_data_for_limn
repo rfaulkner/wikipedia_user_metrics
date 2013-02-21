@@ -12,19 +12,15 @@ __date__ = "11/19/2012"
 __license__ = "GPL (version 2 or later)"
 
 import sys
-import e3_settings as s
-sys.path.append(s.__E3_Analysis_Home__)
+from user_metrics.config import settings as s, logging
 
 import argparse
-import logging
 import limnpy
 import datetime
 import re
 import os
 from dateutil.parser import parse as date_parse
 
-# CONFIGURE THE LOGGER
-logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 def get_data_type(type_str):
     """ based on a type identifier return a dict containing meta data about the aggregate data type """
@@ -36,7 +32,7 @@ def main(args):
     rows = list()
     header = list()
 
-    for filename in os.listdir(s.__data_home__):
+    for filename in os.listdir(s.__data_file_dir__):
         if re.search(args.regex,filename):
             row = dict()
 
@@ -47,10 +43,12 @@ def main(args):
                 continue
 
             # only process the dates in range
-            if row['date'] < date_parse(args.date_start) or row['date'] > date_parse(args.date_end): continue
+            if row['date'] < date_parse(args.date_start) or \
+               row['date'] > date_parse(args.date_end):
+                continue
             meta_data = get_data_type(args.data_type)
 
-            with open(s.__data_home__ + filename, 'r') as f:
+            with open(s.__data_file_dir__ + filename, 'r') as f:
 
                 # get header and initialize
                 header = f.readline().strip().split("\t")
@@ -67,18 +65,19 @@ def main(args):
             rows.append(row)
 
     # Build datafiles and datasorces
-    ds = limnpy.DataSource(args.data_source, " ".join(args.data_source.split()), rows)
-    ds.write(basedir = s.__data_home__)
+    ds = limnpy.DataSource(args.data_source,
+                           " ".join(args.data_source.split()), rows)
+    ds.write(basedir = s.__data_file_dir__)
 
     # Build graph from datasources
     g = limnpy.Graph(args.data_source, args.graph_handle, [ds] * (len(header) - 1),
         [(args.data_source, i) for i in header[1:]])
-    g.write(basedir = s.__data_home__)
+    g.write(basedir = s.__data_file_dir__)
 
     # build dashboard
     dash = limnpy.Dashboard(args.data_source, args.dash_handle, 'Dashboard')
     dash.add_tab('core', [g.__graph__['id']])
-    dash.write(basedir = s.__data_home__)
+    dash.write(basedir = s.__data_file_dir__)
 
 if __name__ == "__main__":
 

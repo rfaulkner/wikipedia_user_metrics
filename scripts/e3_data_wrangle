@@ -13,30 +13,26 @@ __date__ = "October 3rd, 2012"
 __license__ = "GPL (version 2 or later)"
 
 import sys
-import e3_settings as s
-sys.path.append(s.__E3_Analysis_Home__)
+from user_metrics.config import logging
 
-import logging
 import argparse
 import datetime
 import multiprocessing as mp
 import os
 import math
 from dateutil.parser import parse as date_parse
-import src.etl.data_loader as dl
-import e3_experiment_definitions as e3_def
-import src.metrics.bytes_added as ba
-import src.metrics.blocks as b
-import src.metrics.time_to_threshold as ttt
-import src.etl.log_parser as lp
+import user_metrics.etl.data_loader as dl
+import helper.e3_experiment_definitions as e3_def
+import user_metrics.metrics.bytes_added as ba
+import user_metrics.metrics.blocks as b
+import user_metrics.metrics.time_to_threshold as ttt
+import user_metrics.etl.log_parser as lp
 
-# CONFIGURE THE LOGGER
-logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
-    format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%b-%d %H:%M:%S')
 
 global exp_meta_data
 global conn
 conn = dl.Connector(instance='slave')
+
 
 def insert_buckets(l,user_buckets,user_index=0,bucket_index=1):
     """ Insert the user bucket into list of user metrics"""
@@ -49,6 +45,7 @@ def insert_buckets(l,user_buckets,user_index=0,bucket_index=1):
             e.remove(b)
         except KeyError:
             e.remove(b)
+
 
 def load_logs():
     global exp_meta_data
@@ -64,6 +61,7 @@ def load_logs():
             logging.info('Processing file %s ...' % f)
             contents = lp.LineParseMethods.parse(f, log_data_def['log_parser_method'], version=exp_meta_data['version'])
             dl.DataLoader().create_table_from_list(contents, '',log_data_def['table_name'])
+
 
 def blocks(users):
     global exp_meta_data
@@ -105,6 +103,7 @@ def blocks(users):
     dl.DataLoader().create_table_from_list(block_list,create_sql, exp_meta_data['metric_tables']
                                                                   ['blocks']['table_name'])
 
+
 def edit_volume(users, num_threads=0):
     """ Extracts bytes added and edit count "period" days after registration """
     global exp_meta_data
@@ -130,6 +129,7 @@ def edit_volume(users, num_threads=0):
     sql = " ".join(exp_meta_data['metric_tables']['edit_volume']['definition'].strip().split('\n'))
     dl.DataLoader().create_table_from_list(results.__iter__(), sql, exp_meta_data['metric_tables']
                                                              ['edit_volume']['table_name'])
+
 
 def edit_volume_proc(arg_list):
     """ Generates productivity metrics - argument method for thread pool """
@@ -167,6 +167,7 @@ def edit_volume_proc(arg_list):
         str(bad_users), str(len(users)), str(empty_users), str(os.getpid())))
     return bytes_added
 
+
 def time_to_threshold(users, first_edit=0, threshold_edit=1):
     global exp_meta_data
 
@@ -181,6 +182,7 @@ def time_to_threshold(users, first_edit=0, threshold_edit=1):
     sql = " ".join(exp_meta_data['metric_tables']['time_to_milestone']['definition'].strip().split('\n'))
     dl.DataLoader().create_table_from_list(m_generator, sql, exp_meta_data['metric_tables']
                                                              ['time_to_milestone']['table_name'])
+
 
 def main(args):
     global exp_meta_data
