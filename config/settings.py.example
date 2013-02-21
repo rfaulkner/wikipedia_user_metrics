@@ -30,10 +30,12 @@
 
 """
 
+from os.path import realpath
+
 # Project settings
 # ================
 
-__project_home__ = '../'
+__project_home__ = realpath('../..') + '/'
 __web_home__ = ''.join([__project_home__, 'web_interface/'])
 __data_file_dir__ = ''.join([__project_home__, 'data/'])
 
