@@ -385,10 +385,9 @@ class DataLoader(object):
 
         file_obj.close()
 
-    def create_table_from_list(self, l, create_sql, table_name,
+    def create_table_from_list(self, l, create_sql, table_name, user_db,
                                conn = Connector(instance='slave'),
-                               max_records=10000,
-                               user_db=projSet.connections['slave']['db']):
+                               max_records=10000):
         """
             Populates or creates a table from a .list.
 

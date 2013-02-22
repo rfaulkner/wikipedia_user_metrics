@@ -28,6 +28,13 @@
     for data stores and **PROJECT_DB_MAP** which defines a mapping from
     project instance to data store.
 
+
+    SSH Tunnel Parameters
+    ~~~~~~~~~~~~~~~~~~~~~
+
+    This data structure stores mappings to parameters for setting up SSH
+    tunnels to analytics databases.  This is primarily used for testing
+    and consumed by scripts/run_ssh_tunnels.
 """
 
 from os.path import realpath
@@ -70,4 +77,25 @@ connections = {
 PROJECT_DB_MAP = {
     'enwiki': 's1',
     'dewiki': 's5',
+    'itwiki': 's2',
+}
+
+# SSH Tunnel Parameters
+# =====================
+
+TUNNEL_DATA = {
+    's1': {
+        'cluster_host': 'stat1.wikimedia.org',
+        'db_host': 's1-analytics-slave.eqiad.wmnet',
+        'user': 'xxxx',
+        'remote_port': 3306,
+        'tunnel_port': 3307
+    },
+    's2': {
+        'cluster_host': 'stat1.wikimedia.org',
+        'db_host': 's2-analytics-slave.eqiad.wmnet',
+        'user': 'xxxx',
+        'remote_port': 3306,
+        'tunnel_port': 3308
+    }
 }
