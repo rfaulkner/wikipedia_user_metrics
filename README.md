@@ -27,19 +27,18 @@ access to.  If you are from outside the Wikimedia Foundation and do not have
 access to these credentials contact me at rfaulkner@wikimedi.org if you'd
 like to work with this package.
 
-The template configuration file looks like the following: ::
+The template configuration file looks like the following::
 
     # Project settings
     # ================
-    __home__ = '/Users/rfaulkner/'
-    __project_home__ = ''.join([__home__, 'projects/E3_analysis/'])
-    __web_home__ = ''.join([__project_home__, 'web_interface/'])
-    __sql_home__ = ''.join([__project_home__, 'SQL/'])
-    __server_log_local_home__ = ''.join([__project_home__, 'logs/'])
+
+    __project_home__ = realpath('../..') + '/'
+    __web_home__ = ''.join([__project_home__, 'src/api/'])
     __data_file_dir__ = ''.join([__project_home__, 'data/'])
 
-    __web_app_module__ = 'web_interface'
-    __system_user__ = 'rfaulk'
+    __query_module__ = 'query_calls_noop'
+    __user_thread_max__ = 100
+    __rev_thread_max__ = 50
 
     # Database connection settings
     # ============================
@@ -59,6 +58,32 @@ The template configuration file looks like the following: ::
             'port' : 3307}
     }
 
+    PROJECT_DB_MAP = {
+        'enwiki': 's1',
+        'dewiki': 's5',
+        'itwiki': 's2',
+    }
+
+    # SSH Tunnel Parameters
+    # =====================
+
+    TUNNEL_DATA = {
+        's1': {
+            'cluster_host': 'stats',
+            'db_host': 's1-db',
+            'user': 'xxxx',
+            'remote_port': 3306,
+            'tunnel_port': 3307
+        },
+        's2': {
+            'cluster_host': 'stats',
+            'db_host': 's2-db',
+            'user': 'xxxx',
+            'remote_port': 3306,
+            'tunnel_port': 3308
+        }
+    }
+
 Documentation
 -------------
 
@@ -66,31 +91,34 @@ Once the installation is complete and the configuration has been set the
 modules can be imported into the Python environment.  The available
 operational modules are the following: ::
 
-    src.etl.data_loader
-    src.etl.aggregator
-    src.etl.table_loader
-    src.etl.log_parser
-    src.etl.time_series_process_methods
-    src.etl.wpapi
+    user_metrics.etl.data_loader
+    user_metrics.etl.aggregator
+    user_metrics.etl.table_loader
+    user_metrics.etl.log_parser
+    user_metrics.etl.time_series_process_methods
+    user_metrics.etl.wpapi
 
-    src.metrics.blocks
-    src.metrics.bytes_added
-    src.metrics.live_account.pyc
-    src.metrics.edit_count
-    src.metrics.edit_rate
-    src.metrics.live_account
-    src.metrics.metrics_manager
-    src.metrics.namespace_of_edits
-    src.metrics.query_calls
-    src.metrics.revert_rate
-    src.metrics.survival
-    src.metrics.time_to_threshold
-    src.metrics.user_metric
-    src.metrics.users
+    user_metrics.metrics.blocks
+    user_metrics.metrics.bytes_added
+    user_metrics.metrics.live_account.pyc
+    user_metrics.metrics.edit_count
+    user_metrics.metrics.edit_rate
+    user_metrics.metrics.live_account
+    user_metrics.metrics.metrics_manager
+    user_metrics.metrics.namespace_of_edits
+    user_metrics.metrics.query_calls
+    user_metrics.metrics.revert_rate
+    user_metrics.metrics.survival
+    user_metrics.metrics.time_to_threshold
+    user_metrics.metrics.user_metric
+    user_metrics.metrics.users
 
-    src.utils.autovivification
-    src.utils.multiprocessing_wrapper
-    src.utils.record_type
+    user_metrics.metrics.query_calls_noop
+    user_metrics.metrics.query_calls_sql
+
+    user_metrics.utils.autovivification
+    user_metrics.utils.multiprocessing_wrapper
+    user_metrics.utils.record_type
 
 More complete docs can be found at:
     http://stat1.wikimedia.org/rfaulk/pydocs/_build/
