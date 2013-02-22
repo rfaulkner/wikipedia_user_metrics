@@ -13,7 +13,7 @@ __license__ = "GPL (version 2 or later)"
 
 
 import sys
-import logging
+from user_metrics.config import logging
 import argparse
 import subprocess
 from time import sleep
@@ -67,25 +67,6 @@ def parseargs():
     return parser.parse_args()
 
 
-def init_logger(logger, args, out=None, err=None):
-    """ Initialize script logging. """
-    if out is None:
-        out = sys.stdout
-    if err is None:
-        err = sys.stderr
-
-    level = logging.WARNING - ((args.verbose - args.quiet) * 10)
-    if args.silent:
-        level = logging.CRITICAL + 1
-
-    log_format = "%(asctime)s %(levelname)-8s %(message)s"
-    handler = logging.StreamHandler(err)
-    handler.setFormatter(logging.Formatter(fmt=log_format,
-                                           datefmt='%b-%d %H:%M:%S'))
-    logger.addHandler(handler)
-    logger.setLevel(level)
-
-
 def call_tunnel(host_alias):
     """
         Executes call that opens an ssh tunnel to remote host.
@@ -96,45 +77,43 @@ def call_tunnel(host_alias):
                str(conf.TUNNEL_DATA[host_alias]['tunnel_port']),
                conf.TUNNEL_DATA[host_alias]['db_host'],
                str(conf.TUNNEL_DATA[host_alias]['remote_port'])
-            )
+               )
     return subprocess.Popen(cmd.split(),
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
 
+
 def main(args):
-    log.debug('Begin execution.')
+    logging.debug('Begin execution.')
 
     # Initiate tunnels
     tunnels = dict()
     for host in args.hosts:
         tunnels[host] = call_tunnel(host)
-        log.info('Starting tunnel for host {0} on port {1}'.format(
+        logging.info('Starting tunnel for host {0} on port {1}'.format(
             conf.TUNNEL_DATA[host]['db_host'],
             conf.TUNNEL_DATA[host]['tunnel_port']
         ))
 
     # Process loop
     try:
-        while tunnels:
+        while tunnels and not sys.stdin.read():
             sleep(1)
             for host, proc in tunnels.iteritems():
                 if proc.poll():
-                    log.info('Host {0} died.'.format(host))
+                    logging.info('Host {0} died.'.format(host))
                     del tunnels[host]
     finally:
         for host, proc in tunnels.iteritems():
             if proc.poll():
                 proc.terminate()
-                log.info('Terminating host {0}.'.format(host))
+                logging.info('Terminating host {0}.'.format(host))
 
-    log.debug('Terminate execution.')
+    logging.debug('Terminate execution.')
 
 
 if __name__ == "__main__":
-
     args = parseargs()
-
-    log = logging.getLogger(__name__)
-    init_logger(log, args)
+    logging.debug(args)
 
     sys.exit(main(args))
