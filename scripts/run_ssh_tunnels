@@ -16,7 +16,6 @@ import sys
 from user_metrics.config import logging
 import argparse
 import subprocess
-from time import sleep
 import user_metrics.config.settings as conf
 
 
@@ -71,7 +70,7 @@ def call_tunnel(host_alias):
     """
         Executes call that opens an ssh tunnel to remote host.
     """
-    cmd = 'nohup ssh {0}@{1} -L {2}:{3}:{4}'.\
+    cmd = 'ssh {0}@{1} -f -N -L {2}:{3}:{4}'.\
         format(conf.TUNNEL_DATA[host_alias]['user'],
                conf.TUNNEL_DATA[host_alias]['cluster_host'],
                str(conf.TUNNEL_DATA[host_alias]['tunnel_port']),
@@ -97,15 +96,20 @@ def main(args):
 
     # Process loop
     try:
-        while tunnels and not sys.stdin.read():
-            sleep(1)
+
+        while tunnels:
+            user_in = raw_input('Type "x" to exit.\n')
+            if user_in == 'x':
+                break
+
+            # Check for dead procs
             for host, proc in tunnels.iteritems():
                 if proc.poll():
                     logging.info('Host {0} died.'.format(host))
                     del tunnels[host]
     finally:
         for host, proc in tunnels.iteritems():
-            if proc.poll():
+            if not proc.poll():
                 proc.terminate()
                 logging.info('Terminating host {0}.'.format(host))
 
