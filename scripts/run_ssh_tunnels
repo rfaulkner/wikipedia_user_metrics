@@ -13,6 +13,8 @@ __license__ = "GPL (version 2 or later)"
 
 
 import sys
+from os import kill
+from signal import SIGKILL
 from user_metrics.config import logging
 import argparse
 import subprocess
@@ -82,6 +84,33 @@ def call_tunnel(host_alias):
                             stderr=subprocess.PIPE)
 
 
+def kill_procs_on_port(port):
+    """
+        Kills processes attached to the local port supplied.  The shell
+        process spawns a child process so calling 'lsof' helps to
+        locate actual attached processes rather than parents.
+    """
+    logging.debug('Killing procs on port {0}'.format(port))
+    cmd = 'lsof -w -n -i tcp:{0}'.format(port)
+    p = subprocess.Popen(cmd.split(),
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+
+    for row in p.communicate()[0].strip().splitlines():
+        elems = row.split()
+
+        try:
+            pid = int(elems[1])
+        except ValueError:
+            continue
+
+        try:
+            kill(pid, SIGKILL)
+        except OSError:
+            continue
+        logging.info('Killed {0}'.format(pid))
+
+
 def main(args):
     logging.debug('Begin execution.')
 
@@ -96,7 +125,6 @@ def main(args):
 
     # Process loop
     try:
-
         while tunnels:
             user_in = raw_input('Type "x" to exit.\n')
             if user_in == 'x':
@@ -109,9 +137,7 @@ def main(args):
                     del tunnels[host]
     finally:
         for host, proc in tunnels.iteritems():
-            if not proc.poll():
-                proc.terminate()
-                logging.info('Terminating host {0}.'.format(host))
+            kill_procs_on_port(conf.TUNNEL_DATA[host]['tunnel_port'])
 
     logging.debug('Terminate execution.')
 
