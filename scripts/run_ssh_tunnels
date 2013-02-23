@@ -13,6 +13,7 @@ __license__ = "GPL (version 2 or later)"
 
 
 import sys
+from re import search
 from os import kill
 from signal import SIGKILL
 from user_metrics.config import logging
@@ -97,6 +98,9 @@ def kill_procs_on_port(port):
                          stderr=subprocess.PIPE)
 
     for row in p.communicate()[0].strip().splitlines():
+
+        if not search('(ssh|LISTEN)', row):
+            continue
         elems = row.split()
 
         try:
