@@ -14,7 +14,7 @@ data generated from E3 projects.
 Installation
 ------------
 
-`wmf_user_metrics` is packaged with distutils: ::
+`wmf_user_metrics` is packaged with distutils:
 
     $ sudo pip install wmf_user_metrics
 
@@ -27,7 +27,7 @@ access to.  If you are from outside the Wikimedia Foundation and do not have
 access to these credentials contact me at rfaulkner@wikimedi.org if you'd
 like to work with this package.
 
-The template configuration file looks like the following::
+The template configuration file looks like the following:
 
     # Project settings
     # ================
@@ -89,7 +89,7 @@ Documentation
 
 Once the installation is complete and the configuration has been set the
 modules can be imported into the Python environment.  The available
-operational modules are the following: ::
+operational modules are the following:
 
     user_metrics.etl.data_loader
     user_metrics.etl.aggregator
