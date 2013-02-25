@@ -12,7 +12,6 @@ from user_metrics.config import logging, settings
 from user_metrics.etl.data_loader import Connector
 from dateutil.parser import parse as date_parse
 
-MEDIAWIKI_DB_INSTANCE = 'slave'
 MEDIAWIKI_TIMESTAMP_FORMAT = "%Y%m%d%H%M%S"
 
 
@@ -21,7 +20,7 @@ def get_latest_cohort_id():
         Generates an ID for the next usertag cohort
 
         Returns an integer one greater than the current greatest
-        usertag_meta ID.
+        usertag_meta ID
     """
     sql = \
         """
@@ -95,7 +94,7 @@ class MediaWikiUser(object):
             'date_end': self._format_mediawiki_timestamp(date_end),
             'project': project,
         }
-        conn = Connector(instance=MEDIAWIKI_DB_INSTANCE)
+        conn = Connector(instance=settings.__cohort_data_instance__)
         conn._cur_.execute(self.QUERY_TYPES[self._query_type] % param_dict)
 
         for row in conn._cur_:
