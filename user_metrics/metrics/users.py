@@ -40,6 +40,15 @@ def get_latest_cohort_id():
     return int(max_id) + 1
 
 
+def generate_test_cohort_name(project):
+    """
+        Generates a name for a test cohort to be inserted into usertags[_meta]
+    """
+    return 'testcohort_{0}_{1}'.\
+        format(project,
+               MediaWikiUser._format_mediawiki_timestamp(datetime.now()))
+
+
 def generate_test_cohort(project,
                          max_size=10,
                          write=False,
@@ -193,7 +202,8 @@ class MediaWikiUser(object):
             Returns a Generator for MediaWiki user IDs.
         """
         param_dict = {
-            'date_start': MediaWikiUser._format_mediawiki_timestamp(date_start),
+            'date_start': MediaWikiUser._format_mediawiki_timestamp(
+                date_start),
             'date_end': MediaWikiUser._format_mediawiki_timestamp(date_end),
             'project': project,
         }
