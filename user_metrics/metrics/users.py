@@ -79,9 +79,9 @@ def generate_test_cohort(project,
     ts_end_user_o = ts_start_o + timedelta(days=user_interval_size)
     ts_end_revs_o = ts_start_o + timedelta(days=rev_interval_size)
 
-    ts_start = MediaWikiUser()._format_mediawiki_timestamp(ts_start_o)
-    ts_end_user = MediaWikiUser()._format_mediawiki_timestamp(ts_end_user_o)
-    ts_end_revs = MediaWikiUser()._format_mediawiki_timestamp(ts_end_revs_o)
+    ts_start = MediaWikiUser._format_mediawiki_timestamp(ts_start_o)
+    ts_end_user = MediaWikiUser._format_mediawiki_timestamp(ts_end_user_o)
+    ts_end_revs = MediaWikiUser._format_mediawiki_timestamp(ts_end_revs_o)
 
     # Synthesize query and execute
     logging.info(__name__ + ':: Getting users from {0}.\n\n'
@@ -179,7 +179,8 @@ class MediaWikiUser(object):
         self._query_type = query_type
         super(MediaWikiUser, self).__init__()
 
-    def _format_mediawiki_timestamp(self, timestamp_repr):
+    @staticmethod
+    def _format_mediawiki_timestamp(timestamp_repr):
         """ Convert to mediawiki timestamps """
         if hasattr(timestamp_repr, 'strftime'):
             return timestamp_repr.strftime(MEDIAWIKI_TIMESTAMP_FORMAT)
@@ -192,8 +193,8 @@ class MediaWikiUser(object):
             Returns a Generator for MediaWiki user IDs.
         """
         param_dict = {
-            'date_start': self._format_mediawiki_timestamp(date_start),
-            'date_end': self._format_mediawiki_timestamp(date_end),
+            'date_start': MediaWikiUser._format_mediawiki_timestamp(date_start),
+            'date_end': MediaWikiUser._format_mediawiki_timestamp(date_end),
             'project': project,
         }
         conn = Connector(instance=settings.__cohort_data_instance__)
