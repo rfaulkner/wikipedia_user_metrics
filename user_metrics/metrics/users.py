@@ -11,6 +11,7 @@ from user_metrics.config import logging, settings
 
 from user_metrics.etl.data_loader import Connector
 from dateutil.parser import parse as date_parse
+from datetime import datetime, timedelta
 
 MEDIAWIKI_TIMESTAMP_FORMAT = "%Y%m%d%H%M%S"
 
@@ -32,9 +33,110 @@ def get_latest_cohort_id():
         'cohort_meta_db': settings.__cohort_meta_db__,
     }
     conn = Connector(instance=settings.__cohort_data_instance__)
-    conn._cur_.execute(sql % {})
+    conn._cur_.execute(sql)
     max_id = conn._cur_.fetchone()[0]
+    del conn
+
     return int(max_id) + 1
+
+
+def generate_test_cohort(project,
+                         max_size=10,
+                         write=False,
+                         user_interval_size=1,
+                         rev_interval_size=7,
+                         rev_lower_limit=0):
+    """
+        Build a test cohort (list of UIDs) for the given project.
+
+        Parameters
+        ~~~~~~~~~~
+
+        project : str
+           Wikipedia project e.g. 'enwiki'.
+
+        size : uint
+           Number of users to include in the cohort.
+
+        write: boolean
+           Flag indicating whether to write the cohort to
+           settings.__cohort_meta_db__ and settings.__cohort_db__.
+
+        user_interval_size: uint
+            Number of days within which to take registered users
+
+        rev_lower_limit: int
+            Minimum number of revisions a user must have between registration
+            and the
+
+        Returns the list of UIDs from the corresponding project that defines
+        the test cohort.
+    """
+
+    # Determine the time bounds that define the cohort acceptance criteria
+
+    ts_start_o = datetime.now() + timedelta(days=-60)
+    ts_end_user_o = ts_start_o + timedelta(days=user_interval_size)
+    ts_end_revs_o = ts_start_o + timedelta(days=rev_interval_size)
+
+    ts_start = MediaWikiUser()._format_mediawiki_timestamp(ts_start_o)
+    ts_end_user = MediaWikiUser()._format_mediawiki_timestamp(ts_end_user_o)
+    ts_end_revs = MediaWikiUser()._format_mediawiki_timestamp(ts_end_revs_o)
+
+    # Synthesize query and execute
+    logging.info(__name__ + ':: Getting users from {0}.\n\n'
+                            '\tUser interval: {1} - {2}\n'
+                            '\tRevision interval: {1} - {3}\n'
+                            '\tMax users = {4}\n'
+                            '\tMin revs = {5}\n'.
+                            format(project, str(ts_start_o)[:19],
+                                   str(ts_end_user_o)[:19],
+                                   str(ts_end_revs_o)[:19],
+                                   max_size,
+                                   rev_lower_limit
+                                   )
+                 )
+    sql = \
+        """
+            SELECT
+                rev_user,
+                COUNT(*) as revs
+            FROM
+                %(project)s.revision
+            WHERE
+                rev_user IN (
+                    SELECT user_id
+                    FROM %(project)s.user
+                    WHERE user_registration > '%(ts_start)s'
+                        AND user_registration < '%(ts_end_user)s')
+                AND rev_timestamp > '%(ts_start)s'
+                AND rev_timestamp <= '%(ts_end_revs)s'
+            GROUP BY 1
+            HAVING revs > %(rev_lower_limit)s
+            ORDER BY 2 DESC
+            LIMIT %(max_size)s;
+        """
+    sql %= {
+        'project': project,
+        'ts_start': ts_start,
+        'ts_end_user': ts_end_user,
+        'ts_end_revs': ts_end_revs,
+        'max_size': max_size,
+        'rev_lower_limit': rev_lower_limit,
+    }
+    conn = Connector(instance=settings.PROJECT_DB_MAP[project])
+    conn._cur_.execute(sql)
+    users = [row for row in conn._cur_]
+    del conn
+
+    # get latest cohort id
+    utm_id = get_latest_cohort_id()
+
+    # add new ids to
+    if write:
+        logging.info(__name__ + ':: ')
+
+    return users
 
 
 class MediaWikiUserException(Exception):
@@ -99,7 +201,3 @@ class MediaWikiUser(object):
 
         for row in conn._cur_:
             yield row[0]
-
-
-if __name__ == '__main__':
-    print get_latest_cohort_id()
