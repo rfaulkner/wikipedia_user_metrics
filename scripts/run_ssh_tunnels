@@ -13,10 +13,12 @@ __license__ = "GPL (version 2 or later)"
 
 
 import sys
+from re import search
+from os import kill
+from signal import SIGKILL
 from user_metrics.config import logging
 import argparse
 import subprocess
-from time import sleep
 import user_metrics.config.settings as conf
 
 
@@ -71,7 +73,7 @@ def call_tunnel(host_alias):
     """
         Executes call that opens an ssh tunnel to remote host.
     """
-    cmd = 'nohup ssh {0}@{1} -L {2}:{3}:{4}'.\
+    cmd = 'ssh {0}@{1} -f -N -L {2}:{3}:{4}'.\
         format(conf.TUNNEL_DATA[host_alias]['user'],
                conf.TUNNEL_DATA[host_alias]['cluster_host'],
                str(conf.TUNNEL_DATA[host_alias]['tunnel_port']),
@@ -81,6 +83,36 @@ def call_tunnel(host_alias):
     return subprocess.Popen(cmd.split(),
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
+
+
+def kill_procs_on_port(port):
+    """
+        Kills processes attached to the local port supplied.  The shell
+        process spawns a child process so calling 'lsof' helps to
+        locate actual attached processes rather than parents.
+    """
+    logging.debug('Killing procs on port {0}'.format(port))
+    cmd = 'lsof -w -n -i tcp:{0}'.format(port)
+    p = subprocess.Popen(cmd.split(),
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+
+    for row in p.communicate()[0].strip().splitlines():
+
+        if not search('(ssh|LISTEN)', row):
+            continue
+        elems = row.split()
+
+        try:
+            pid = int(elems[1])
+        except ValueError:
+            continue
+
+        try:
+            kill(pid, SIGKILL)
+        except OSError:
+            continue
+        logging.info('Killed {0}'.format(pid))
 
 
 def main(args):
@@ -97,17 +129,19 @@ def main(args):
 
     # Process loop
     try:
-        while tunnels and not sys.stdin.read():
-            sleep(1)
+        while tunnels:
+            user_in = raw_input('Type "x" to exit.\n')
+            if user_in == 'x':
+                break
+
+            # Check for dead procs
             for host, proc in tunnels.iteritems():
                 if proc.poll():
                     logging.info('Host {0} died.'.format(host))
                     del tunnels[host]
     finally:
         for host, proc in tunnels.iteritems():
-            if proc.poll():
-                proc.terminate()
-                logging.info('Terminating host {0}.'.format(host))
+            kill_procs_on_port(conf.TUNNEL_DATA[host]['tunnel_port'])
 
     logging.debug('Terminate execution.')
 

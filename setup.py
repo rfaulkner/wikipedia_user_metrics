@@ -6,7 +6,7 @@ from distutils.core import setup
 with open('README.md') as file:
     long_description = file.read()
 
-__version__ = '0.1.1'
+__version__ = '0.1.2-dev'
 
 setup(
     name='wmf_user_metrics',
@@ -19,6 +19,7 @@ setup(
     packages=['user_metrics',
               'user_metrics.etl',
               'user_metrics.metrics',
+              'user_metrics.metrics.query',
               'user_metrics.utils',
               'user_metrics.config'],
     install_requires=[

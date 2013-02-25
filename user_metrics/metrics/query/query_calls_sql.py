@@ -8,7 +8,9 @@ __email__ = "rfaulkner@wikimedia.org"
 __date__ = "january 30th, 2013"
 __license__ = "GPL (version 2 or later)"
 
-from user_metrics.etl.data_loader import DataLoader, Connector, DB_MAP
+from user_metrics.config.settings import PROJECT_DB_MAP
+
+from user_metrics.etl.data_loader import DataLoader, Connector
 from MySQLdb import escape_string, ProgrammingError
 from copy import deepcopy
 
@@ -80,7 +82,7 @@ def query_method_deco(f):
         query = f(escape_var(users), escape_var(project), args)
 
         try:
-            conn = Connector(instance=DB_MAP[project])
+            conn = Connector(instance=PROJECT_DB_MAP[project])
         except KeyError:
             logging.error(__name__ + '::Project does not exist.')
             return []
@@ -99,7 +101,7 @@ def query_method_deco(f):
 def rev_count_query(uid, is_survival, namespace, project,
                     restrict, start_time, end_time, threshold_ts):
     """ Get count of revisions associated with a UID for Threshold metrics """
-    conn = Connector(instance=DB_MAP[project])
+    conn = Connector(instance=PROJECT_DB_MAP[project])
 
     # The key difference between survival and threshold is that threshold
     # measures a level of activity before a point whereas survival
@@ -189,7 +191,7 @@ rev_query.__query_name__ = 'rev_query'
 
 def rev_len_query(rev_id, project):
     """ Get parent revision length - returns long """
-    conn = Connector(instance=DB_MAP[project])
+    conn = Connector(instance=PROJECT_DB_MAP[project])
     query = query_store[rev_len_query.__name__] % {
         'project' : escape_var(project),
         'parent_rev_id' : int(rev_id),
@@ -209,7 +211,7 @@ rev_len_query.__query_name__ = 'rev_len_query'
 
 def rev_user_query(project, start, end):
     """ Produce all users that made a revision within period """
-    conn = Connector(instance=DB_MAP[project])
+    conn = Connector(instance=PROJECT_DB_MAP[project])
     query = query_store[rev_user_query.__name__] % \
         {
             'start': escape_var(start),
@@ -224,7 +226,7 @@ rev_user_query.__query_name__ = 'rev_user_query'
 def page_rev_hist_query(rev_id, page_id, n, project, namespace,
                         look_ahead=False):
     """ Compute revision history pegged to a given rev """
-    conn = Connector(instance=DB_MAP[project])
+    conn = Connector(instance=PROJECT_DB_MAP[project])
 
     # Format namespace expression and comparator
     ns_cond = format_namespace(namespace)
@@ -265,10 +267,10 @@ def time_to_threshold_revs_query(user_id, project, args):
     return " ".join(sql.strip().splitlines())
 time_to_threshold_revs_query.__query_name__ = 'time_to_threshold_revs_query'
 
-def blocks_user_map_query(users):
+def blocks_user_map_query(users, project):
     """ Obtain map to generate uname to uid"""
     # Get usernames for user ids to detect in block events
-    conn = Connector(instance='slave')
+    conn = Connector(instance=PROJECT_DB_MAP[project])
     user_str = DataLoader().format_comma_separated_list(
         escape_var(users))
 

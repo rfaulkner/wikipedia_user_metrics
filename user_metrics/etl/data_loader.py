@@ -58,8 +58,6 @@ import user_metrics.config.settings as projSet
 
 from user_metrics.config import logging
 
-# Maps project to MW db instance
-DB_MAP = { 'enwiki' : 'slave' }
 
 def read_file(file_path_name):
     """ reads a text file line by line """
