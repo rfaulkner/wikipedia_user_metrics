@@ -16,6 +16,50 @@ from datetime import datetime, timedelta
 MEDIAWIKI_TIMESTAMP_FORMAT = "%Y%m%d%H%M%S"
 
 
+# Module level query definitions
+# @TODO move these to the query package
+
+SELECT_LATEST_UTM_TAG =\
+    """
+        SELECT max(utm_id)
+        FROM %(cohort_meta_instance)s.%(cohort_meta_db)s
+    """
+
+SELECT_PROJECT_IDS =\
+    """
+        SELECT
+            rev_user,
+            COUNT(*) as revs
+        FROM
+            %(project)s.revision
+        WHERE
+            rev_user IN (
+                SELECT user_id
+                FROM %(project)s.user
+                WHERE user_registration > '%(ts_start)s'
+                    AND user_registration < '%(ts_end_user)s')
+            AND rev_timestamp > '%(ts_start)s'
+            AND rev_timestamp <= '%(ts_end_revs)s'
+        GROUP BY 1
+        HAVING revs > %(rev_lower_limit)s
+        ORDER BY 2 DESC
+        LIMIT %(max_size)s;
+    """
+
+INSERT_USERTAGS =\
+    """
+        INSERT INTO %(cohort_meta_instance)s.%(cohort_db)s
+        VALUES %(values_list)s
+    """
+
+INSERT_USERTAGS_META =\
+    """
+        INSERT INTO %(cohort_meta_instance)s.%(cohort_meta_db)s
+        VALUES (%(utm_id)s, "%(utm_name)s", "%(utm_project)s",
+            "%(utm_notes)s", "%(utm_touched)s", %(utm_enabled)s)
+    """
+
+
 def get_latest_cohort_id():
     """
         Generates an ID for the next usertag cohort
@@ -23,17 +67,12 @@ def get_latest_cohort_id():
         Returns an integer one greater than the current greatest
         usertag_meta ID
     """
-    sql = \
-        """
-            SELECT max(utm_id)
-            FROM %(cohort_meta_instance)s.%(cohort_meta_db)s
-        """
-    sql %= {
+    select = SELECT_LATEST_UTM_TAG % {
         'cohort_meta_instance': settings.__cohort_meta_instance__,
         'cohort_meta_db': settings.__cohort_meta_db__,
     }
     conn = Connector(instance=settings.__cohort_data_instance__)
-    conn._cur_.execute(sql)
+    conn._cur_.execute(select)
     max_id = conn._cur_.fetchone()[0]
     del conn
 
@@ -105,27 +144,7 @@ def generate_test_cohort(project,
                                    rev_lower_limit
                                    )
                  )
-    sql = \
-        """
-            SELECT
-                rev_user,
-                COUNT(*) as revs
-            FROM
-                %(project)s.revision
-            WHERE
-                rev_user IN (
-                    SELECT user_id
-                    FROM %(project)s.user
-                    WHERE user_registration > '%(ts_start)s'
-                        AND user_registration < '%(ts_end_user)s')
-                AND rev_timestamp > '%(ts_start)s'
-                AND rev_timestamp <= '%(ts_end_revs)s'
-            GROUP BY 1
-            HAVING revs > %(rev_lower_limit)s
-            ORDER BY 2 DESC
-            LIMIT %(max_size)s;
-        """
-    sql %= {
+    select_users = SELECT_PROJECT_IDS % {
         'project': project,
         'ts_start': ts_start,
         'ts_end_user': ts_end_user,
@@ -134,7 +153,7 @@ def generate_test_cohort(project,
         'rev_lower_limit': rev_lower_limit,
     }
     conn = Connector(instance=settings.PROJECT_DB_MAP[project])
-    conn._cur_.execute(sql)
+    conn._cur_.execute(select_users)
     users = [row for row in conn._cur_]
     del conn
 
@@ -144,7 +163,14 @@ def generate_test_cohort(project,
 
     # add new ids to usertags & usertags_meta
     if write:
-        logging.info(__name__ + ':: Inserting into')
+        logging.info(__name__ + ':: Inserting records...\n\n'
+                                '\tCohort name - {0}\n'
+                                '\tCohort Tag ID - {1}\n'
+                                '\t{2} - {3} record(s)\n'.
+                                format(utm_name, utm_id,
+                                       settings.__cohort_db__, len(users)
+                                       )
+                     )
 
         values_list = ''
         for user in users:
@@ -152,24 +178,13 @@ def generate_test_cohort(project,
                 format(project, user[0], utm_id)
         values_list = values_list[:-1]
 
-        insert_ut =\
-            """
-                INSERT INTO %(cohort_meta_instance)s.%(cohort_db)s
-                VALUES %(values_list)s
-            """
-        insert_ut %= {
+        insert_ut = INSERT_USERTAGS % {
             'cohort_meta_instance': settings.__cohort_meta_instance__,
             'cohort_db': settings.__cohort_db__,
             'values_list': values_list
         }
 
-        insert_utm =\
-            """
-                INSERT INTO %(cohort_meta_instance)s.%(cohort_meta_db)s
-                VALUES (%(utm_id)s, "%(utm_name)s", "%(utm_project)s",
-                    "%(utm_notes)s", "%(utm_touched)s", %(utm_enabled)s)
-            """
-        insert_utm %= {
+        insert_utm = INSERT_USERTAGS_META % {
             'cohort_meta_instance': settings.__cohort_meta_instance__,
             'cohort_meta_db': settings.__cohort_meta_db__,
             'utm_id': utm_id,
@@ -184,6 +199,7 @@ def generate_test_cohort(project,
         conn = Connector(instance=settings.__cohort_data_instance__)
         conn._cur_.execute(insert_ut)
         conn._cur_.execute(insert_utm)
+        conn._db_.commit()
         del conn
 
     return users
@@ -202,6 +218,8 @@ class MediaWikiUser(object):
         A class level attribute QUERY_TYPES handles the method in which
         the user is extracted from a MediaWiki DB.
     """
+
+    # @TODO move these to the query package
 
     # Queries MediaWiki database for account creations via Logging table
     USER_QUERY_LOG = """
@@ -253,3 +271,6 @@ class MediaWikiUser(object):
 
         for row in conn._cur_:
             yield row[0]
+
+if __name__ == '__main__':
+    generate_test_cohort('itwiki', write=True)
