@@ -106,22 +106,8 @@ class BytesAdded(um.UserMetric):
         log_progress = bool(kwargs['log_progress'])
         log_frequency = int(kwargs['log_frequency'])
 
-        if users:
-            if not hasattr(users, '__iter__'):
-                users = [users]
-
-        # If the user list is empty pull from the revision table within
-        # the query timeframe
-        if not users:
-            if log_progress:
-                logging.debug(__name__ +
-                              '::Getting all distinct users')
-            users = query_mod.rev_user_query(self._project_,
-                                             self._start_ts_,
-                                             self._end_ts_)
-            if log_progress:
-                logging.info(__name__ +
-                             '::Retrieved %s users.' % len(users))
+        if not hasattr(users, '__iter__'):
+            users = [users]
 
         # get revisions
         args = [log_progress, self._start_ts_,
@@ -183,7 +169,6 @@ def _get_revisions(args):
 
 
 def _process_help(args):
-
     """
         Determine the bytes added over a number of revisions for user(s).  The
         parameter *user_handle* can be either a string or an integer or a list
