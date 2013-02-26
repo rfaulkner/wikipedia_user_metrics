@@ -18,6 +18,7 @@ NamespaceEditsArgsClass = namedtuple('NamespaceEditsArgs', 'project log '
                                                            'date_start '
                                                            'date_end')
 
+
 class NamespaceEdits(um.UserMetric):
     """
         Skeleton class for "namespace of edits" metric:
@@ -36,7 +37,8 @@ class NamespaceEdits(um.UserMetric):
         For example to produce the above datapoint for a user id one could
         call: ::
 
-            >>> from user_metrics.metrics.namespace_of_edits import NamespaceEdits
+            >>> from user_metrics.metrics.namespace_of_edits import
+            NamespaceEdits
             >>> users = ['17792132', '17797320', '17792130', '17792131',
                             '17792136', 13234584, 156171]
             >>> n = NamespaceEdits(date_start='20110101000000')
@@ -56,61 +58,68 @@ class NamespaceEdits(um.UserMetric):
     """
 
     # namespaces or which counts are gathered
-    VALID_NAMESPACES = [-1,-2] + range(16) + [100, 101, 108, 109]
+    VALID_NAMESPACES = [-1, -2] + range(16) + [100, 101, 108, 109]
 
     # Structure that defines parameters for RevertRate class
     _param_types = {
-        'init' : {},
-        'process' : {
-            'log' : ['bool', 'Enable logging for processing.',False],
-            'num_threads' : ['int', 'Number of worker processes over users.',
-                             1],
-            }
+        'init': {},
+        'process': {
+            'log': ['bool', 'Enable logging for processing.', False],
+            'num_threads': ['int', 'Number of worker processes over users.',
+                            1],
+        }
     }
 
     # Define the metrics data model meta
     _data_model_meta = {
-        'id_fields' : [0],
-        'date_fields' : [],
-        'float_fields' : [1],
-        'integer_fields' : [2],
-        'boolean_fields' : [],
-        }
+        'id_fields': [0],
+        'date_fields': [],
+        'float_fields': [1],
+        'integer_fields': [2],
+        'boolean_fields': [],
+    }
 
     _agg_indices = {
-        'namespace_edits_sum' : _data_model_meta['integer_fields'] +
-                                _data_model_meta['float_fields'],
-        }
+        'namespace_edits_sum': _data_model_meta['integer_fields'] +
+        _data_model_meta['float_fields'],
+    }
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
         um.UserMetric.__init__(self, **kwargs)
 
     @staticmethod
-    def header(): return ['user_id', 'revision_data_by_namespace', ]
+    def header():
+        return ['user_id', 'revision_data_by_namespace', ]
 
     @um.UserMetric.pre_process_users
     def process(self, user_handle, **kwargs):
 
-        self.apply_default_kwargs(kwargs,'process')
+        self.apply_default_kwargs(kwargs, 'process')
 
         # ensure the handles are iterable
-        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
+        if not hasattr(user_handle, '__iter__'):
+            user_handle = [user_handle]
         k = int(kwargs['num_threads'])
         log = bool(kwargs['log'])
 
-        if log: logging.info(__name__ + "::parameters = " + str(kwargs))
+        if log:
+            logging.info(__name__ + "::parameters = " + str(kwargs))
 
         # Multiprocessing vs. single processing execution
         args = [self._project_, log, self._start_ts_, self._end_ts_]
-        self._results = mpw.build_thread_pool(user_handle,_process_help,k,args)
-
+        self._results = mpw.build_thread_pool(user_handle, _process_help, k,
+                                              args)
         return self
 
-def _process_help(args):
 
+def _process_help(args):
+    """
+        Worker thread method for NamespaceOfEdits::process().
+    """
     state = args[1]
-    thread_args = NamespaceEditsArgsClass(state[0],state[1],state[2],state[3])
+    thread_args = NamespaceEditsArgsClass(state[0], state[1], state[2],
+                                          state[3])
     users = args[0]
 
     if thread_args.log:
@@ -119,14 +128,12 @@ def _process_help(args):
         logging.info(__name__ + '::From %s to %s. (PID = %s)' % (
             str(thread_args.date_start), str(thread_args.date_end), getpid()))
 
-    query_args = namedtuple('QueryArgs', 'date_start date_end')\
-                                (thread_args.date_start,
-                                 thread_args.date_end)
+    query_args = namedtuple('QueryArgs', 'date_start date_end')(
+        thread_args.date_start, thread_args.date_end)
 
     query_results = query_mod.namespace_edits_rev_query(users,
                                                         thread_args.project,
                                                         query_args)
-
     # Tally counts of namespace edits
     results = dict()
     for user in users:
@@ -149,8 +156,9 @@ def _process_help(args):
 # ==========================
 # DEFINE METRIC AGGREGATORS
 # ==========================
-
 # @TODO use aggregator method
+
+
 @decorator_builder(NamespaceEdits.header())
 def namespace_edits_sum(metric):
     """ Computes the fraction of editors reaching a threshold """
@@ -161,8 +169,8 @@ def namespace_edits_sum(metric):
         try:
             for ns in NamespaceEdits.VALID_NAMESPACES:
                 summed_results[1][str(ns)] += r[1][str(ns)]
-        except IndexError: continue
-        except TypeError: continue
+        except (IndexError, TypeError):
+            continue
     return summed_results
 setattr(namespace_edits_sum, um.METRIC_AGG_METHOD_FLAG, True)
 setattr(namespace_edits_sum, um.METRIC_AGG_METHOD_NAME,
@@ -178,6 +186,6 @@ if __name__ == "__main__":
              '17792136', 13234584, 156171]
 
     m = NamespaceEdits(date_start='20110101000000')
-    m.process(users,log=True)
+    m.process(users, log=True)
 
     print namespace_edits_sum(m)
