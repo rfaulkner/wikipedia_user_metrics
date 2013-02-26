@@ -13,7 +13,7 @@ from user_metrics.etl.data_loader import Connector
 from dateutil.parser import parse as date_parse
 from datetime import datetime, timedelta
 
-MEDIAWIKI_TIMESTAMP_FORMAT = "%Y%m%d%H%M%S"
+MW_TIMESTAMP_FORMAT = "%Y%m%d%H%M%S"
 
 
 # Module level query definitions
@@ -137,9 +137,10 @@ def generate_test_cohort(project,
                             '\tRevision interval: {1} - {3}\n'
                             '\tMax users = {4}\n'
                             '\tMin revs = {5}\n'.
-                            format(project, str(ts_start_o)[:19],
-                                   str(ts_end_user_o)[:19],
-                                   str(ts_end_revs_o)[:19],
+                            format(project,
+                                   ts_start_o.strftime(MW_TIMESTAMP_FORMAT),
+                                   ts_end_user_o.strftime(MW_TIMESTAMP_FORMAT),
+                                   ts_end_revs_o.strftime(MW_TIMESTAMP_FORMAT),
                                    max_size,
                                    rev_lower_limit
                                    )
@@ -168,7 +169,8 @@ def generate_test_cohort(project,
                                 '\tCohort Tag ID - {1}\n'
                                 '\t{2} - {3} record(s)\n'.
                                 format(utm_name, utm_id,
-                                       settings.__cohort_db__, len(users)
+                                       settings.__cohort_db__,
+                                       len(users)
                                        )
                      )
 
@@ -251,10 +253,10 @@ class MediaWikiUser(object):
     def _format_mediawiki_timestamp(timestamp_repr):
         """ Convert to mediawiki timestamps """
         if hasattr(timestamp_repr, 'strftime'):
-            return timestamp_repr.strftime(MEDIAWIKI_TIMESTAMP_FORMAT)
+            return timestamp_repr.strftime(MW_TIMESTAMP_FORMAT)
         else:
             return date_parse(timestamp_repr).strftime(
-                MEDIAWIKI_TIMESTAMP_FORMAT)
+                MW_TIMESTAMP_FORMAT)
 
     def get_users(self, date_start, date_end, project='enwiki'):
         """
@@ -272,5 +274,8 @@ class MediaWikiUser(object):
         for row in conn._cur_:
             yield row[0]
 
+
+# Rudimentary testing
+# for more detailed testing see user_metrics/tests/test.py
 if __name__ == '__main__':
     generate_test_cohort('itwiki', write=True)
