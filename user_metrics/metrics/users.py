@@ -138,12 +138,53 @@ def generate_test_cohort(project,
     users = [row for row in conn._cur_]
     del conn
 
-    # get latest cohort id
+    # get latest cohort id & cohort name
     utm_id = get_latest_cohort_id()
+    utm_name = generate_test_cohort_name(project)
 
-    # add new ids to
+    # add new ids to usertags & usertags_meta
     if write:
-        logging.info(__name__ + ':: ')
+        logging.info(__name__ + ':: Inserting into')
+
+        values_list = ''
+        for user in users:
+            values_list += '("{0}",{1},{2}),'.\
+                format(project, user[0], utm_id)
+        values_list = values_list[:-1]
+
+        insert_ut =\
+            """
+                INSERT INTO %(cohort_meta_instance)s.%(cohort_db)s
+                VALUES %(values_list)s
+            """
+        insert_ut %= {
+            'cohort_meta_instance': settings.__cohort_meta_instance__,
+            'cohort_db': settings.__cohort_db__,
+            'values_list': values_list
+        }
+
+        insert_utm =\
+            """
+                INSERT INTO %(cohort_meta_instance)s.%(cohort_meta_db)s
+                VALUES (%(utm_id)s, "%(utm_name)s", "%(utm_project)s",
+                    "%(utm_notes)s", "%(utm_touched)s", %(utm_enabled)s)
+            """
+        insert_utm %= {
+            'cohort_meta_instance': settings.__cohort_meta_instance__,
+            'cohort_meta_db': settings.__cohort_meta_db__,
+            'utm_id': utm_id,
+            'utm_name': utm_name,
+            'utm_project': project,
+            'utm_notes': 'Test cohort.',
+            'utm_touched': MediaWikiUser.
+            _format_mediawiki_timestamp(datetime.now()),
+            'utm_enabled': 0
+        }
+
+        conn = Connector(instance=settings.__cohort_data_instance__)
+        conn._cur_.execute(insert_ut)
+        conn._cur_.execute(insert_utm)
+        del conn
 
     return users
 
