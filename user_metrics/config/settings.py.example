@@ -10,16 +10,21 @@
     Project Settings
     ~~~~~~~~~~~~~~~~
 
-    - **__project_home__**      : Home directory for the project
-    - **__web_home__**          : Home directory for Flask extension (api)
-    - **__data_file_dir__**     : Home directory for any ancillary data files
-    - **__query_module__**      : Defines the name of the module under
+    - **__project_home__**          : Home directory for the project
+    - **__web_home__**              : Home directory for Flask extension (api)
+    - **__data_file_dir__**         : Home directory for any ancillary data
+    files
+    - **__query_module__**          : Defines the name of the module under
     src/metrics/query that is used to retrieve backend data.
-    - **__user_thread_max__**   : Integer that tunes the maximum number of
+    - **__user_thread_max__**       : Integer that tunes the maximum number of
     threads on which to partition user metric computations based on users.
-    - **__rev_thread_max__**    : Integer that tunes the maximum number of
+    - **__rev_thread_max__**        : Integer that tunes the maximum number of
     threads on which to partition user metric computations based on revisions.
-
+    - **__cohort_data_instance__**  : Instance hosting cohort data.
+    - **__cohort_db__**             : Database containing cohort data.
+    - **__cohort_meta_db__**        : Database storing users with cohort tags.
+    - **__cohort_meta_instance__**  : Database containing meta data for
+    cohorts.
 
     MediaWiki DB Settings
     ~~~~~~~~~~~~~~~~~~~~~
@@ -49,6 +54,12 @@ __data_file_dir__ = ''.join([__project_home__, 'data/'])
 __query_module__ = 'query_calls_noop'
 __user_thread_max__ = 100
 __rev_thread_max__ = 50
+
+__cohort_data_instance__    = 'cohorts'
+__cohort_db__               = 'usertags'
+__cohort_meta_db__          = 'usertags_meta'
+__cohort_meta_instance__    = 'staging'
+
 
 # Database connection settings
 # ============================
