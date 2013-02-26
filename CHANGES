@@ -1,9 +1,45 @@
-E3_analysis Changelog
-=====================
+User Metrics Changelog
+======================
 
-Version 0.1
------------
 
-Released on January 30th 2012, codename "UMAPI".
+Version 0.1.1-dev
+-----------------
+
+Released on January 30th 2013, codename "UMAPI".
 
 - Initial release
+- Raw, aggregate, and time-series processing of English Wikipedia user
+    cohorts over various metrics
+- Metrics: http://meta.wikimedia.org/wiki/Research:Metrics#User_metrics
+- API implementation in flask that exposes these requests via HTTP urls
+- API also exposes single user requests
+
+
+Version 0.1.2-dev
+-----------------
+
+Released on February 26th 2013.
+
+- Cross project support, cohorts and requests outside of enwiki are supported
+- Additional aggregators based on numpy methods (mean, median, max, min)
+- New script "run_ssh_tunnels" that sets up multiple connections to database
+    hosts on different local ports
+- Redefined configuration settings to more easily allow for defining new
+    connections and throttling max threads
+
+
+Version 0.1.3-dev
+-----------------
+
+To be released on March 13th 2013.
+
+- More robust testing.
+- Expanded multi-project support
+- pure JSON responses
+- expose all parameters in JSON responses
+- Redefine API request entry points:
+    * run/cohort/..
+    * run/set/..
+    * run/user/..
+- Deal with undefined metric values in a standard way
+- Build filters that allow new cohorts to be generated from requests
