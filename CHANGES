@@ -43,3 +43,5 @@ To be released on March 13th 2013.
     * run/user/..
 - Deal with undefined metric values in a standard way
 - Build filters that allow new cohorts to be generated from requests
+- Make all metrics relative to a user event (e.g. registration) as metrics
+    like survival and threshold
