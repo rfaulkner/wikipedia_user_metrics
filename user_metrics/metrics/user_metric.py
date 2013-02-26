@@ -55,6 +55,7 @@ from collections import namedtuple
 from dateutil.parser import parse as date_parse
 from datetime import datetime, timedelta
 
+
 def pre_metrics_init(init_f):
     """ Decorator function for subclassed metrics __init__ """
     def wrapper(self,**kwargs):
@@ -84,6 +85,7 @@ METRIC_AGG_METHOD_KWARGS = 'metric_agg_kwargs'
 # Class for storing aggregate data
 aggregate_data_class = namedtuple("AggregateData", "header data")
 
+
 def aggregator(agg_method, metric, data_header):
     """ Method for wrapping and executing aggregated data """
 
@@ -106,6 +108,14 @@ def aggregator(agg_method, metric, data_header):
         data = [agg_method.__name__] + agg_method(metric.__iter__(),
             metric._agg_indices[agg_method.__name__])
     return aggregate_data_class(agg_header, data)
+
+
+class UserMetricError(Exception):
+    """ Basic exception class for UserMetric types """
+    def __init__(self, message="Unable to process results using "
+                               "strategy."):
+        Exception.__init__(self, message)
+
 
 class UserMetric(object):
 
@@ -217,7 +227,7 @@ class UserMetric(object):
             timestamp = datetime_obj.strftime(cls.DATETIME_STR_FORMAT)
             return timestamp
         except ValueError:
-            raise cls.UserMetricError(message='Could not parse timestamp: %s'
+            raise UserMetricError(message='Could not parse timestamp: %s'
                 % datetime_obj.__str__())
 
     @classmethod
@@ -256,8 +266,4 @@ class UserMetric(object):
     def process(self, users, **kwargs):
         raise NotImplementedError()
 
-    class UserMetricError(Exception):
-        """ Basic exception class for UserMetric types """
-        def __init__(self, message="Unable to process results using "
-                                   "strategy."):
-            Exception.__init__(self, message)
+

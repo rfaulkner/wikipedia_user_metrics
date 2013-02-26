@@ -112,10 +112,8 @@ class EditRate(um.UserMetric):
         try:
             start_ts_obj = date_parse(self._start_ts_)
             end_ts_obj = date_parse(self._end_ts_)
-        except AttributeError:
-            raise um.UserMetric.UserMetricError()
-        except ValueError:
-            raise um.UserMetric.UserMetricError()
+        except (AttributeError, ValueError):
+            raise um.UserMetricError()
 
         # Compute time difference between datetime objects and get the
         # integer number of seconds
