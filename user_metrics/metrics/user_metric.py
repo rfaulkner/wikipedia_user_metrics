@@ -58,13 +58,13 @@ from datetime import datetime, timedelta
 
 def pre_metrics_init(init_f):
     """ Decorator function for subclassed metrics __init__ """
-    def wrapper(self,**kwargs):
+    def wrapper(self, **kwargs):
         # Add params from base class
         self.append_params(UserMetric)
-        self.apply_default_kwargs(kwargs,'init')
+        self.apply_default_kwargs(kwargs, 'init')
 
         # Call init
-        init_f(self,**kwargs)
+        init_f(self, **kwargs)
 
     return wrapper
 
@@ -89,24 +89,25 @@ aggregate_data_class = namedtuple("AggregateData", "header data")
 def aggregator(agg_method, metric, data_header):
     """ Method for wrapping and executing aggregated data """
 
-    if hasattr(agg_method, METRIC_AGG_METHOD_FLAG) and getattr(agg_method,
-        METRIC_AGG_METHOD_FLAG):
+    if hasattr(agg_method, METRIC_AGG_METHOD_FLAG) and getattr(
+            agg_method,  METRIC_AGG_METHOD_FLAG):
         # These are metric specific aggregators.  The method must also define
         # the header.
         agg_header = getattr(agg_method, METRIC_AGG_METHOD_HEAD) if hasattr(
             agg_method, METRIC_AGG_METHOD_HEAD) else 'No header specified.'
 
-        kwargs = getattr(agg_method,METRIC_AGG_METHOD_KWARGS) if hasattr(
+        kwargs = getattr(agg_method, METRIC_AGG_METHOD_KWARGS) if hasattr(
             agg_method, METRIC_AGG_METHOD_KWARGS) else {}
 
-        data = [getattr(agg_method,METRIC_AGG_METHOD_NAME)] + agg_method(
+        data = [getattr(agg_method, METRIC_AGG_METHOD_NAME)] + agg_method(
             metric, **kwargs)
     else:
         # Generic aggregators that are metric agnostic
-        agg_header = ['type'] + [data_header[i] for i in metric._agg_indices[
-                                                         agg_method.__name__]]
+        agg_header = ['type'] + [
+            data_header[i] for i in metric._agg_indices[agg_method.__name__]]
         data = [agg_method.__name__] + agg_method(metric.__iter__(),
-            metric._agg_indices[agg_method.__name__])
+                                                  metric._agg_indices[
+                                                  agg_method.__name__])
     return aggregate_data_class(agg_header, data)
 
 
@@ -119,30 +120,33 @@ class UserMetricError(Exception):
 
 class UserMetric(object):
 
-    ALL_NAMESPACES =        'all_namespaces'
-    DATETIME_STR_FORMAT =   "%Y%m%d%H%M%S"
+    ALL_NAMESPACES = 'all_namespaces'
+    DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
     # Default number of days for a metric computation
-    DEFAULT_DATA_RANGE =    14
+    DEFAULT_DATA_RANGE = 14
 
     _data_model_meta = dict()
     _agg_indices = dict()
 
     # Structure that defines parameters for UserMetric class
     _param_types = {
-        'init' : {
-            'date_start' : ['str|datetime', 'Earliest date metric '
-                                            'is measured.',
-                            datetime.now() - timedelta(DEFAULT_DATA_RANGE)],
-            'date_end' : ['str|datetime', 'Latest date metric is measured.',
-                          datetime.now()],
-
-            'project' : ['str', 'The project (language) being inspected.',
-                         'enwiki'],
-            'namespace' : ['int|set', 'The namespace over which the '
-                                      'metric is computed.', 0],
-            },
-        'process' : {}
+        'init': {
+            'date_start': ['str|datetime', 'Earliest date metric '
+                                           'is measured.',
+                           datetime.now() - timedelta(DEFAULT_DATA_RANGE)],
+            'date_end': ['str|datetime', 'Latest date metric is measured.',
+                         datetime.now()],
+            'restrict': ['bool', 'Restrict threshold calculations to those '
+                                 'users registered between `date_start` and '
+                                 '`date_end`',
+                         False],
+            'project': ['str', 'The project (language) being inspected.',
+                        'enwiki'],
+            'namespace': ['int|set', 'The namespace over which the '
+                                     'metric is computed.', 0],
+        },
+        'process': {}
     }
 
     def apply_default_kwargs(self, kwargs, arg_type):
@@ -164,39 +168,45 @@ class UserMetric(object):
         self._project_ = kwargs['project']
         namespace = kwargs['namespace']
         if not namespace == self.ALL_NAMESPACES:
-            if not hasattr(namespace, '__iter__'): namespace = [namespace]
+            if not hasattr(namespace, '__iter__'):
+                namespace = [namespace]
             self._namespace_ = set(namespace)
         else:
             self._namespace_ = namespace
 
-    def __str__(self): return "\n".join([str(self._data_source_._db_),
-                                         str(self.__class__),
-                                         str(self._namespace_),
-                                         self._project_])
+    def __str__(self):
+        return "\n".join([str(self._data_source_._db_),
+                          str(self.__class__),
+                          str(self._namespace_),
+                          self._project_])
 
-    def __iter__(self): return (r for r in self._results)
+    def __iter__(self):
+        return (r for r in self._results)
 
     def __del__(self):
         if hasattr(self, '_data_source_') and hasattr(self._data_source_,
-            'close_db'):
+                                                      'close_db'):
             self._data_source_.close_db()
 
     def append_params(self, class_ref):
         """ Append params from class reference """
         if hasattr(class_ref, '_param_types'):
-            for k,v in class_ref._param_types['init'].iteritems():
+            for k, v in class_ref._param_types['init'].iteritems():
                 self.__class__._param_types['init'][k] = v
-            for k,v in class_ref._param_types['process'].iteritems():
+            for k, v in class_ref._param_types['process'].iteritems():
                 self.__class__._param_types['process'][k] = v
 
     @property
-    def date_start(self): return self._start_ts_
+    def date_start(self):
+        return self._start_ts_
+
     @property
-    def date_end(self): return self._end_ts_
+    def date_end(self):
+        return self._end_ts_
 
     @classmethod
-    def _construct_data_point(cls): return namedtuple(cls.__name__,
-        cls.header())
+    def _construct_data_point(cls):
+        return namedtuple(cls.__name__, cls.header())
 
     @classmethod
     def _get_timestamp(cls, ts_representation):
@@ -228,7 +238,7 @@ class UserMetric(object):
             return timestamp
         except ValueError:
             raise UserMetricError(message='Could not parse timestamp: %s'
-                % datetime_obj.__str__())
+                                  % datetime_obj.__str__())
 
     @classmethod
     def _format_namespace(cls, namespace):
@@ -239,11 +249,12 @@ class UserMetric(object):
                 ns_cond = 'page_namespace = ' + str(namespace.pop())
             else:
                 ns_cond = 'page_namespace in (' + ",".join(dl.DataLoader().
-                    cast_elems_to_string(list(namespace))) + ')'
+                          cast_elems_to_string(list(namespace))) + ')'
         return ns_cond
 
     @staticmethod
-    def header(): raise NotImplementedError
+    def header():
+        raise NotImplementedError()
 
     @staticmethod
     def pre_process_users(proc_func):
@@ -265,5 +276,3 @@ class UserMetric(object):
 
     def process(self, users, **kwargs):
         raise NotImplementedError()
-
-
