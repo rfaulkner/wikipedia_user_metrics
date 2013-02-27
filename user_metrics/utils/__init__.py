@@ -22,3 +22,17 @@ def format_mediawiki_timestamp(timestamp_repr):
     else:
         return date_parse(timestamp_repr).strftime(
             MW_TIMESTAMP_FORMAT)
+
+
+def enum(*sequential, **named):
+    """
+        Implemetents an enumeration::
+
+            >>> Numbers = enum('ZERO', 'ONE', 'TWO')
+            >>> Numbers.ZERO
+            0
+            >>> Numbers.ONE
+            1
+    """
+    enums = dict(zip(sequential, range(len(sequential))), **named)
+    return type('Enum', (), enums)
