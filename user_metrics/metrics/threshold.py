@@ -51,10 +51,6 @@ class Threshold(um.UserMetric):
             'survival': ['bool', 'Indicates whether this is '
                                  'to be processed as the survival metric.',
                          False],
-            'restrict': ['bool', 'Restrict threshold calculations to those '
-                                 'users registered between `date_start` and '
-                                 '`date_end`',
-                         False],
         }
     }
 
@@ -105,7 +101,6 @@ class Threshold(um.UserMetric):
         k = kwargs['num_threads']
         log_progress = bool(kwargs['log_progress'])
         survival = bool(kwargs['survival'])
-        restrict = bool(kwargs['restrict'])
 
         # Get registration dates for users
         users = query_mod.user_registration_date(user_handle,
@@ -113,8 +108,8 @@ class Threshold(um.UserMetric):
 
         # Process results
         args = [self._project_, self._namespace_, self._n_,
-                self._t_, log_progress, survival, restrict,
-                self._start_ts_, self._end_ts_]
+                self._t_, log_progress, survival, self._start_ts_,
+                self._end_ts_]
         self._results = mpw.build_thread_pool(users, _process_help, k, args)
 
         return self
@@ -127,7 +122,7 @@ def _process_help(args):
     ThresholdArgsClass = collections.namedtuple('ThresholdArgs',
                                                 'project namespace n t '
                                                 'log_progress survival '
-                                                'restrict ts_start ts_end')
+                                                'ts_start ts_end')
     user_data = args[0]
     state = args[1]
     thread_args = ThresholdArgsClass(state[0], state[1], state[2], state[3],
@@ -156,7 +151,6 @@ def _process_help(args):
                                               thread_args.survival,
                                               thread_args.namespace,
                                               thread_args.project,
-                                              thread_args.restrict,
                                               thread_args.ts_start,
                                               thread_args.ts_start,
                                               threshold_ts)
