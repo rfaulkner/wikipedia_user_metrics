@@ -174,6 +174,7 @@ class UserMetric(object):
                 self.namespace = {self.namespace}
             else:
                 self.namespace = set(self.namespace)
+            self.namespace = list(self.namespace)
 
     def __str__(self):
         return "\n".join([str(self.__class__),
