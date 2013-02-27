@@ -151,8 +151,6 @@ def _process_help(args):
                                               thread_args.survival,
                                               thread_args.namespace,
                                               thread_args.project,
-                                              thread_args.ts_start,
-                                              thread_args.ts_start,
                                               threshold_ts)
         except query_mod.UMQueryCallError:
             dropped_users += 1

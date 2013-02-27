@@ -107,7 +107,7 @@ def query_method_deco(f):
 
 
 def rev_count_query(uid, is_survival, namespace, project,
-                    start_time, end_time, threshold_ts):
+                    threshold_ts):
     """ Get count of revisions associated with a UID for Threshold metrics """
     conn = Connector(instance=conf.PROJECT_DB_MAP[project])
 
