@@ -160,8 +160,8 @@ class UserMetric(object):
 
     def __init__(self, **kwargs):
 
-        self._data_source_ = dl.Connector(instance='slave')
-        self._results = list()      # Stores results of a process request
+        # Stores results of a process request
+        self._results = list()
 
         for att in self._param_types['init']:
             if not att in kwargs:
@@ -177,18 +177,12 @@ class UserMetric(object):
                 self.namespace = set(self.namespace)
 
     def __str__(self):
-        return "\n".join([str(self._data_source_._db_),
-                          str(self.__class__),
+        return "\n".join([str(self.__class__),
                           str(self.namespace),
                           self.project])
 
     def __iter__(self):
         return (r for r in self._results)
-
-    def __del__(self):
-        if hasattr(self, '_data_source_') and hasattr(self._data_source_,
-                                                      'close_db'):
-            self._data_source_.close_db()
 
     def append_params(self, class_ref):
         """ Append params from class reference """

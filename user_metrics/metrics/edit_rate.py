@@ -106,7 +106,6 @@ class EditRate(um.UserMetric):
         edit_rate = list()
         e = ec.EditCount(date_start=self.datetime_start,
                          date_end=self.datetime_end,
-                         datasource=self._data_source_,
                          namespace=self.namespace).process(user_handle)
 
         try:
