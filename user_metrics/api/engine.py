@@ -162,8 +162,8 @@ REQUEST_META_BASE = ['cohort_expr', 'metric']
 # defines a tuple for mapped variable names
 varMapping = namedtuple("VarMapping", "query_var metric_var")
 
-common_params = [varMapping('date_start', 'date_start'),
-                 varMapping('date_end', 'date_end'),
+common_params = [varMapping('date_start', 'datetime_start'),
+                 varMapping('date_end', 'datetime_end'),
                  varMapping('project', 'project'),
                  varMapping('namespace', 'namespace'),
                  varMapping('interval', 'interval'),
