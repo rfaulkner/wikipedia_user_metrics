@@ -53,6 +53,7 @@ from user_metrics.config import logging
 import user_metrics.etl.data_loader as dl
 from collections import namedtuple
 from datetime import datetime, timedelta
+from user_metrics.metrics.users import USER_METRIC_PERIOD_TYPE as umpt
 
 
 def pre_metrics_init(init_f):
@@ -137,15 +138,16 @@ class UserMetric(object):
                                timedelta(DEFAULT_DATA_RANGE)],
             'datetime_end': ['str|datetime', 'Latest date metric is measured.',
                              datetime.now()],
-            'restrict': ['bool', 'Restrict threshold calculations to those '
-                                 'users registered between `date_start` and '
-                                 '`date_end`',
-                         False],
+            't': ['int', 'Hours over which to measure metric.', 24],
+            'period_type': ['USER_METRIC_PERIOD_TYPE', 'Defines the type of '
+                                                       'period over which '
+                                                       'user metrics are '
+                                                       'measured.',
+                            umpt.REGISTRATION],
             'project': ['str', 'The project (language) being inspected.',
                         'enwiki'],
             'namespace': ['int|set', 'The namespace over which the '
                                      'metric is computed.', 0],
-            't': ['int', 'Hours over which to measure metric.', 24],
         },
         'process': {}
     }
