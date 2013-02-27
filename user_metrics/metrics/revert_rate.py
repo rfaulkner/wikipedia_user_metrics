@@ -111,9 +111,9 @@ class RevertRate(um.UserMetric):
         k_r = int(kwargs['rev_threads'])
         log_progress = bool(kwargs['log_progress'])
 
-        args = [self._project_, log_progress, self.look_ahead,
-                self.look_back, self.t, self._end_ts_, k_r,
-                self._namespace_]
+        args = [self.project, log_progress, self.look_ahead,
+                self.look_back, self.t, self.datetime_end, k_r,
+                self.namespace]
         self._results = mpw.build_thread_pool(user_handle, _process_help,
                                               k, args)
 

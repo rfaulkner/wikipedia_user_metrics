@@ -132,11 +132,12 @@ class UserMetric(object):
     # Structure that defines parameters for UserMetric class
     _param_types = {
         'init': {
-            'date_start': ['str|datetime', 'Earliest date metric '
-                                           'is measured.',
-                           datetime.now() - timedelta(DEFAULT_DATA_RANGE)],
-            'date_end': ['str|datetime', 'Latest date metric is measured.',
-                         datetime.now()],
+            'datetime_start': ['str|datetime', 'Earliest date metric '
+                                               'is measured.',
+                               datetime.now() -
+                               timedelta(DEFAULT_DATA_RANGE)],
+            'datetime_end': ['str|datetime', 'Latest date metric is measured.',
+                             datetime.now()],
             'restrict': ['bool', 'Restrict threshold calculations to those '
                                  'users registered between `date_start` and '
                                  '`date_end`',
@@ -161,24 +162,24 @@ class UserMetric(object):
         self._data_source_ = dl.Connector(instance='slave')
         self._results = list()      # Stores results of a process request
 
-        # Set metric time bounds
-        self._start_ts_ = self._get_timestamp(kwargs['date_start'])
-        self._end_ts_ = self._get_timestamp(kwargs['date_end'])
+        for att in self._param_types['init']:
+            if not att in kwargs:
+                setattr(self, att, att[2])
+            else:
+                setattr(self, att, kwargs[att])
 
-        self._project_ = kwargs['project']
-        namespace = kwargs['namespace']
-        if not namespace == self.ALL_NAMESPACES:
-            if not hasattr(namespace, '__iter__'):
-                namespace = [namespace]
-            self._namespace_ = set(namespace)
-        else:
-            self._namespace_ = namespace
+        # Initialize namespace attribute
+        if not self.namespace == self.ALL_NAMESPACES:
+            if not hasattr(self.namespace, '__iter__'):
+                self.namespace = {self.namespace}
+            else:
+                self.namespace = set(self.namespace)
 
     def __str__(self):
         return "\n".join([str(self._data_source_._db_),
                           str(self.__class__),
-                          str(self._namespace_),
-                          self._project_])
+                          str(self.namespace),
+                          self.project])
 
     def __iter__(self):
         return (r for r in self._results)
@@ -198,11 +199,11 @@ class UserMetric(object):
 
     @property
     def date_start(self):
-        return self._start_ts_
+        return self.datetime_start
 
     @property
     def date_end(self):
-        return self._end_ts_
+        return self.datetime_end
 
     @classmethod
     def _construct_data_point(cls):

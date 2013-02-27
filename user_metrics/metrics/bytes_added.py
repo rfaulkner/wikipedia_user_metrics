@@ -110,12 +110,12 @@ class BytesAdded(um.UserMetric):
             users = [users]
 
         # get revisions
-        args = [log_progress, self._start_ts_,
-                self._end_ts_, self._project_, self._namespace_]
+        args = [log_progress, self.datetime_start,
+                self.datetime_end, self.project, self.namespace]
         revs = mpw.build_thread_pool(users, _get_revisions, k, args)
 
         # Start worker threads and aggregate results for bytes added
-        args = [log_progress, log_frequency, self._project_]
+        args = [log_progress, log_frequency, self.project]
         self._results = \
             list_sum_by_group(mpw.build_thread_pool(revs,
                                                     _process_help,

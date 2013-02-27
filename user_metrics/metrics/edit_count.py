@@ -75,8 +75,8 @@ class EditCount(um.UserMetric):
 
         # Query call
         query_args = namedtuple('QueryArgs', 'date_start date_end')\
-            (self._start_ts_, self._end_ts_)
-        results = query_mod.edit_count_user_query(users, self._project_,
+            (self.datetime_start, self.datetime_end)
+        results = query_mod.edit_count_user_query(users, self.project,
                                                   query_args)
 
         # Get edit counts from query - all users not appearing have

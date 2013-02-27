@@ -104,14 +104,14 @@ class EditRate(um.UserMetric):
 
         # Extract edit count for given parameters
         edit_rate = list()
-        e = ec.EditCount(date_start=self._start_ts_,
-                         date_end=self._end_ts_,
+        e = ec.EditCount(date_start=self.datetime_start,
+                         date_end=self.datetime_end,
                          datasource=self._data_source_,
-                         namespace=self._namespace_).process(user_handle)
+                         namespace=self.namespace).process(user_handle)
 
         try:
-            start_ts_obj = date_parse(self._start_ts_)
-            end_ts_obj = date_parse(self._end_ts_)
+            start_ts_obj = date_parse(self.datetime_start)
+            end_ts_obj = date_parse(self.datetime_end)
         except (AttributeError, ValueError):
             raise um.UserMetricError()
 
@@ -130,7 +130,7 @@ class EditRate(um.UserMetric):
         for i in e.__iter__():
             new_i = i[:]  # Make a copy of the edit count element
             new_i.append(new_i[1] / (time_diff * self._time_unit_count_))
-            new_i.append(self._start_ts_)
+            new_i.append(self.datetime_start)
             new_i.append(time_diff)
             edit_rate.append(new_i)
         self._results = edit_rate

@@ -104,12 +104,12 @@ class Threshold(um.UserMetric):
 
         # Get registration dates for users
         users = query_mod.user_registration_date(user_handle,
-                                                 self._project_, None)
+                                                 self.project, None)
 
         # Process results
-        args = [self._project_, self._namespace_, self._n_,
-                self._t_, log_progress, survival, self._start_ts_,
-                self._end_ts_]
+        args = [self.project, self.namespace, self._n_,
+                self._t_, log_progress, survival, self.datetime_start,
+                self.datetime_end]
         self._results = mpw.build_thread_pool(users, _process_help, k, args)
 
         return self
