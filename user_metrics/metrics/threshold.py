@@ -12,6 +12,7 @@ import user_metrics.utils.multiprocessing_wrapper as mpw
 import user_metric as um
 from user_metrics.etl.aggregator import decorator_builder, boolean_rate
 from user_metrics.metrics import query_mod
+from user_metrics.utils import format_mediawiki_timestamp
 
 
 class Threshold(um.UserMetric):
@@ -140,9 +141,9 @@ def _process_help(args):
     dropped_users = 0
     for r in user_data:
         try:
-            threshold_ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) +
-                                                        timedelta(hours=
-                                                        thread_args.t))
+            threshold_ts = format_mediawiki_timestamp(um.date_parse(r[1]) +
+                                                      timedelta(hours=
+                                                      thread_args.t))
             uid = long(r[0])
             count = query_mod.rev_count_query(uid,
                                               thread_args.survival,

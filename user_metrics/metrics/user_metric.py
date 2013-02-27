@@ -52,7 +52,6 @@ from user_metrics.config import logging
 
 import user_metrics.etl.data_loader as dl
 from collections import namedtuple
-from dateutil.parser import parse as date_parse
 from datetime import datetime, timedelta
 
 
@@ -195,38 +194,6 @@ class UserMetric(object):
     @classmethod
     def _construct_data_point(cls):
         return namedtuple(cls.__name__, cls.header())
-
-    @classmethod
-    def _get_timestamp(cls, ts_representation):
-        """
-            Helper method.  Takes a representation of a date object (String or
-            datetime.datetime object) and formats as a timestamp:
-            "YYYY-MM-DD HH:II:SS"
-
-            - Parameters:
-                - *date_representation* - String or datetime.  A formatted
-                    timestamp representation
-
-            - Return:
-                - String.  Timestamp derived from argument in format
-                    "YYYY-MM-DD HH:II:SS".
-        """
-
-        try:
-            # timestamp strings should
-            datetime_obj = date_parse(ts_representation[:19])
-        except AttributeError:
-            datetime_obj = ts_representation
-        except TypeError:
-            datetime_obj = ts_representation
-
-        # datetime_obj
-        try:
-            timestamp = datetime_obj.strftime(cls.DATETIME_STR_FORMAT)
-            return timestamp
-        except ValueError:
-            raise UserMetricError(message='Could not parse timestamp: %s'
-                                  % datetime_obj.__str__())
 
     @classmethod
     def _format_namespace(cls, namespace):

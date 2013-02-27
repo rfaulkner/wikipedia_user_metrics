@@ -10,11 +10,8 @@ __email__ = 'rfaulkner@wikimedia.org'
 from user_metrics.config import logging, settings
 
 from user_metrics.etl.data_loader import Connector
-from dateutil.parser import parse as date_parse
+from user_metrics.utils import format_mediawiki_timestamp
 from datetime import datetime, timedelta
-
-MW_TIMESTAMP_FORMAT = "%Y%m%d%H%M%S"
-
 
 # Module level query definitions
 # @TODO move these to the query package
@@ -85,7 +82,7 @@ def generate_test_cohort_name(project):
     """
     return 'testcohort_{0}_{1}'.\
         format(project,
-               MediaWikiUser._format_mediawiki_timestamp(datetime.now()))
+               format_mediawiki_timestamp(datetime.now()))
 
 
 def generate_test_cohort(project,
@@ -127,9 +124,9 @@ def generate_test_cohort(project,
     ts_end_user_o = ts_start_o + timedelta(days=user_interval_size)
     ts_end_revs_o = ts_start_o + timedelta(days=rev_interval_size)
 
-    ts_start = MediaWikiUser._format_mediawiki_timestamp(ts_start_o)
-    ts_end_user = MediaWikiUser._format_mediawiki_timestamp(ts_end_user_o)
-    ts_end_revs = MediaWikiUser._format_mediawiki_timestamp(ts_end_revs_o)
+    ts_start = format_mediawiki_timestamp(ts_start_o)
+    ts_end_user = format_mediawiki_timestamp(ts_end_user_o)
+    ts_end_revs = format_mediawiki_timestamp(ts_end_revs_o)
 
     # Synthesize query and execute
     logging.info(__name__ + ':: Getting users from {0}.\n\n'
@@ -138,9 +135,9 @@ def generate_test_cohort(project,
                             '\tMax users = {4}\n'
                             '\tMin revs = {5}\n'.
                             format(project,
-                                   ts_start_o.strftime(MW_TIMESTAMP_FORMAT),
-                                   ts_end_user_o.strftime(MW_TIMESTAMP_FORMAT),
-                                   ts_end_revs_o.strftime(MW_TIMESTAMP_FORMAT),
+                                   ts_start,
+                                   ts_end_user,
+                                   ts_end_revs,
                                    max_size,
                                    rev_lower_limit
                                    )
@@ -193,8 +190,7 @@ def generate_test_cohort(project,
             'utm_name': utm_name,
             'utm_project': project,
             'utm_notes': 'Test cohort.',
-            'utm_touched': MediaWikiUser.
-            _format_mediawiki_timestamp(datetime.now()),
+            'utm_touched': format_mediawiki_timestamp(datetime.now()),
             'utm_enabled': 0
         }
 
@@ -249,23 +245,13 @@ class MediaWikiUser(object):
         self._query_type = query_type
         super(MediaWikiUser, self).__init__()
 
-    @staticmethod
-    def _format_mediawiki_timestamp(timestamp_repr):
-        """ Convert to mediawiki timestamps """
-        if hasattr(timestamp_repr, 'strftime'):
-            return timestamp_repr.strftime(MW_TIMESTAMP_FORMAT)
-        else:
-            return date_parse(timestamp_repr).strftime(
-                MW_TIMESTAMP_FORMAT)
-
     def get_users(self, date_start, date_end, project='enwiki'):
         """
             Returns a Generator for MediaWiki user IDs.
         """
         param_dict = {
-            'date_start': MediaWikiUser._format_mediawiki_timestamp(
-                date_start),
-            'date_end': MediaWikiUser._format_mediawiki_timestamp(date_end),
+            'date_start': format_mediawiki_timestamp(date_start),
+            'date_end': format_mediawiki_timestamp(date_end),
             'project': project,
         }
         conn = Connector(instance=settings.__cohort_data_instance__)
