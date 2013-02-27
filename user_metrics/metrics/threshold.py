@@ -108,8 +108,7 @@ class Threshold(um.UserMetric):
 
         # Process results
         args = [self.project, self.namespace, self._n_,
-                self._t_, log_progress, survival, self.datetime_start,
-                self.datetime_end]
+                self._t_, log_progress, survival]
         self._results = mpw.build_thread_pool(users, _process_help, k, args)
 
         return self
@@ -121,13 +120,11 @@ def _process_help(args):
 
     ThresholdArgsClass = collections.namedtuple('ThresholdArgs',
                                                 'project namespace n t '
-                                                'log_progress survival '
-                                                'ts_start ts_end')
+                                                'log_progress survival ')
     user_data = args[0]
     state = args[1]
     thread_args = ThresholdArgsClass(state[0], state[1], state[2], state[3],
-                                     state[4], state[5], state[6], state[7],
-                                     state[8])
+                                     state[4], state[5])
 
     if thread_args.log_progress:
         logging.info(__name__ + ' :: Processing revision data ' +
