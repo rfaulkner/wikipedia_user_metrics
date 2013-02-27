@@ -146,6 +146,7 @@ class UserMetric(object):
                         'enwiki'],
             'namespace': ['int|set', 'The namespace over which the '
                                      'metric is computed.', 0],
+            't': ['int', 'Hours over which to measure metric.', 24],
         },
         'process': {}
     }
