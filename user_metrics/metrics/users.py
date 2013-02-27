@@ -1,6 +1,28 @@
 
 """
     This module handles exposing user types for metrics processing.
+
+    MediaWikiUser Class
+    ~~~~~~~~~~~~~~~~~~~
+
+    This class defines the base operations required to work with MediaWiki
+    users.
+
+    User Metric Period
+    ~~~~~~~~~~~~~~~~~~
+
+    These classes defines the time periods over which user metrics are
+    measured.  ``USER_METRIC_PERIOD_TYPE`` defines the types of ranges over
+    which measurements are made:
+
+        * REGISTRATION - the time from user registration until ``t`` hours
+        later
+        * INPUT - the range defined by ``datetime_start`` and ``datetime_end``
+
+    ``USER_METRIC_PERIOD_DATA`` is a simple carrier for the tuples that define
+    each users range.  Finally, the ``UserMetricPeriod`` themselves define a
+    ``get`` method which returns ``USER_METRIC_PERIOD_DATA`` objects containing
+    the ranges for each user.
 """
 
 __author__ = "ryan faulkner"
@@ -10,8 +32,11 @@ __email__ = 'rfaulkner@wikimedia.org'
 from user_metrics.config import logging, settings
 
 from user_metrics.etl.data_loader import Connector
-from user_metrics.utils import format_mediawiki_timestamp
 from datetime import datetime, timedelta
+from user_metrics.metrics import query_mod
+from collections import namedtuple
+from user_metrics.utils import enum, format_mediawiki_timestamp
+from dateutil.parser import parse as date_parse
 
 # Module level query definitions
 # @TODO move these to the query package
@@ -56,6 +81,9 @@ INSERT_USERTAGS_META =\
             "%(utm_notes)s", "%(utm_touched)s", %(utm_enabled)s)
     """
 
+
+# Cohort Processing Methods
+# =========================
 
 def get_latest_cohort_id():
     """
@@ -203,6 +231,9 @@ def generate_test_cohort(project,
     return users
 
 
+# User Classes
+# ============
+
 class MediaWikiUserException(Exception):
     """ Basic exception class for UserMetric types """
     def __init__(self, message="Error obtaining user(s) from MediaWiki "
@@ -218,7 +249,6 @@ class MediaWikiUser(object):
     """
 
     # @TODO move these to the query package
-
     # Queries MediaWiki database for account creations via Logging table
     USER_QUERY_LOG = """
                     SELECT log_user
@@ -261,7 +291,69 @@ class MediaWikiUser(object):
             yield row[0]
 
 
-# Rudimentary testing
+# Define User Metric Periods
+# ==========================
+
+# enumeration for user periods
+USER_METRIC_PERIOD_TYPE = enum('REGISTRATION', 'INPUT')
+USER_METRIC_PERIOD_DATA = namedtuple('UMPData', 'user start end')
+
+
+class UserMetricPeriod(object):
+    @staticmethod
+    def get(users, metric):
+        """
+            Returns a list of users and ranges in ``USER_METRIC_PERIOD_DATA``
+            objects.
+        """
+        raise NotImplementedError()
+
+
+class UMPRegistration(UserMetricPeriod):
+    @staticmethod
+    def get(users, metric):
+        for row in query_mod.user_registration_date(users, metric.project,
+                                                    None):
+            reg = date_parse(row[1])
+            end = reg + timedelta(hours=metric.t)
+            yield USER_METRIC_PERIOD_DATA(row[0],
+                                          format_mediawiki_timestamp(reg),
+                                          format_mediawiki_timestamp(end))
+
+
+class UMPInput(UserMetricPeriod):
+    @staticmethod
+    def get(users, metric):
+        for user in users:
+            yield USER_METRIC_PERIOD_DATA(user,
+                                          format_mediawiki_timestamp
+                                          (metric.datetime_start),
+                                          format_mediawiki_timestamp
+                                          (metric.datetime_end))
+
+# Define a mapping from UMP types to get methods
+UMP_MAP = {
+    USER_METRIC_PERIOD_TYPE.REGISTRATION: UMPRegistration.get,
+    USER_METRIC_PERIOD_TYPE.INPUT: UMPInput.get,
+}
+
+
+# Rudimentary Testing
+# ===================
+
 # for more detailed testing see user_metrics/tests/test.py
 if __name__ == '__main__':
-    generate_test_cohort('itwiki', write=True)
+    # generate_test_cohort('itwiki', write=True)
+    o = namedtuple('nothing', 't project datetime_start, datetime_end')
+
+    o.t = 1000
+    o.project = 'enwiki'
+    o.datetime_start = datetime.now()
+    o.datetime_end = datetime.now() + timedelta(days=30)
+
+    users = ['13234590', '13234584']
+    for i in UMP_MAP[USER_METRIC_PERIOD_TYPE.REGISTRATION](users, o):
+        print i
+
+    for i in UMP_MAP[USER_METRIC_PERIOD_TYPE.INPUT](users, o):
+        print i
