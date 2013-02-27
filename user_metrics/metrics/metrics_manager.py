@@ -145,9 +145,9 @@ def process_data_request(metric_handle, users, **kwargs):
     end = metric_obj.datetime_end
 
     # Prepare metrics output for json response
-    results['header'] = " ".join(metric_obj.header())
+    results['header'] = metric_obj.header()
     for key in metric_obj.__dict__:
-        results[str(key)] = str(metric_obj.__dict__[key])
+        results[str(key)] = metric_obj.__dict__[key]
     results['metric'] = OrderedDict()
 
     # Parse the aggregator
@@ -228,6 +228,6 @@ def process_data_request(metric_handle, users, **kwargs):
                            rev_threads=REVISION_THREADS,
                            log_progress=True, **kwargs)
         for m in metric_obj.__iter__():
-            results['metric'][m[0]] = " ".join(to_string(m[1:]))
+            results['metric'][m[0]] = m[1:]
 
     return results
