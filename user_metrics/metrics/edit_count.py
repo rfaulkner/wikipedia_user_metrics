@@ -6,6 +6,8 @@ __license__ = "GPL (version 2 or later)"
 from collections import namedtuple
 import user_metric as um
 from user_metrics.metrics import query_mod
+from user_metrics.metrics.users import UMP_MAP
+
 
 class EditCount(um.UserMetric):
     """
@@ -28,30 +30,31 @@ class EditCount(um.UserMetric):
 
     # Structure that defines parameters for EditRate class
     _param_types = {
-        'init' : {},
-        'process' : {}
+        'init': {},
+        'process': {}
     }
 
     # Define the metrics data model meta
     _data_model_meta = {
-        'id_fields' : [0],
-        'date_fields' : [],
-        'float_fields' : [],
-        'integer_fields' : [1],
-        'boolean_fields' : [],
-        }
+        'id_fields': [0],
+        'date_fields': [],
+        'float_fields': [],
+        'integer_fields': [1],
+        'boolean_fields': [],
+    }
 
     _agg_indices = {
-        'list_sum_indices' : _data_model_meta['integer_fields'] +
-                             _data_model_meta['float_fields'],
-        }
+        'list_sum_indices': _data_model_meta['integer_fields'] +
+        _data_model_meta['float_fields'],
+    }
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
         um.UserMetric.__init__(self, **kwargs)
 
     @staticmethod
-    def header(): return ['user_id', 'edit_count']
+    def header():
+        return ['user_id', 'edit_count']
 
     @um.UserMetric.pre_process_users
     def process(self, users, **kwargs):
@@ -71,13 +74,17 @@ class EditCount(um.UserMetric):
         """
 
         # Set defaults
-        self.apply_default_kwargs(kwargs,'process')
+        self.apply_default_kwargs(kwargs, 'process')
 
         # Query call
-        query_args = namedtuple('QueryArgs', 'date_start date_end')\
-            (self.datetime_start, self.datetime_end)
-        results = query_mod.edit_count_user_query(users, self.project,
-                                                  query_args)
+        query_args_type = namedtuple('QueryArgs', 'date_start date_end')
+
+        umpd_obj = UMP_MAP[self.period_type](users, self)
+        results = list()
+        for t in umpd_obj:
+            args = query_args_type(t.start, t.end)
+            results += query_mod.edit_count_user_query(t.user, self.project,
+                                                       args)
 
         # Get edit counts from query - all users not appearing have
         # an edit count of 0
@@ -86,7 +93,8 @@ class EditCount(um.UserMetric):
         for row in results:
             edit_count.append([row[0], int(row[1])])
             user_set.discard(row[0])
-        for user in user_set: edit_count.append([user, 0])
+        for user in user_set:
+            edit_count.append([user, 0])
 
         self._results = edit_count
         return self
