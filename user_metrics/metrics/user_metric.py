@@ -134,24 +134,31 @@ class UserMetric(object):
     # Structure that defines parameters for UserMetric class
     _param_types = {
         'init': {
-            'datetime_start': [str, 'Earliest date metric '
-                                               'is measured.',
+            'datetime_start': [str, 'Earliest date metric is measured.',
                                DEFAULT_DATE_START],
             'datetime_end': [str, 'Latest date metric is measured.',
                              DEFAULT_DATE_END],
             't': [int, 'Hours over which to measure metric.', 24],
-            'period_type': [int, 'Defines the type of '
-                                                       'period over which '
-                                                       'user metrics are '
-                                                       'measured.',
+            'period_type': [int, 'Defines the type of period over which '
+                                 'user metrics are measured.',
                             USER_METRIC_PERIOD_TYPE.REGISTRATION],
             'project': [str, 'The project (language) being inspected.',
-                        'enwiki'],
+                             'enwiki'],
             'namespace': [list, 'The namespace over which the '
-                                     'metric is computed.', 0],
+                                'metric is computed.', 0],
         },
         'process': {}
     }
+
+    def _pack_params(self):
+        """
+            This method packs the metric parameters into a list of tuples.  The
+            tuple contains ``(<param name>, <value>, <type cast method>)``
+        """
+        return [(i, getattr(self, i), self._param_types['init'][i][0])
+                for i in self._param_types['init']] +\
+            [(i, getattr(self, i), self._param_types['process'][i][0])
+                for i in self._param_types['process']]
 
     def apply_default_kwargs(self, kwargs, arg_type):
         """ Apply parameter defaults where necessary """

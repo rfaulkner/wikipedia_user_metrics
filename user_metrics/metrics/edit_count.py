@@ -84,11 +84,7 @@ class EditCount(um.UserMetric):
         self.k = kwargs['k']
 
         # Pack args, call thread pool
-        args = [(i, getattr(self, i), self._param_types['init'][i][0])
-                for i in self._param_types['init']] + \
-               [(i, getattr(self, i), self._param_types['process'][i][0])
-                for i in self._param_types['process']]
-
+        args = self._pack_params()
         results = mpw.build_thread_pool(users, _process_help,
                                         self.k, args)
 
