@@ -329,8 +329,6 @@ def namespace_edits_rev_query(users, project, args):
     """ Obtain revisions by namespace """
 
     # @TODO check attributes for existence and throw error otherwise
-    start = args.date_start
-    end = args.date_end
 
     to_string = DataLoader().cast_elems_to_string
     to_csv_str = DataLoader().format_comma_separated_list
@@ -340,7 +338,7 @@ def namespace_edits_rev_query(users, project, args):
 
     # Format timestamp condition
     ts_cond = "rev_timestamp >= %s and rev_timestamp < %s" % \
-        (escape_var(start), escape_var(end))
+        (escape_var(args.start), escape_var(args.end))
 
     query = query_store[namespace_edits_rev_query.__query_name__] % {
         "user_cond": user_str,
