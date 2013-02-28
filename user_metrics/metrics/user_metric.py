@@ -53,7 +53,7 @@ from user_metrics.config import logging
 import user_metrics.etl.data_loader as dl
 from collections import namedtuple
 from datetime import datetime, timedelta
-from user_metrics.metrics.users import USER_METRIC_PERIOD_TYPE as umpt
+from user_metrics.metrics.users import USER_METRIC_PERIOD_TYPE
 
 
 def pre_metrics_init(init_f):
@@ -132,21 +132,21 @@ class UserMetric(object):
     # Structure that defines parameters for UserMetric class
     _param_types = {
         'init': {
-            'datetime_start': ['str|datetime', 'Earliest date metric '
+            'datetime_start': [str, 'Earliest date metric '
                                                'is measured.',
                                datetime.now() -
                                timedelta(DEFAULT_DATA_RANGE)],
-            'datetime_end': ['str|datetime', 'Latest date metric is measured.',
+            'datetime_end': [str, 'Latest date metric is measured.',
                              datetime.now()],
-            't': ['int', 'Hours over which to measure metric.', 24],
-            'period_type': ['USER_METRIC_PERIOD_TYPE', 'Defines the type of '
+            't': [int, 'Hours over which to measure metric.', 24],
+            'period_type': [int, 'Defines the type of '
                                                        'period over which '
                                                        'user metrics are '
                                                        'measured.',
-                            umpt.REGISTRATION],
-            'project': ['str', 'The project (language) being inspected.',
+                            USER_METRIC_PERIOD_TYPE.REGISTRATION],
+            'project': [str, 'The project (language) being inspected.',
                         'enwiki'],
-            'namespace': ['int|set', 'The namespace over which the '
+            'namespace': [list, 'The namespace over which the '
                                      'metric is computed.', 0],
         },
         'process': {}
