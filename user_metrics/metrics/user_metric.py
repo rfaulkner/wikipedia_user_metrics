@@ -53,6 +53,7 @@ from user_metrics.config import logging
 import user_metrics.etl.data_loader as dl
 from collections import namedtuple
 from user_metrics.metrics.users import USER_METRIC_PERIOD_TYPE
+from user_metrics.utils import build_namedtuple
 
 
 def pre_metrics_init(init_f):
@@ -153,12 +154,36 @@ class UserMetric(object):
     def _pack_params(self):
         """
             This method packs the metric parameters into a list of tuples.  The
-            tuple contains ``(<param name>, <value>, <type cast method>)``
+            tuple contains ``(<param name>, <value>, <type cast method>)``.
+            This is mainly useful for passing args to thread pools.
         """
         return [(i, getattr(self, i), self._param_types['init'][i][0])
                 for i in self._param_types['init']] +\
             [(i, getattr(self, i), self._param_types['process'][i][0])
                 for i in self._param_types['process']]
+
+    @staticmethod
+    def _unpack_params(args):
+        """
+            Expects the output from ``_pack_params``.  This is meant to be used
+            in conjunction with _pack_params from within thread pool targets.
+
+                Parameters
+                ~~~~~~~~~~
+
+                args : list
+                    List of parameter data returned by ``_pack_params``.
+        """
+
+        names = list()
+        types = list()
+        values = list()
+
+        for n, v, t in args:
+            names.append(n)
+            types.append(t)
+            values.append(v)
+        return build_namedtuple(names, types, values)
 
     def apply_default_kwargs(self, kwargs, arg_type):
         """ Apply parameter defaults where necessary """
