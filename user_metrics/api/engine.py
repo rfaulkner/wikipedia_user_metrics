@@ -97,7 +97,7 @@ __license__ = "GPL (version 2 or later)"
 from flask import escape, redirect, url_for
 from user_metrics.utils.record_type import *
 from dateutil.parser import parse as date_parse
-from datetime import timedelta, datetime
+from datetime import datetime
 from re import search
 from collections import OrderedDict, namedtuple
 
@@ -202,48 +202,45 @@ DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 DEFAULT_QUERY_VAL = 'present'
 
 
-def process_request_params(request_meta):
+def format_request_params(request_meta):
     """
-        Applies defaults and consistency to RequestMeta data
+        Formats request data and ensures that it is clean using Flask escape
+        functionality.
 
-            request_meta - RequestMeta recordtype.  Stores the request data.
+            Parameters
+            ~~~~~~~~~~
+
+            request_meta : recordtype:
+                Stores the request data.
     """
 
-    DEFAULT_INTERVAL = 14
     TIME_STR = '000000'
-
-    end = datetime.now()
-    start = end + timedelta(days=-DEFAULT_INTERVAL)
 
     # Handle any datetime fields passed - raise an exception if the
     # formatting is incorrect
     if request_meta.date_start:
         try:
             request_meta.date_start = date_parse(
-                request_meta.date_start).strftime(
+                escape(request_meta.date_start)).strftime(
                     DATETIME_STR_FORMAT)[:8] + TIME_STR
         except ValueError:
             # Pass the value of the error code in `error_codes`
             raise MetricsAPIError('1')
-    else:
-        request_meta.date_start = start.strftime(
-            DATETIME_STR_FORMAT)[:8] + TIME_STR
 
     if request_meta.date_end:
         try:
             request_meta.date_end = date_parse(
-                request_meta.date_end).strftime(
+                escape(request_meta.date_end)).strftime(
                     DATETIME_STR_FORMAT)[:8] + TIME_STR
         except ValueError:
             # Pass the value of the error code in `error_codes`
             raise MetricsAPIError('1')
-    else:
-        request_meta.date_end = end.strftime(
-            DATETIME_STR_FORMAT)[:8] + TIME_STR
 
     # set the aggregator if there is one
     agg_key = mm.get_agg_key(request_meta.aggregator, request_meta.metric)
-    request_meta.aggregator = request_meta.aggregator if agg_key else None
+    request_meta.aggregator = escape(request_meta.aggregator) \
+        if agg_key else None
+    # @TODO Escape remaining input
 
 
 def filter_request_input(request, request_meta_obj):
