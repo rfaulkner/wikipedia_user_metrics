@@ -103,8 +103,8 @@ class LiveAccount(um.UserMetric):
         if log: logging.info(__name__ + "::parameters = " + str(kwargs))
 
         # Multiprocessing vs. single processing execution
-        args = [self._project_, self._namespace_, log, self._start_ts_,
-                self._end_ts_, self._t_]
+        args = [self.project, self.namespace, log, self.datetime_start,
+                self.datetime_end, self._t_]
         self._results = mpw.build_thread_pool(user_handle,_process_help,k,args)
 
         return self

@@ -17,6 +17,7 @@ import json
 
 import user_metrics.metrics.revert_rate as rr
 import user_metrics.metrics.user_metric as um
+from user_metrics.utils import format_mediawiki_timestamp
 from multiprocessing import Process, Queue
 
 from user_metrics.config import logging
@@ -32,8 +33,8 @@ def _get_timeseries(date_start, date_end, interval):
     """
 
     # Ensure the dates are string representations
-    date_start = um.UserMetric._get_timestamp(date_start)
-    date_end = um.UserMetric._get_timestamp(date_end)
+    date_start = format_mediawiki_timestamp(date_start)
+    date_end = format_mediawiki_timestamp(date_end)
 
     # ensure that at least two intervals are included in the time series
     if (date_parse(date_end) - date_parse(date_start)).\
@@ -79,8 +80,8 @@ def build_time_series(start, end, interval, metric, aggregator, cohort,
     log = bool(kwargs['log']) if 'log' in kwargs else False
 
     # Get datetime types, and the number of threads
-    start = date_parse(um.UserMetric._get_timestamp(start))
-    end = date_parse(um.UserMetric._get_timestamp(end))
+    start = date_parse(format_mediawiki_timestamp(start))
+    end = date_parse(format_mediawiki_timestamp(end))
     k = kwargs['num_threads'] if 'num_threads' in kwargs else 1
 
     # Compute window size and ensure that all the conditions

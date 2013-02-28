@@ -142,7 +142,7 @@ class TimeToThreshold(um.UserMetric):
                         'init']['threshold_edit'][2]
 
             except ValueError:
-                raise um.UserMetric.UserMetricError(
+                raise um.UserMetricError(
                     str(self.__class__()) + ': Invalid init params.')
 
         def process(self, user_handle, threshold_obj, **kwargs):

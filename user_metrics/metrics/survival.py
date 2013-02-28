@@ -37,8 +37,6 @@ class Survival(um.UserMetric):
         'process' : {
             'log_progress' : ['bool', 'Enable logging for processing.',False],
             'num_threads' : ['int', 'Number of worker processes over users.',0],
-            'restrict' : ['bool', 'Restrict threshold calculations to those users registered between'
-                                  '`date_start` and `date_end`',False],
             }
     }
 

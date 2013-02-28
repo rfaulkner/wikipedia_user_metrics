@@ -11,6 +11,8 @@ __email__ = "rfaulkner@wikimedia.org"
 __date__ = "02/14/2012"
 __license__ = "GPL (version 2 or later)"
 
+from user_metrics.metrics import edit_count
+
 
 # User Metric tests
 # =================
@@ -33,7 +35,21 @@ def test_edit_rate():
 
 
 def test_edit_count():
-    assert False  # TODO: implement your test here
+    """ Test the edit count metric results """
+    results = {
+        '13234584': 18,
+        '13234503': 2,
+        '13234565': 0,
+        '13234585': 2,
+        '13234556': 6,
+        }
+    e = edit_count.EditCount(t=10000)
+
+    # Check edit counts against
+    index = 0
+    for res in e.process(results.keys()):
+        assert res[1] == results[str(res[0])]
+        index += 1
 
 
 def test_live_account():
@@ -53,6 +69,10 @@ def test_bytes_added():
 
 
 def test_revert_rate():
+    assert False  # TODO: implement your test here
+
+
+def test_user():
     assert False  # TODO: implement your test here
 
 

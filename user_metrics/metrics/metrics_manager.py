@@ -30,7 +30,6 @@ __email__ = "rfaulkner@wikimedia.org"
 __date__ = "12/28/2012"
 __license__ = "GPL (version 2 or later)"
 
-import re
 from collections import OrderedDict
 from dateutil.parser import parse as date_parse
 
@@ -117,8 +116,8 @@ def get_agg_key(agg_handle, metric_handle):
 
 def process_data_request(metric_handle, users, **kwargs):
     """
-        Main entry point of the module.  Coordinates a request based on the
-        following parameters::
+        Main entry point of the module, prepares results for a given request.
+        Coordinates a request based on the following parameters::
 
             metric_handle (string) - determines the type of metric object to
             build.  Keys metric_dict.
@@ -142,13 +141,13 @@ def process_data_request(metric_handle, users, **kwargs):
     metric_class = metric_dict[metric_handle]
     metric_obj = metric_class(**kwargs)
 
-    start = metric_obj.date_start
-    end = metric_obj.date_end
+    start = metric_obj.datetime_start
+    end = metric_obj.datetime_end
 
-    results['header'] = " ".join(metric_obj.header())
+    # Prepare metrics output for json response
+    results['header'] = metric_obj.header()
     for key in metric_obj.__dict__:
-        if re.search(r'_.*_', key):
-            results[str(key[1:-1])] = str(metric_obj.__dict__[key])
+        results[str(key)] = metric_obj.__dict__[key]
     results['metric'] = OrderedDict()
 
     # Parse the aggregator
@@ -201,15 +200,15 @@ def process_data_request(metric_handle, users, **kwargs):
                 count += 1
         else:
 
-            logging.info('Metrics Manager: Initiating aggregator for '
-                         '%(metric)s with %(agg)s from '
-                         '%(start)s to %(end)s.' %
-                         {
-                         'metric': metric_class.__name__,
-                         'agg': aggregator_func.__name__,
-                         'start': str(start),
-                         'end': str(end),
-                         })
+            logging.info(__name__ + ':: Initiating aggregator for '
+                                    '%(metric)s with %(agg)s from '
+                                    '%(start)s to %(end)s.' %
+                                     {
+                                     'metric': metric_class.__name__,
+                                     'agg': aggregator_func.__name__,
+                                     'start': str(start),
+                                     'end': str(end),
+                                     })
             metric_obj.process(users, num_threads=USER_THREADS,
                                rev_threads=REVISION_THREADS,
                                log_progress=True, **kwargs)
@@ -218,17 +217,17 @@ def process_data_request(metric_handle, users, **kwargs):
             results['header'] = " ".join(to_string(r.header))
     else:
 
-        logging.info('Metrics Manager: Initiating user data for '
-                     '%(metric)s from %(start)s to %(end)s.' %
-                     {
-                     'metric': metric_class.__name__,
-                     'start': str(start),
-                     'end': str(end),
-                     })
+        logging.info(__name__ + ':: Initiating user data for '
+                                '%(metric)s from %(start)s to %(end)s.' %
+                                {
+                                'metric': metric_class.__name__,
+                                'start': str(start),
+                                'end': str(end),
+                                })
         metric_obj.process(users, num_threads=USER_THREADS,
                            rev_threads=REVISION_THREADS,
                            log_progress=True, **kwargs)
         for m in metric_obj.__iter__():
-            results['metric'][m[0]] = " ".join(to_string(m[1:]))
+            results['metric'][m[0]] = m[1:]
 
     return results

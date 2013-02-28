@@ -12,6 +12,7 @@ import user_metrics.utils.multiprocessing_wrapper as mpw
 import user_metric as um
 from user_metrics.etl.aggregator import decorator_builder, boolean_rate
 from user_metrics.metrics import query_mod
+from user_metrics.utils import format_mediawiki_timestamp
 
 
 class Threshold(um.UserMetric):
@@ -50,10 +51,6 @@ class Threshold(um.UserMetric):
                             1],
             'survival': ['bool', 'Indicates whether this is '
                                  'to be processed as the survival metric.',
-                         False],
-            'restrict': ['bool', 'Restrict threshold calculations to those '
-                                 'users registered between `date_start` and '
-                                 '`date_end`',
                          False],
         }
     }
@@ -105,16 +102,14 @@ class Threshold(um.UserMetric):
         k = kwargs['num_threads']
         log_progress = bool(kwargs['log_progress'])
         survival = bool(kwargs['survival'])
-        restrict = bool(kwargs['restrict'])
 
         # Get registration dates for users
         users = query_mod.user_registration_date(user_handle,
-                                                 self._project_, None)
+                                                 self.project, None)
 
         # Process results
-        args = [self._project_, self._namespace_, self._n_,
-                self._t_, log_progress, survival, restrict,
-                self._start_ts_, self._end_ts_]
+        args = [self.project, self.namespace, self._n_,
+                self._t_, log_progress, survival]
         self._results = mpw.build_thread_pool(users, _process_help, k, args)
 
         return self
@@ -126,13 +121,11 @@ def _process_help(args):
 
     ThresholdArgsClass = collections.namedtuple('ThresholdArgs',
                                                 'project namespace n t '
-                                                'log_progress survival '
-                                                'restrict ts_start ts_end')
+                                                'log_progress survival ')
     user_data = args[0]
     state = args[1]
     thread_args = ThresholdArgsClass(state[0], state[1], state[2], state[3],
-                                     state[4], state[5], state[6], state[7],
-                                     state[8])
+                                     state[4], state[5])
 
     if thread_args.log_progress:
         logging.info(__name__ + ' :: Processing revision data ' +
@@ -148,17 +141,14 @@ def _process_help(args):
     dropped_users = 0
     for r in user_data:
         try:
-            threshold_ts = um.UserMetric._get_timestamp(um.date_parse(r[1]) +
-                                                        timedelta(hours=
-                                                        thread_args.t))
+            threshold_ts = format_mediawiki_timestamp(um.date_parse(r[1]) +
+                                                      timedelta(hours=
+                                                      thread_args.t))
             uid = long(r[0])
             count = query_mod.rev_count_query(uid,
                                               thread_args.survival,
                                               thread_args.namespace,
                                               thread_args.project,
-                                              thread_args.restrict,
-                                              thread_args.ts_start,
-                                              thread_args.ts_start,
                                               threshold_ts)
         except query_mod.UMQueryCallError:
             dropped_users += 1

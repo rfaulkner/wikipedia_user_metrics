@@ -121,9 +121,9 @@ class Blocks(um.UserMetric):
                                     len(user_handle))
 
         # Data calls
-        user_map = query_mod.blocks_user_map_query(users, self._project_)
-        query_args = namedtuple('QueryArgs', 'date_start')(self._start_ts_)
-        results = query_mod.blocks_user_query(users, self._project_,
+        user_map = query_mod.blocks_user_map_query(users, self.project)
+        query_args = namedtuple('QueryArgs', 'date_start')(self.datetime_start)
+        results = query_mod.blocks_user_query(users, self.project,
                                               query_args)
 
         # Process rows - extract block and ban events

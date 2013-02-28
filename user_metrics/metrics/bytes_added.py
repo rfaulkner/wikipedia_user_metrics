@@ -10,10 +10,11 @@ from collections import namedtuple
 import collections
 import user_metric as um
 import os
-from user_metrics.etl.aggregator import list_sum_by_group, build_numpy_op_agg, \
-    build_agg_meta
+from user_metrics.etl.aggregator import list_sum_by_group, \
+    build_numpy_op_agg, build_agg_meta
 import user_metrics.utils.multiprocessing_wrapper as mpw
 from user_metrics.metrics import query_mod
+from user_metrics.metrics.users import UMP_MAP
 
 
 class BytesAdded(um.UserMetric):
@@ -106,30 +107,17 @@ class BytesAdded(um.UserMetric):
         log_progress = bool(kwargs['log_progress'])
         log_frequency = int(kwargs['log_frequency'])
 
-        if users:
-            if not hasattr(users, '__iter__'):
-                users = [users]
-
-        # If the user list is empty pull from the revision table within
-        # the query timeframe
-        if not users:
-            if log_progress:
-                logging.debug(__name__ +
-                              '::Getting all distinct users')
-            users = query_mod.rev_user_query(self._project_,
-                                             self._start_ts_,
-                                             self._end_ts_)
-            if log_progress:
-                logging.info(__name__ +
-                             '::Retrieved %s users.' % len(users))
+        if not hasattr(users, '__iter__'):
+            users = [users]
 
         # get revisions
-        args = [log_progress, self._start_ts_,
-                self._end_ts_, self._project_, self._namespace_]
+        args = [log_progress, self.datetime_start,
+                self.datetime_end, self.project, self.namespace,
+                self.period_type, self.t]
         revs = mpw.build_thread_pool(users, _get_revisions, k, args)
 
         # Start worker threads and aggregate results for bytes added
-        args = [log_progress, log_frequency, self._project_]
+        args = [log_progress, log_frequency, self.project]
         self._results = \
             list_sum_by_group(mpw.build_thread_pool(revs,
                                                     _process_help,
@@ -149,10 +137,12 @@ def _get_revisions(args):
     """ Retrieve total set of revision records for users within timeframe """
 
     MethodArgsClass = collections.namedtuple('MethodArg',
-                                             'log start end project namespace')
+                                             'log datetime_start datetime_end '
+                                             'project namespace period_type t')
     users = args[0]
     state = args[1]
-    arg_obj = MethodArgsClass(state[0], state[1], state[2], state[3], state[4])
+    arg_obj = MethodArgsClass(state[0], state[1], state[2], state[3],
+                              state[4], state[5], state[6])
 
     if arg_obj.log:
         logging.info(__name__ +
@@ -168,13 +158,16 @@ def _get_revisions(args):
                      }
                      )
 
-    query_args = \
-        namedtuple('QueryArgs',
-                   'date_start date_end namespace')(arg_obj.start,
-                                                    arg_obj.end,
-                                                    arg_obj.namespace)
+    query_args_type = namedtuple('QueryArgs', 'date_start date_end namespace')
+    revs = list()
+    umpd_obj = UMP_MAP[arg_obj.period_type](users, arg_obj)
     try:
-        revs = query_mod.rev_query(users, arg_obj.project, query_args)
+        for t in umpd_obj:
+            revs += \
+                list(query_mod.rev_query(t.user, arg_obj.project,
+                                         query_args_type(t.start, t.end,
+                                                         arg_obj.namespace)))
+            print revs
     except query_mod.UMQueryCallError as e:
         logging.error('{0}:: {1}. PID={2}'.format(__name__,
                                                   e.message, os.getpid()))
@@ -183,7 +176,6 @@ def _get_revisions(args):
 
 
 def _process_help(args):
-
     """
         Determine the bytes added over a number of revisions for user(s).  The
         parameter *user_handle* can be either a string or an integer or a list
@@ -333,7 +325,7 @@ if __name__ == "__main__":
     # namespace=[0,1]).process(user_handle=['156171','13234584'],
     #    log_progress=True, num_threads=10): print r
 
-    for r in BytesAdded(date_start='20120101000000').\
+    for r in BytesAdded(date_start='20120101000000', t=10000).\
         process(['156171', '13234584'],
                 num_threads=10,
                 log_progress=True):

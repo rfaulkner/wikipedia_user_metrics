@@ -107,7 +107,7 @@ def query_method_deco(f):
 
 
 def rev_count_query(uid, is_survival, namespace, project,
-                    restrict, start_time, end_time, threshold_ts):
+                    threshold_ts):
     """ Get count of revisions associated with a UID for Threshold metrics """
     conn = Connector(instance=conf.PROJECT_DB_MAP[project])
 
@@ -121,13 +121,6 @@ def rev_count_query(uid, is_survival, namespace, project,
 
     # format the namespace condition
     ns_cond = format_namespace(deepcopy(namespace))
-
-    # Format condition on timestamps
-    if restrict:
-        timestamp_cond += ' and rev_timestamp > "{0}" and '\
-                          'rev_timestamp <= "{1}"'.\
-                          format(escape_var(start_time),
-                                 escape_var(end_time))
 
     query = query_store[rev_count_query.__name__] + timestamp_cond
     query = query % {
