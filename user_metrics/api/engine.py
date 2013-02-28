@@ -168,7 +168,8 @@ common_params = [varMapping('date_start', 'datetime_start'),
                  varMapping('namespace', 'namespace'),
                  varMapping('interval', 'interval'),
                  varMapping('time_series', 'time_series'),
-                 varMapping('aggregator', 'aggregator')]
+                 varMapping('aggregator', 'aggregator'),
+                 varMapping('t', 't')]
 
 QUERY_PARAMS_BY_METRIC = {
     'blocks': common_params,
@@ -177,15 +178,12 @@ QUERY_PARAMS_BY_METRIC = {
     'edit_rate': common_params + [varMapping('time_unit', 'time_unit'),
                                   varMapping('time_unit_count',
                                   'time_unit_count')],
-    'live_account': common_params + [varMapping('t', 't')],
+    'live_account': common_params,
     'namespace_edits': common_params,
     'revert_rate': common_params + [varMapping('look_back', 'look_back'),
-                                    varMapping('look_ahead', 'look_ahead'),
-                                    varMapping('t', 't')],
-    'survival': common_params + [varMapping('restrict', 'restrict'),
-                                 varMapping('t', 't')],
+                                    varMapping('look_ahead', 'look_ahead'),],
+    'survival': common_params + [varMapping('restrict', 'restrict'),],
     'threshold': common_params + [varMapping('restrict', 'restrict'),
-                                  varMapping('t', 't'),
                                   varMapping('n', 'n')],
     'time_to_threshold': common_params + [varMapping('threshold_type',
                                           'threshold_type_class')],
