@@ -52,7 +52,6 @@ from user_metrics.config import logging
 
 import user_metrics.etl.data_loader as dl
 from collections import namedtuple
-from datetime import datetime, timedelta
 from user_metrics.metrics.users import USER_METRIC_PERIOD_TYPE
 
 
@@ -123,6 +122,9 @@ class UserMetric(object):
     ALL_NAMESPACES = 'all_namespaces'
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
+    DEFAULT_DATE_START = '20101025080000'
+    DEFAULT_DATE_END = '20110101000000'
+
     # Default number of days for a metric computation
     DEFAULT_DATA_RANGE = 14
 
@@ -134,10 +136,9 @@ class UserMetric(object):
         'init': {
             'datetime_start': [str, 'Earliest date metric '
                                                'is measured.',
-                               datetime.now() -
-                               timedelta(DEFAULT_DATA_RANGE)],
+                               DEFAULT_DATE_START],
             'datetime_end': [str, 'Latest date metric is measured.',
-                             datetime.now()],
+                             DEFAULT_DATE_END],
             't': [int, 'Hours over which to measure metric.', 24],
             'period_type': [int, 'Defines the type of '
                                                        'period over which '
