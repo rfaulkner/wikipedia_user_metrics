@@ -3,10 +3,14 @@ __author__ = "Ryan Faulkner"
 __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
+from os import getpid
 from collections import namedtuple
 import user_metric as um
 from user_metrics.metrics import query_mod
 from user_metrics.metrics.users import UMP_MAP
+from user_metrics.utils import multiprocessing_wrapper as mpw, \
+    build_namedtuple
+from user_metrics.config import logging
 
 
 class EditCount(um.UserMetric):
@@ -31,7 +35,9 @@ class EditCount(um.UserMetric):
     # Structure that defines parameters for EditRate class
     _param_types = {
         'init': {},
-        'process': {}
+        'process': {
+            'k': [int, 'Number of worker processes.', 5]
+        }
     }
 
     # Define the metrics data model meta
@@ -75,16 +81,16 @@ class EditCount(um.UserMetric):
 
         # Set defaults
         self.apply_default_kwargs(kwargs, 'process')
+        self.k = kwargs['k']
 
-        # Query call
-        query_args_type = namedtuple('QueryArgs', 'date_start date_end')
+        # Pack args, call thread pool
+        args = [(i, getattr(self, i), self._param_types['init'][i][0])
+                for i in self._param_types['init']] + \
+               [(i, getattr(self, i), self._param_types['process'][i][0])
+                for i in self._param_types['process']]
 
-        umpd_obj = UMP_MAP[self.period_type](users, self)
-        results = list()
-        for t in umpd_obj:
-            args = query_args_type(t.start, t.end)
-            results += query_mod.edit_count_user_query(t.user, self.project,
-                                                       args)
+        results = mpw.build_thread_pool(users, _process_help,
+                                        self.k, args)
 
         # Get edit counts from query - all users not appearing have
         # an edit count of 0
@@ -98,3 +104,50 @@ class EditCount(um.UserMetric):
 
         self._results = edit_count
         return self
+
+
+def _process_help(args):
+    """
+        Worker thread method for edit count.
+    """
+
+    # Unpack args
+    users = args[0]
+    state = args[1]
+
+    names = list()
+    types = list()
+    values = list()
+
+    for n, v, t in state:
+        names.append(n)
+        types.append(t)
+        values.append(v)
+    metric_params = build_namedtuple(names, types, values)
+
+    query_args_type = namedtuple('QueryArgs', 'date_start date_end')
+
+    logging.debug(__name__ + ':: Executing EditCount on '
+                             '%s users (PID = %s)' % (len(users), getpid()))
+
+    # Call user period method
+    umpd_obj = UMP_MAP[metric_params.period_type](users, metric_params)
+    results = list()
+    for t in umpd_obj:
+        args = query_args_type(t.start, t.end)
+
+        # Build edit count results list
+        results += query_mod.edit_count_user_query(t.user,
+                                                   metric_params.project,
+                                                   args)
+    return results
+
+
+# Rudimentary Testing
+if __name__ == '__main__':
+    users = ['13234584', '13234503', '13234565', '13234585', '13234556']
+    e = EditCount(t=10000)
+
+    # Check edit counts against
+    for res in e.process(users):
+        print res
