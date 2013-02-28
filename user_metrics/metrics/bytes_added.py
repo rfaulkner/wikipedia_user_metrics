@@ -167,7 +167,6 @@ def _get_revisions(args):
                 list(query_mod.rev_query(t.user, arg_obj.project,
                                          query_args_type(t.start, t.end,
                                                          arg_obj.namespace)))
-            print revs
     except query_mod.UMQueryCallError as e:
         logging.error('{0}:: {1}. PID={2}'.format(__name__,
                                                   e.message, os.getpid()))
