@@ -60,12 +60,14 @@ def build_namedtuple(names, types, values):
            Values of attributes.  These may be string.
     """
     param_type = namedtuple('build_namedtuple', ' '.join(names))
+
     arg_list = list()
     for t, v in zip(types, values):
         if t == str:
             arg_list.append("'" + str(v) + "'")
-        elif t == int or t == list or t == float:
+        elif t == int or t == list or t == float or t == bool:
             arg_list.append(str(v))
+
     return eval('param_type(' + ','.join(arg_list) + ')')
 
 

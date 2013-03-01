@@ -19,7 +19,7 @@ setup(
     packages=['user_metrics',
               'user_metrics.etl',
               'user_metrics.metrics',
-              'user_metrics.metrics.query',
+              'user_metrics.query',
               'user_metrics.utils',
               'user_metrics.config'],
     install_requires=[

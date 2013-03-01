@@ -52,8 +52,8 @@ from user_metrics.config import logging
 
 import user_metrics.etl.data_loader as dl
 from collections import namedtuple
-from datetime import datetime, timedelta
 from user_metrics.metrics.users import USER_METRIC_PERIOD_TYPE
+from user_metrics.utils import build_namedtuple
 
 
 def pre_metrics_init(init_f):
@@ -123,6 +123,9 @@ class UserMetric(object):
     ALL_NAMESPACES = 'all_namespaces'
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
+    DEFAULT_DATE_START = '20101025080000'
+    DEFAULT_DATE_END = '20110101000000'
+
     # Default number of days for a metric computation
     DEFAULT_DATA_RANGE = 14
 
@@ -132,25 +135,55 @@ class UserMetric(object):
     # Structure that defines parameters for UserMetric class
     _param_types = {
         'init': {
-            'datetime_start': [str, 'Earliest date metric '
-                                               'is measured.',
-                               datetime.now() -
-                               timedelta(DEFAULT_DATA_RANGE)],
+            'datetime_start': [str, 'Earliest date metric is measured.',
+                               DEFAULT_DATE_START],
             'datetime_end': [str, 'Latest date metric is measured.',
-                             datetime.now()],
+                             DEFAULT_DATE_END],
             't': [int, 'Hours over which to measure metric.', 24],
-            'period_type': [int, 'Defines the type of '
-                                                       'period over which '
-                                                       'user metrics are '
-                                                       'measured.',
+            'period_type': [int, 'Defines the type of period over which '
+                                 'user metrics are measured.',
                             USER_METRIC_PERIOD_TYPE.REGISTRATION],
             'project': [str, 'The project (language) being inspected.',
-                        'enwiki'],
+                             'enwiki'],
             'namespace': [list, 'The namespace over which the '
-                                     'metric is computed.', 0],
+                                'metric is computed.', 0],
         },
         'process': {}
     }
+
+    def _pack_params(self):
+        """
+            This method packs the metric parameters into a list of tuples.  The
+            tuple contains ``(<param name>, <value>, <type cast method>)``.
+            This is mainly useful for passing args to thread pools.
+        """
+        return [(i, getattr(self, i), self._param_types['init'][i][0])
+                for i in self._param_types['init']] +\
+            [(i, getattr(self, i), self._param_types['process'][i][0])
+                for i in self._param_types['process']]
+
+    @staticmethod
+    def _unpack_params(args):
+        """
+            Expects the output from ``_pack_params``.  This is meant to be used
+            in conjunction with _pack_params from within thread pool targets.
+
+                Parameters
+                ~~~~~~~~~~
+
+                args : list
+                    List of parameter data returned by ``_pack_params``.
+        """
+
+        names = list()
+        types = list()
+        values = list()
+
+        for n, v, t in args:
+            names.append(n)
+            types.append(t)
+            values.append(v)
+        return build_namedtuple(names, types, values)
 
     def apply_default_kwargs(self, kwargs, arg_type):
         """ Apply parameter defaults where necessary """

@@ -8,8 +8,7 @@ from collections import namedtuple
 import user_metric as um
 from user_metrics.metrics import query_mod
 from user_metrics.metrics.users import UMP_MAP
-from user_metrics.utils import multiprocessing_wrapper as mpw, \
-    build_namedtuple
+from user_metrics.utils import multiprocessing_wrapper as mpw
 from user_metrics.config import logging
 
 
@@ -84,11 +83,7 @@ class EditCount(um.UserMetric):
         self.k = kwargs['k']
 
         # Pack args, call thread pool
-        args = [(i, getattr(self, i), self._param_types['init'][i][0])
-                for i in self._param_types['init']] + \
-               [(i, getattr(self, i), self._param_types['process'][i][0])
-                for i in self._param_types['process']]
-
+        args = self._pack_params()
         results = mpw.build_thread_pool(users, _process_help,
                                         self.k, args)
 
@@ -115,16 +110,7 @@ def _process_help(args):
     users = args[0]
     state = args[1]
 
-    names = list()
-    types = list()
-    values = list()
-
-    for n, v, t in state:
-        names.append(n)
-        types.append(t)
-        values.append(v)
-    metric_params = build_namedtuple(names, types, values)
-
+    metric_params = um.UserMetric._unpack_params(state)
     query_args_type = namedtuple('QueryArgs', 'date_start date_end')
 
     logging.debug(__name__ + ':: Executing EditCount on '

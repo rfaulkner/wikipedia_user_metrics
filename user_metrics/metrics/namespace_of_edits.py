@@ -12,11 +12,7 @@ from collections import namedtuple, OrderedDict
 from user_metrics.etl.aggregator import decorator_builder
 from os import getpid
 from user_metrics.metrics import query_mod
-
-# Definition of persistent state for RevertRate objects
-NamespaceEditsArgsClass = namedtuple('NamespaceEditsArgs', 'project log '
-                                                           'date_start '
-                                                           'date_end')
+from user_metrics.metrics.users import UMP_MAP
 
 
 class NamespaceEdits(um.UserMetric):
@@ -64,9 +60,8 @@ class NamespaceEdits(um.UserMetric):
     _param_types = {
         'init': {},
         'process': {
-            'log': ['bool', 'Enable logging for processing.', False],
-            'num_threads': ['int', 'Number of worker processes over users.',
-                            1],
+            'log': [bool, 'Enable logging for processing.', True],
+            'k_': [int, 'Number of worker processes over users.', 20],
         }
     }
 
@@ -100,16 +95,16 @@ class NamespaceEdits(um.UserMetric):
         # ensure the handles are iterable
         if not hasattr(user_handle, '__iter__'):
             user_handle = [user_handle]
-        k = int(kwargs['num_threads'])
-        log = bool(kwargs['log'])
+        self.k_ = int(kwargs['k_'])
+        self.log = bool(kwargs['log'])
 
-        if log:
+        if self.log:
             logging.info(__name__ + "::parameters = " + str(kwargs))
 
         # Multiprocessing vs. single processing execution
-        args = [self.project, log, self.datetime_start, self.datetime_end]
-        self._results = mpw.build_thread_pool(user_handle, _process_help, k,
-                                              args)
+        args = self._pack_params()
+        self._results = mpw.build_thread_pool(user_handle, _process_help,
+                                              self.k_, args)
         return self
 
 
@@ -117,39 +112,41 @@ def _process_help(args):
     """
         Worker thread method for NamespaceOfEdits::process().
     """
-    state = args[1]
-    thread_args = NamespaceEditsArgsClass(state[0], state[1], state[2],
-                                          state[3])
-    users = args[0]
 
-    if thread_args.log:
+    users = args[0]
+    state = args[1]
+
+    metric_params = um.UserMetric._unpack_params(state)
+    query_args_type = namedtuple('QueryArgs', 'start end')
+
+    if metric_params.log:
         logging.info(__name__ + '::Computing namespace edits. (PID = %s)' %
                                 getpid())
-        logging.info(__name__ + '::From %s to %s. (PID = %s)' % (
-            str(thread_args.date_start), str(thread_args.date_end), getpid()))
 
-    query_args = namedtuple('QueryArgs', 'date_start date_end')(
-        thread_args.date_start, thread_args.date_end)
-
-    query_results = query_mod.namespace_edits_rev_query(users,
-                                                        thread_args.project,
-                                                        query_args)
     # Tally counts of namespace edits
     results = dict()
-    for user in users:
-        results[str(user)] = OrderedDict()
+    ump_res = UMP_MAP[metric_params.period_type](users, metric_params)
+    for ump_rec in ump_res:
+
+        results[str(ump_rec.user)] = OrderedDict()
+
         for ns in NamespaceEdits.VALID_NAMESPACES:
-            results[str(user)][str(ns)] = 0
-    for row in query_results:
-        try:
-            if row[1] in NamespaceEdits.VALID_NAMESPACES:
-                results[str(row[0])][str(row[1])] = int(row[2])
-        except KeyError:
-            logging.error(__name__ + "::Could not process row: %s" % str(row))
-            pass
-        except IndexError:
-            logging.error(__name__ + "::Could not process row: %s" % str(row))
-            pass
+            results[str(ump_rec.user)][str(ns)] = 0
+
+        query_results = query_mod.namespace_edits_rev_query([ump_rec.user],
+            metric_params.project,
+            query_args_type(ump_rec.start, ump_rec.end))
+
+        for row in query_results:
+            try:
+                if row[1] in NamespaceEdits.VALID_NAMESPACES:
+                    results[str(row[0])][str(row[1])] = int(row[2])
+            except KeyError:
+                logging.error(__name__ + "::Could not process row: %s" % str(row))
+                pass
+            except IndexError:
+                logging.error(__name__ + "::Could not process row: %s" % str(row))
+                pass
 
     return [(user, results[user]) for user in results]
 

@@ -33,6 +33,7 @@ __license__ = "GPL (version 2 or later)"
 from collections import OrderedDict
 from dateutil.parser import parse as date_parse
 
+from re import search
 import user_metric as um
 import threshold as th
 from blocks import Blocks, block_rate_agg
@@ -147,7 +148,8 @@ def process_data_request(metric_handle, users, **kwargs):
     # Prepare metrics output for json response
     results['header'] = metric_obj.header()
     for key in metric_obj.__dict__:
-        results[str(key)] = metric_obj.__dict__[key]
+        if not search(r'^_.*', key):
+            results[str(key)] = metric_obj.__dict__[key]
     results['metric'] = OrderedDict()
 
     # Parse the aggregator

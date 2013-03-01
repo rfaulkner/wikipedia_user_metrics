@@ -9,6 +9,8 @@ import edit_count as ec
 from user_metrics.etl.aggregator import weighted_rate, decorator_builder, \
     build_numpy_op_agg, build_agg_meta
 from numpy import median, min, max
+from user_metrics.metrics.users import USER_METRIC_PERIOD_TYPE as umpt
+from user_metrics.utils import enum
 
 
 class EditRate(um.UserMetric):
@@ -39,8 +41,7 @@ class EditRate(um.UserMetric):
 
     # Constants for denoting the time unit by which to
     # normalize edit counts to produce an edit rate
-    HOUR = 0
-    DAY = 1
+    TIME_UNIT_TYPE = enum('HOUR', 'DAY')
 
     # Structure that defines parameters for EditRate class
     _param_types = {
@@ -49,7 +50,7 @@ class EditRate(um.UserMetric):
     _param_types = {
         'init': {
             'time_unit': ['int', 'Type of time unit to normalize by '
-                                 '(HOUR=0, DAY=1).', DAY],
+                                 '(HOUR=0, DAY=1).', TIME_UNIT_TYPE.HOUR],
             'time_unit_count': ['int',
                                 'Number of time units to normalize '
                                 'by (e.g. per two days).', 1],
@@ -74,8 +75,8 @@ class EditRate(um.UserMetric):
     @um.pre_metrics_init
     def __init__(self, **kwargs):
         um.UserMetric.__init__(self, **kwargs)
-        self._time_unit_count_ = kwargs['time_unit_count']
-        self._time_unit_ = kwargs['time_unit']
+        self._time_unit_count_ = int(kwargs['time_unit_count'])
+        self._time_unit_ = int(kwargs['time_unit'])
 
     @staticmethod
     def header():
@@ -104,23 +105,28 @@ class EditRate(um.UserMetric):
 
         # Extract edit count for given parameters
         edit_rate = list()
-        e = ec.EditCount(date_start=self.datetime_start,
-                         date_end=self.datetime_end,
-                         namespace=self.namespace).process(user_handle)
-
-        try:
-            start_ts_obj = date_parse(self.datetime_start)
-            end_ts_obj = date_parse(self.datetime_end)
-        except (AttributeError, ValueError):
-            raise um.UserMetricError()
+        e = ec.EditCount(**kwargs).process(user_handle)
 
         # Compute time difference between datetime objects and get the
         # integer number of seconds
-        time_diff_sec = (end_ts_obj - start_ts_obj).total_seconds()
 
-        if self._time_unit_ == EditRate.DAY:
+        if self.period_type == umpt.REGISTRATION:
+            time_diff_sec = self.t * 3600.0
+        elif self.period_type == umpt.INPUT:
+            try:
+                start_ts_obj = date_parse(self.datetime_start)
+                end_ts_obj = date_parse(self.datetime_end)
+            except (AttributeError, ValueError):
+                raise um.UserMetricError()
+
+            time_diff_sec = (end_ts_obj - start_ts_obj).total_seconds()
+        else:
+            raise um.UserMetricError('period_type parameter not specified.')
+
+        # Normalize the time interval based on the measure
+        if self._time_unit_ == self.TIME_UNIT_TYPE.DAY:
             time_diff = time_diff_sec / (24 * 60 * 60)
-        elif self._time_unit_ == EditRate.HOUR:
+        elif self._time_unit_ == self.TIME_UNIT_TYPE.HOUR:
             time_diff = time_diff_sec / (60 * 60)
         else:
             time_diff = time_diff_sec

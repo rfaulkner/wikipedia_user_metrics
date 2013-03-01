@@ -13,6 +13,7 @@ import user_metric as um
 from user_metrics.etl.aggregator import decorator_builder, boolean_rate
 from user_metrics.metrics import query_mod
 from user_metrics.utils import format_mediawiki_timestamp
+from dateutil.parser import parse as date_parse
 
 
 class Threshold(um.UserMetric):
@@ -141,7 +142,7 @@ def _process_help(args):
     dropped_users = 0
     for r in user_data:
         try:
-            threshold_ts = format_mediawiki_timestamp(um.date_parse(r[1]) +
+            threshold_ts = format_mediawiki_timestamp(date_parse(r[1]) +
                                                       timedelta(hours=
                                                       thread_args.t))
             uid = long(r[0])

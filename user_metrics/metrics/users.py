@@ -290,6 +290,13 @@ class MediaWikiUser(object):
         for row in conn._cur_:
             yield row[0]
 
+    def map_user_id(self, users, project_in, project_out):
+        """
+            Map user IDs between projects.  Requires access to centralauth
+            database.
+        """
+        raise NotImplementedError()
+
 
 # Define User Metric Periods
 # ==========================

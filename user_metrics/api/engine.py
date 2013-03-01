@@ -97,7 +97,7 @@ __license__ = "GPL (version 2 or later)"
 from flask import escape, redirect, url_for
 from user_metrics.utils.record_type import *
 from dateutil.parser import parse as date_parse
-from datetime import timedelta, datetime
+from datetime import datetime
 from re import search
 from collections import OrderedDict, namedtuple
 
@@ -168,7 +168,8 @@ common_params = [varMapping('date_start', 'datetime_start'),
                  varMapping('namespace', 'namespace'),
                  varMapping('interval', 'interval'),
                  varMapping('time_series', 'time_series'),
-                 varMapping('aggregator', 'aggregator')]
+                 varMapping('aggregator', 'aggregator'),
+                 varMapping('t', 't')]
 
 QUERY_PARAMS_BY_METRIC = {
     'blocks': common_params,
@@ -177,15 +178,12 @@ QUERY_PARAMS_BY_METRIC = {
     'edit_rate': common_params + [varMapping('time_unit', 'time_unit'),
                                   varMapping('time_unit_count',
                                   'time_unit_count')],
-    'live_account': common_params + [varMapping('t', 't')],
+    'live_account': common_params,
     'namespace_edits': common_params,
     'revert_rate': common_params + [varMapping('look_back', 'look_back'),
-                                    varMapping('look_ahead', 'look_ahead'),
-                                    varMapping('t', 't')],
-    'survival': common_params + [varMapping('restrict', 'restrict'),
-                                 varMapping('t', 't')],
+                                    varMapping('look_ahead', 'look_ahead'),],
+    'survival': common_params + [varMapping('restrict', 'restrict'),],
     'threshold': common_params + [varMapping('restrict', 'restrict'),
-                                  varMapping('t', 't'),
                                   varMapping('n', 'n')],
     'time_to_threshold': common_params + [varMapping('threshold_type',
                                           'threshold_type_class')],
@@ -202,48 +200,45 @@ DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 DEFAULT_QUERY_VAL = 'present'
 
 
-def process_request_params(request_meta):
+def format_request_params(request_meta):
     """
-        Applies defaults and consistency to RequestMeta data
+        Formats request data and ensures that it is clean using Flask escape
+        functionality.
 
-            request_meta - RequestMeta recordtype.  Stores the request data.
+            Parameters
+            ~~~~~~~~~~
+
+            request_meta : recordtype:
+                Stores the request data.
     """
 
-    DEFAULT_INTERVAL = 14
     TIME_STR = '000000'
-
-    end = datetime.now()
-    start = end + timedelta(days=-DEFAULT_INTERVAL)
 
     # Handle any datetime fields passed - raise an exception if the
     # formatting is incorrect
     if request_meta.date_start:
         try:
             request_meta.date_start = date_parse(
-                request_meta.date_start).strftime(
+                escape(request_meta.date_start)).strftime(
                     DATETIME_STR_FORMAT)[:8] + TIME_STR
         except ValueError:
             # Pass the value of the error code in `error_codes`
             raise MetricsAPIError('1')
-    else:
-        request_meta.date_start = start.strftime(
-            DATETIME_STR_FORMAT)[:8] + TIME_STR
 
     if request_meta.date_end:
         try:
             request_meta.date_end = date_parse(
-                request_meta.date_end).strftime(
+                escape(request_meta.date_end)).strftime(
                     DATETIME_STR_FORMAT)[:8] + TIME_STR
         except ValueError:
             # Pass the value of the error code in `error_codes`
             raise MetricsAPIError('1')
-    else:
-        request_meta.date_end = end.strftime(
-            DATETIME_STR_FORMAT)[:8] + TIME_STR
 
     # set the aggregator if there is one
     agg_key = mm.get_agg_key(request_meta.aggregator, request_meta.metric)
-    request_meta.aggregator = request_meta.aggregator if agg_key else None
+    request_meta.aggregator = escape(request_meta.aggregator) \
+        if agg_key else None
+    # @TODO Escape remaining input
 
 
 def filter_request_input(request, request_meta_obj):
