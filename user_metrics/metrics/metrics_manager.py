@@ -180,11 +180,12 @@ def process_data_request(metric_handle, users, **kwargs):
                          'end': str(end),
                          })
             metric_threads = '{"num_threads" : %(user_threads)s, ' + \
-                             '"rev_threads" : %(rev_threads)s}' % \
-                             {
-                             'user_threads': USER_THREADS,
-                             'rev_threads': REVISION_THREADS
-                             }
+                             '"rev_threads" : %(rev_threads)s}'
+            metric_threads %= {
+                'user_threads': USER_THREADS,
+                'rev_threads': REVISION_THREADS
+            }
+
             out = tspm.build_time_series(start,
                                          end,
                                          interval,
