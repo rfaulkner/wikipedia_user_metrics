@@ -120,7 +120,7 @@ class UserMetricError(Exception):
 
 class UserMetric(object):
 
-    ALL_NAMESPACES = 'all_namespaces'
+    ALL_NAMESPACES = 'all'
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
     DEFAULT_DATE_START = '20101025080000'
