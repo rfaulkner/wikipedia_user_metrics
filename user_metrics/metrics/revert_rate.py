@@ -61,28 +61,28 @@ class RevertRate(um.UserMetric):
     # Structure that defines parameters for RevertRate class
     _param_types = {
         'init' : {
-            'look_ahead' : ['int', 'Number of revisions to look '
-                                   'ahead when computing revert.', 15],
-            'look_back' : ['int', 'Number of revisions to look '
-                                  'back when computing revert.', 15],
-            't' : ['int', 'Length of measurement period.', 168],
+            'look_ahead': ['int', 'Number of revisions to look '
+                                  'ahead when computing revert.', 15],
+            'look_back': ['int', 'Number of revisions to look '
+                                 'back when computing revert.', 15],
+            't': ['int', 'Length of measurement period.', 168],
         },
         'process' : {
-            'log_progress' : ['bool', 'Enable logging for processing.', False],
-            'num_threads' : ['int', 'Number of worker '
-                                    'processes over users.', 1],
-            'rev_threads' : ['int', 'Number of worker '
-                                    'processes over revisions.', 1],
+            'log_progress': ['bool', 'Enable logging for processing.', False],
+            'num_threads': ['int', 'Number of worker '
+                                   'processes over users.', 1],
+            'rev_threads': ['int', 'Number of worker '
+                                   'processes over revisions.', 1],
         }
     }
 
     # Define the metrics data model meta
     _data_model_meta = {
-        'id_fields' : [0],
-        'date_fields' : [],
-        'float_fields' : [1],
-        'integer_fields' : [2],
-        'boolean_fields' : [],
+        'id_fields': [0],
+        'date_fields': [],
+        'float_fields': [1],
+        'integer_fields': [2],
+        'boolean_fields': [],
         }
 
     _agg_indices = {
@@ -92,7 +92,7 @@ class RevertRate(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-        um.UserMetric.__init__(self, **kwargs)
+        super(RevertRate).__init__(self, **kwargs)
         self.look_back = kwargs['look_back']
         self.look_ahead = kwargs['look_ahead']
         self.t = kwargs['t']
@@ -106,7 +106,8 @@ class RevertRate(um.UserMetric):
         self.apply_default_kwargs(kwargs,'process')
 
         # ensure the handles are iterable
-        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
+        if not hasattr(user_handle, '__iter__'):
+            user_handle = [user_handle]
         k = int(kwargs['num_threads'])
         k_r = int(kwargs['rev_threads'])
         log_progress = bool(kwargs['log_progress'])

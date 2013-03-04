@@ -55,7 +55,7 @@ class EditCount(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-        um.UserMetric.__init__(self, **kwargs)
+        super(EditCount).__init__(self, **kwargs)
 
     @staticmethod
     def header():
