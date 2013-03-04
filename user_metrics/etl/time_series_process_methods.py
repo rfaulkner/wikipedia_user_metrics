@@ -42,10 +42,10 @@ def _get_timeseries(date_start, date_end, interval):
         raise TimeSeriesException(message="Time series must contain at " \
                                           "least one interval.")
 
-    c = date_parse(date_start) + datetime.timedelta(hours=-interval)
+    c = date_parse(date_start) + datetime.timedelta(hours=-int(interval))
     e = date_parse(date_end)
     while c < e:
-        c += datetime.timedelta(hours=interval)
+        c += datetime.timedelta(hours=int(interval))
         yield c
 
 def build_time_series(start, end, interval, metric, aggregator, cohort,
@@ -91,7 +91,7 @@ def build_time_series(start, end, interval, metric, aggregator, cohort,
 
     # Compose the sets of time series lists
     f = lambda t,i:  t + datetime.timedelta(
-        hours = intervals_per_thread * interval * i)
+        hours = int(intervals_per_thread * interval * i))
     time_series = [_get_timeseries(f(start, i),
         f(start, i+1), interval) for i in xrange(k)]
     if f(start, k) <  end: time_series.append(
