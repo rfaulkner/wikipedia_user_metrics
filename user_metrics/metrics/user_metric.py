@@ -63,7 +63,7 @@ def pre_metrics_init(init_f):
     def wrapper(self, **kwargs):
         # Add params from base class
         self.append_params(UserMetric)
-        self.apply_default_kwargs(kwargs, 'init')
+        self.assign_attributes(kwargs, 'init')
 
         # Call init
         init_f(self, **kwargs)
@@ -179,6 +179,14 @@ class UserMetric(object):
         }
     }
 
+    def append_params(self, class_ref):
+        """ Append params from class reference """
+        if hasattr(class_ref, '_param_types'):
+            for k, v in class_ref._param_types['init'].iteritems():
+                self._param_types['init'][k] = v
+            for k, v in class_ref._param_types['process'].iteritems():
+                self._param_types['process'][k] = v
+
     def _pack_params(self):
         """
             This method packs the metric parameters into a list of tuples.  The
@@ -213,24 +221,21 @@ class UserMetric(object):
             values.append(v)
         return build_namedtuple(names, types, values)
 
-    def apply_default_kwargs(self, kwargs, arg_type):
+    def assign_attributes(self, kwargs, arg_type):
         """ Apply parameter defaults where necessary """
-        if hasattr(kwargs, '__iter__') and arg_type in self._param_types:
-            for k in self._param_types[arg_type]:
-                if not k in kwargs or not kwargs[k]:
-                    kwargs[k] = self._param_types[arg_type][k][2]
+        params = self._param_types[arg_type]
+        for att in params:
+            if att in kwargs and kwargs[att]:
+                setattr(self, att, kwargs[att])
+            else:
+                setattr(self, att, params[att][2])
 
     def __init__(self, **kwargs):
 
         # Stores results of a process request
         self._results = list()
 
-        params = self._param_types['init']
-        for att in params:
-            if not att in kwargs:
-                setattr(self, att, params[att][2])
-            else:
-                setattr(self, att, kwargs[att])
+        self.assign_attributes(kwargs, 'init')
 
         # Initialize namespace attribute
         if not self.namespace == self.ALL_NAMESPACES:
@@ -247,14 +252,6 @@ class UserMetric(object):
 
     def __iter__(self):
         return (r for r in self._results)
-
-    def append_params(self, class_ref):
-        """ Append params from class reference """
-        if hasattr(class_ref, '_param_types'):
-            for k, v in class_ref._param_types['init'].iteritems():
-                self.__class__._param_types['init'][k] = v
-            for k, v in class_ref._param_types['process'].iteritems():
-                self.__class__._param_types['process'][k] = v
 
     @classmethod
     def _construct_data_point(cls):
@@ -295,12 +292,7 @@ class UserMetric(object):
             users = dl.DataLoader().cast_elems_to_string(users)
 
             # Add attributes from _param_types
-            params = self._param_types['process']
-            for att in self._param_types['process']:
-                if not att in kwargs:
-                    setattr(self, att, params[att][2])
-                else:
-                    setattr(self, att, kwargs[att])
+            self.assign_attributes(kwargs, 'process')
 
             # Echo input params for metric process call
             if hasattr(self, 'log_') and self.log_:
