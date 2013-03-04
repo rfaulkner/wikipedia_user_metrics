@@ -47,15 +47,7 @@ class Blocks(um.UserMetric):
     _param_types = \
         {
             'init': {},
-            'process':
-                    {
-                        'is_id': ['bool',
-                                  'Are user ids or names being passed.',
-                                  True],
-                        'log_progress': ['bool',
-                                         'Enable logging for processing.',
-                                         False],
-                    }
+            'process': {}
         }
 
     # Define the metrics data model meta
@@ -87,8 +79,8 @@ class Blocks(um.UserMetric):
                 'block_last',
                 'ban']
 
-    @um.UserMetric.pre_process_users
-    def process(self, user_handle, **kwargs):
+    @um.UserMetric.pre_process_metric_call
+    def process(self, users, **kwargs):
         """
             Process method for the "blocks" metric.  Computes a list of
             block and ban events for users.
@@ -102,25 +94,11 @@ class Blocks(um.UserMetric):
 
         """
 
-        self.apply_default_kwargs(kwargs, 'process')
         rowValues = {}
-
-        log = bool(kwargs['log_progress'])
-
-        # ensure the handles are iterable
-        if not hasattr(user_handle, '__iter__'):
-            user_handle = [user_handle]
-        users = um.dl.DataLoader().cast_elems_to_string(user_handle)
 
         for i in xrange(len(users)):
             rowValues[users[i]] = {'block_count': 0, 'block_first': -1,
                                    'block_last': -1, 'ban': -1}
-
-        # Get blocks from the logging table
-        if log:
-            logging.info(__name__ + '::Processing blocks for %s users.' %
-                                    len(user_handle))
-
         # Data calls
         user_map = query_mod.blocks_user_map_query(users, self.project)
         query_args = namedtuple('QueryArgs', 'date_start')(self.datetime_start)
@@ -150,6 +128,7 @@ class Blocks(um.UserMetric):
                           rowValues.get(user)['ban']]
                          for user in rowValues.keys()]
         return self
+
 
 # ==========================
 # DEFINE METRIC AGGREGATORS

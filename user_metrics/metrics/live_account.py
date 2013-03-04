@@ -62,21 +62,18 @@ class LiveAccount(um.UserMetric):
     # Structure that defines parameters for RevertRate class
     _param_types = {
         'init' : {
-            't' : ['int', 'The time in minutes until the threshold.', 60],
+            't': ['int', 'The time in minutes until the threshold.', 60],
         },
-        'process' : {
-            'log' : ['bool', 'Enable logging for processing.',False],
-            'num_threads' : ['int', 'Number of worker processes over users.',1],
-            }
+        'process': {}
     }
 
     # Define the metrics data model meta
     _data_model_meta = {
-        'id_fields' : [0],
-        'date_fields' : [],
-        'float_fields' : [],
-        'integer_fields' : [],
-        'boolean_fields' : [1],
+        'id_fields': [0],
+        'date_fields': [],
+        'float_fields': [],
+        'integer_fields': [],
+        'boolean_fields': [1],
         }
 
     _agg_indices = {}
@@ -84,30 +81,20 @@ class LiveAccount(um.UserMetric):
     @um.pre_metrics_init
     def __init__(self, **kwargs):
         super(LiveAccount, self).__init__(**kwargs)
-        self._t_ = int(kwargs['t']) if 't' in kwargs else \
-            self._param_types['init']['t'][2]
 
     @staticmethod
     def header(): return ['user_id', 'is_active_account', ]
 
-    @um.UserMetric.pre_process_users
+    @um.UserMetric.pre_process_metric_call
     def process(self, user_handle, **kwargs):
 
-        self.apply_default_kwargs(kwargs,'process')
-
-        # ensure the handles are iterable
-        if not hasattr(user_handle, '__iter__'): user_handle = [user_handle]
-        k = int(kwargs['num_threads'])
-        log = bool(kwargs['log'])
-
-        if log: logging.info(__name__ + "::parameters = " + str(kwargs))
-
         # Multiprocessing vs. single processing execution
-        args = [self.project, self.namespace, log, self.datetime_start,
-                self.datetime_end, self._t_]
-        self._results = mpw.build_thread_pool(user_handle,_process_help,k,args)
-
+        args = [self.project, self.namespace, self.log_, self.datetime_start,
+                self.datetime_end, self.t]
+        self._results = mpw.build_thread_pool(user_handle, _process_help,
+                                              self.k_, args)
         return self
+
 
 def _process_help(args):
 
@@ -150,6 +137,7 @@ def _process_help(args):
             results[row[0]] = 0
 
     return [(str(key), results[key]) for key in results]
+
 
 @decorator_builder(LiveAccount.header())
 def live_accounts_agg(metric):

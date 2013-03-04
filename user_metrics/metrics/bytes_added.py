@@ -55,12 +55,7 @@ class BytesAdded(um.UserMetric):
     _param_types = \
         {
             'init': {},
-            'process':
-                    {
-                        'log_': [bool, 'Enable logging for processing.',
-                                 False],
-                        'k_': [int, 'Number of worker processes.', 30]
-                    }
+            'process': {}
         }
 
     # Define the metrics data model meta
@@ -89,14 +84,9 @@ class BytesAdded(um.UserMetric):
         return ['user_id', 'bytes_added_net', 'bytes_added_absolute',
                 'bytes_added_pos', 'bytes_added_neg', 'edit_count']
 
-    @um.UserMetric.pre_process_users
+    @um.UserMetric.pre_process_metric_call
     def process(self, users, **kwargs):
         """ Setup metrics gathering using multiprocessing """
-
-        self.apply_default_kwargs(kwargs, 'process')
-
-        if not hasattr(users, '__iter__'):
-            users = [users]
 
         # get revisions
         args = self._pack_params()

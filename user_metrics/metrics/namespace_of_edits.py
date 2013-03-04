@@ -59,10 +59,7 @@ class NamespaceEdits(um.UserMetric):
     # Structure that defines parameters for RevertRate class
     _param_types = {
         'init': {},
-        'process': {
-            'log': [bool, 'Enable logging for processing.', True],
-            'k_': [int, 'Number of worker processes over users.', 20],
-        }
+        'process': {}
     }
 
     # Define the metrics data model meta
@@ -87,19 +84,12 @@ class NamespaceEdits(um.UserMetric):
     def header():
         return ['user_id', 'revision_data_by_namespace', ]
 
-    @um.UserMetric.pre_process_users
+    @um.UserMetric.pre_process_metric_call
     def process(self, user_handle, **kwargs):
-
-        self.apply_default_kwargs(kwargs, 'process')
 
         # ensure the handles are iterable
         if not hasattr(user_handle, '__iter__'):
             user_handle = [user_handle]
-        self.k_ = int(kwargs['k_'])
-        self.log = bool(kwargs['log'])
-
-        if self.log:
-            logging.info(__name__ + "::parameters = " + str(kwargs))
 
         # Multiprocessing vs. single processing execution
         args = self._pack_params()
@@ -119,7 +109,7 @@ def _process_help(args):
     metric_params = um.UserMetric._unpack_params(state)
     query_args_type = namedtuple('QueryArgs', 'start end')
 
-    if metric_params.log:
+    if metric_params.log_:
         logging.info(__name__ + '::Computing namespace edits. (PID = %s)' %
                                 getpid())
 
@@ -141,14 +131,12 @@ def _process_help(args):
             try:
                 if row[1] in NamespaceEdits.VALID_NAMESPACES:
                     results[str(row[0])][str(row[1])] = int(row[2])
-            except KeyError:
+            except (KeyError, IndexError):
                 logging.error(__name__ + "::Could not process row: %s" % str(row))
-                pass
-            except IndexError:
-                logging.error(__name__ + "::Could not process row: %s" % str(row))
-                pass
+                continue
 
     return [(user, results[user]) for user in results]
+
 
 # ==========================
 # DEFINE METRIC AGGREGATORS

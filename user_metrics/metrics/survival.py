@@ -32,12 +32,10 @@ class Survival(um.UserMetric):
     # Structure that defines parameters for Survival class
     _param_types = {
         'init' : {
-            't' : ['int', 'The time in minutes registration after which survival is measured.',24],
+            't' : [int, 'The time in minutes registration '
+                          'after which survival is measured.', 24],
             },
-        'process' : {
-            'log_progress' : ['bool', 'Enable logging for processing.',False],
-            'num_threads' : ['int', 'Number of worker processes over users.',0],
-            }
+        'process' : {}
     }
 
     # Define the metrics data model meta
@@ -56,13 +54,12 @@ class Survival(um.UserMetric):
     @um.pre_metrics_init
     def __init__(self, **kwargs):
         super(Survival, self).__init__(**kwargs)
-        self._t_ = kwargs['t']
 
     @staticmethod
     def header():
         return ['user_id', 'is_alive']
 
-    @um.UserMetric.pre_process_users
+    @um.UserMetric.pre_process_metric_call
     def process(self, user_handle, **kwargs):
 
         """
@@ -72,12 +69,17 @@ class Survival(um.UserMetric):
                 - **user_handle** - String or Integer (optionally lists).  Value or list of values representing user handle(s).
         """
 
-        self.apply_default_kwargs(kwargs,'process')
-        kwargs['survival'] = True
-        kwargs['n'] = 1     # survival is denoted by making at least one revision
+        # Utilize threshold, survival is denoted by making at least one revision
+        kwargs['survival_'] = True
+        kwargs['n'] = 1
 
         self._results =  th.Threshold(**kwargs).process(user_handle, **kwargs)._results
         return self
+
+
+# ==========================
+# DEFINE METRIC AGGREGATORS
+# ==========================
 
 # Build "rate" decorator
 survival_editors_agg = boolean_rate

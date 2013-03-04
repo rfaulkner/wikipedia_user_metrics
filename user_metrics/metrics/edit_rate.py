@@ -49,9 +49,9 @@ class EditRate(um.UserMetric):
     }
     _param_types = {
         'init': {
-            'time_unit': ['int', 'Type of time unit to normalize by '
+            'time_unit': [int, 'Type of time unit to normalize by '
                                  '(HOUR=0, DAY=1).', TIME_UNIT_TYPE.HOUR],
-            'time_unit_count': ['int',
+            'time_unit_count': [int,
                                 'Number of time units to normalize '
                                 'by (e.g. per two days).', 1],
         },
@@ -75,15 +75,13 @@ class EditRate(um.UserMetric):
     @um.pre_metrics_init
     def __init__(self, **kwargs):
         super(EditRate, self).__init__(**kwargs)
-        self._time_unit_count_ = int(kwargs['time_unit_count'])
-        self._time_unit_ = int(kwargs['time_unit'])
 
     @staticmethod
     def header():
         return ['user_id', 'edit_count', 'edit_rate',
                 'start_time', 'period_len']
 
-    @um.UserMetric.pre_process_users
+    @um.UserMetric.pre_process_metric_call
     def process(self, user_handle, **kwargs):
         """
             Determine the edit rate of user(s).  The parameter *user_handle*
@@ -101,7 +99,6 @@ class EditRate(um.UserMetric):
                 - Dictionary. key(string): user handle, value(Float):
                 edit counts
         """
-        self.apply_default_kwargs(kwargs, 'process')
 
         # Extract edit count for given parameters
         edit_rate = list()
@@ -124,9 +121,9 @@ class EditRate(um.UserMetric):
             raise um.UserMetricError('period_type parameter not specified.')
 
         # Normalize the time interval based on the measure
-        if self._time_unit_ == self.TIME_UNIT_TYPE.DAY:
+        if self.time_unit == self.TIME_UNIT_TYPE.DAY:
             time_diff = time_diff_sec / (24 * 60 * 60)
-        elif self._time_unit_ == self.TIME_UNIT_TYPE.HOUR:
+        elif self.time_unit == self.TIME_UNIT_TYPE.HOUR:
             time_diff = time_diff_sec / (60 * 60)
         else:
             time_diff = time_diff_sec
@@ -134,7 +131,7 @@ class EditRate(um.UserMetric):
         # Build the list of edit rate metrics
         for i in e.__iter__():
             new_i = i[:]  # Make a copy of the edit count element
-            new_i.append(new_i[1] / (time_diff * self._time_unit_count_))
+            new_i.append(new_i[1] / (time_diff * self.time_unit_count))
             new_i.append(self.datetime_start)
             new_i.append(time_diff)
             edit_rate.append(new_i)

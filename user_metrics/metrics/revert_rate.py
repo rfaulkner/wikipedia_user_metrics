@@ -64,19 +64,13 @@ class RevertRate(um.UserMetric):
     # Structure that defines parameters for RevertRate class
     _param_types = {
         'init' : {
-            'look_ahead': ['int', 'Number of revisions to look '
-                                  'ahead when computing revert.', 15],
-            'look_back': ['int', 'Number of revisions to look '
-                                 'back when computing revert.', 15],
-            't': ['int', 'Length of measurement period.', 168],
+            'look_ahead': [int, 'Number of revisions to look '
+                                'ahead when computing revert.', 15],
+            'look_back': [int, 'Number of revisions to look '
+                               'back when computing revert.', 15],
+            't': [int, 'Length of measurement period.', 168],
         },
-        'process' : {
-            'log_progress': ['bool', 'Enable logging for processing.', False],
-            'num_threads': ['int', 'Number of worker '
-                                   'processes over users.', 1],
-            'rev_threads': ['int', 'Number of worker '
-                                   'processes over revisions.', 1],
-        }
+        'process' : {}
     }
 
     # Define the metrics data model meta
@@ -95,35 +89,23 @@ class RevertRate(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-<<<<<<< HEAD
-        super(RevertRate).__init__(self, **kwargs)
-=======
         super(RevertRate, self).__init__(**kwargs)
->>>>>>> master
-        self.look_back = kwargs['look_back']
-        self.look_ahead = kwargs['look_ahead']
-        self.t = kwargs['t']
 
     @staticmethod
     def header(): return ['user_id', 'revert_rate', 'total_revisions']
 
-    @um.UserMetric.pre_process_users
+    @um.UserMetric.pre_process_metric_call
     def process(self, user_handle, **kwargs):
-
-        self.apply_default_kwargs(kwargs,'process')
 
         # ensure the handles are iterable
         if not hasattr(user_handle, '__iter__'):
             user_handle = [user_handle]
-        k = int(kwargs['num_threads'])
-        k_r = int(kwargs['rev_threads'])
-        log_progress = bool(kwargs['log_progress'])
 
-        args = [self.project, log_progress, self.look_ahead,
-                self.look_back, self.t, self.datetime_end, k_r,
+        args = [self.project, self.log_, self.look_ahead,
+                self.look_back, self.t, self.datetime_end, self.kr_,
                 self.namespace, self.period_type]
         self._results = mpw.build_thread_pool(user_handle, _process_help,
-                                              k, args)
+                                              self.k_, args)
 
         return self
 
