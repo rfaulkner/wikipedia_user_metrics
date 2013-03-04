@@ -128,8 +128,8 @@ def log_pool_worker_end(metric_name, worker_name, extra=''):
         Logging method for job completion.
     """
     logging.debug('{0} :: {1}\n'
-                  'PID = {2} complete.\n'
-                  '{3}'.format(metric_name, worker_name, getpid(), extra))
+                  '\tPID = {2} complete.\n'
+                  '\t{3}\n'.format(metric_name, worker_name, getpid(), extra))
 
 
 class UserMetricError(Exception):
@@ -218,9 +218,10 @@ class UserMetric(object):
         # Stores results of a process request
         self._results = list()
 
-        for att in self._param_types['init']:
+        params = self._param_types['init']
+        for att in params:
             if not att in kwargs:
-                setattr(self, att, att[2])
+                setattr(self, att, params[att][2])
             else:
                 setattr(self, att, kwargs[att])
 
@@ -282,6 +283,14 @@ class UserMetric(object):
             # If users are empty flag an error
             if not users:
                 raise Exception('No users to pass to process method.')
+
+            # Add attributes from _param_types
+            params = self._param_types['process']
+            for att in self._param_types['process']:
+                if not att in kwargs:
+                    setattr(self, att, params[att][2])
+                else:
+                    setattr(self, att, kwargs[att])
 
             return proc_func(self, users, **kwargs)
         return wrapper
