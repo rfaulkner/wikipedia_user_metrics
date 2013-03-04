@@ -54,6 +54,7 @@ import user_metrics.etl.data_loader as dl
 from collections import namedtuple
 from user_metrics.metrics.users import USER_METRIC_PERIOD_TYPE
 from user_metrics.utils import build_namedtuple
+from os import getpid
 
 
 def pre_metrics_init(init_f):
@@ -109,6 +110,26 @@ def aggregator(agg_method, metric, data_header):
                                                   metric._agg_indices[
                                                   agg_method.__name__])
     return aggregate_data_class(agg_header, data)
+
+
+def log_pool_worker_start(metric_name, worker_name, data, args):
+    """
+        Logging method for processing pool workers.
+    """
+    logging.debug('{0} :: {1}\n'
+                  '\tData = {2} rows\n'
+                  '\tArgs = {3}\n'
+                  '\tPID = {4}\n'.format(metric_name, worker_name, len(data),
+                                         str(args), getpid()))
+
+
+def log_pool_worker_end(metric_name, worker_name, extra=''):
+    """
+        Logging method for job completion.
+    """
+    logging.debug('{0} :: {1}\n'
+                  'PID = {2} complete.\n'
+                  '{3}'.format(metric_name, worker_name, getpid(), extra))
 
 
 class UserMetricError(Exception):
