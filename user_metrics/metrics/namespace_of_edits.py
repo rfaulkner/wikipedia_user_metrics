@@ -81,7 +81,7 @@ class NamespaceEdits(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-        um.UserMetric.__init__(self, **kwargs)
+        super(NamespaceEdits, self).__init__(**kwargs)
 
     @staticmethod
     def header():

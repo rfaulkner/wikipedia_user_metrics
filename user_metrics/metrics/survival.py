@@ -55,7 +55,7 @@ class Survival(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-        um.UserMetric.__init__(self, **kwargs)
+        super(Survival, self).__init__(**kwargs)
         self._t_ = kwargs['t']
 
     @staticmethod
