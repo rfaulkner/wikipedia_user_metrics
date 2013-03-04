@@ -83,7 +83,7 @@ class LiveAccount(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-        super(LiveAccount).__init__(self, **kwargs)
+        super(LiveAccount, self).__init__(**kwargs)
         self._t_ = int(kwargs['t']) if 't' in kwargs else \
             self._param_types['init']['t'][2]
 

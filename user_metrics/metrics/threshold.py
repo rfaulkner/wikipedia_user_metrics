@@ -71,7 +71,7 @@ class Threshold(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-        super(Threshold).__init__(self, **kwargs)
+        super(Threshold, self).__init__(**kwargs)
         self._t_ = int(kwargs['t']) if 't' in kwargs else 1440
         self._n_ = int(kwargs['n']) if 'n' in kwargs else 1
 

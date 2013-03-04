@@ -9,18 +9,21 @@ from user_metrics.config import logging
 from collections import namedtuple
 import user_metric as um
 import collections
-from datetime import timedelta
-from dateutil.parser import parse as date_parse
 import os
 import user_metrics.utils.multiprocessing_wrapper as mpw
 from user_metrics.etl.aggregator import decorator_builder, weighted_rate
 from user_metrics.metrics import query_mod
+from user_metrics.metrics.users import UMP_MAP
+from user_metrics.utils import format_mediawiki_timestamp
 
 # Definition of persistent state for RevertRate objects
 RevertRateArgsClass = collections.namedtuple('RevertRateArgs',
                                              'project log_progress '
                                              'look_ahead look_back t '
-                                             'rev_threads namespace')
+                                             'rev_threads namespace '
+                                             'period_type')
+
+
 class RevertRate(um.UserMetric):
     """
         Skeleton class for "RevertRate" metric:
@@ -92,7 +95,11 @@ class RevertRate(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
+<<<<<<< HEAD
         super(RevertRate).__init__(self, **kwargs)
+=======
+        super(RevertRate, self).__init__(**kwargs)
+>>>>>>> master
         self.look_back = kwargs['look_back']
         self.look_ahead = kwargs['look_ahead']
         self.t = kwargs['t']
@@ -114,11 +121,12 @@ class RevertRate(um.UserMetric):
 
         args = [self.project, log_progress, self.look_ahead,
                 self.look_back, self.t, self.datetime_end, k_r,
-                self.namespace]
+                self.namespace, self.period_type]
         self._results = mpw.build_thread_pool(user_handle, _process_help,
                                               k, args)
 
         return self
+
 
 def __revert(rev_id, page_id, sha1, user_text, metric_args):
     """ Returns the revision corresponding to a revision if it exists. """
@@ -136,17 +144,20 @@ def __revert(rev_id, page_id, sha1, user_text, metric_args):
             else:
                 return rev
 
+
 def __history(rev_id, page_id, n, project, namespace):
     """ Produce the n revisions on a page before a given revision
             Returns a generator of revision objects """
     return query_mod.page_rev_hist_query(rev_id, page_id, n, project,
                                                  namespace, look_ahead=False)
 
+
 def __future(rev_id, page_id, n, project, namespace):
     """ Produce the n revisions on a page after a given revision
             Returns a generator of revision objects """
     return query_mod.page_rev_hist_query(rev_id, page_id, n, project,
                                                    namespace, look_ahead=True)
+
 
 def _process_help(args):
     """ Used by Threshold::process() for forking.
@@ -155,15 +166,17 @@ def _process_help(args):
     state = args[1]
     thread_args = RevertRateArgsClass(state[0], state[1], state[2],
                                       state[3], state[4], state[6],
-                                      state[7])
-    user_data = args[0]
+                                      state[7], state[8])
+    users = args[0]
 
     if thread_args.log_progress:
         logging.info(__name__ +
-                    '::Computing reverts on %s users in thread %s.'
-                    % (len(user_data), str(os.getpid())))
+                    ':: Computing reverts on %s users in thread %s.'
+                    % (len(users), str(os.getpid())))
     results_agg = list()
-    for user in user_data:
+
+    umpd_obj = UMP_MAP[thread_args.period_type](users, thread_args)
+    for user_data in umpd_obj:
 
         total_revisions = 0.0
         total_reverts = 0.0
@@ -173,20 +186,10 @@ def _process_help(args):
         # 1. Obtain user registration date
         # 2. Compute end date based on 't'
         # 3. Get user revisions in time period
-        try:
-            reg_date = query_mod.user_registration_date(user,
-                                                        thread_args.project,
-                                                        None)[0][1]
-            reg_date_obj = date_parse(reg_date)
-        except Exception:
-            logging.error(__name__ + ':: No account create in logging table' \
-                                     ' for "{0}".'.format(user))
-            continue
-        date_frmt = um.UserMetric.DATETIME_STR_FORMAT
-        end_date_obj = reg_date_obj + timedelta(hours=int(thread_args.t))
         query_args = namedtuple('QueryArgs', 'date_start date_end')\
-            (reg_date_obj.strftime(date_frmt), end_date_obj.strftime(date_frmt))
-        revisions = query_mod.revert_rate_user_revs_query(user,
+            (format_mediawiki_timestamp(user_data.start),
+             format_mediawiki_timestamp(user_data.end))
+        revisions = query_mod.revert_rate_user_revs_query(user_data.user,
                                                           thread_args.project,
                                                           query_args)
         results_thread = mpw.build_thread_pool(revisions, _revision_proc,
@@ -196,15 +199,16 @@ def _process_help(args):
             total_revisions += r[0]
             total_reverts += r[1]
         if not total_revisions:
-            results_agg.append([user, 0.0, total_revisions])
+            results_agg.append([user_data.user, 0.0, total_revisions])
         else:
-            results_agg.append([user, total_reverts / total_revisions,
+            results_agg.append([user_data.user, total_reverts / total_revisions,
                                 total_revisions])
 
     if thread_args.log_progress: logging.info(__name__ +
-                                              '::PID %s complete.' %
+                                              ':: PID %s complete.' %
                                               (str(os.getpid())))
     return results_agg
+
 
 def _revision_proc(args):
     """ helper method for computing reverts """
@@ -212,7 +216,7 @@ def _revision_proc(args):
     state = args[1]
     thread_args = RevertRateArgsClass(state[0], state[1], state[2],
                                       state[3], state[4], state[6],
-                                      state[7])
+                                      state[7], state[8])
     rev_data = args[0]
 
     revision_count = 0.0
@@ -222,6 +226,11 @@ def _revision_proc(args):
             revert_count += 1.0
         revision_count += 1.0
     return [(revision_count, revert_count)]
+
+
+# ==========================
+# DEFINE METRIC AGGREGATORS
+# ==========================
 
 # Build "weighted rate" decorator
 revert_rate_avg = weighted_rate

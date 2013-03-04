@@ -74,7 +74,7 @@ class EditRate(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-        super(EditRate).__init__(self, **kwargs)
+        super(EditRate, self).__init__(**kwargs)
         self._time_unit_count_ = int(kwargs['time_unit_count'])
         self._time_unit_ = int(kwargs['time_unit'])
 
