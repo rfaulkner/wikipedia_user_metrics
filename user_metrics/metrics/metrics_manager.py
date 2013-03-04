@@ -57,6 +57,9 @@ MAX_THREADS = 5
 USER_THREADS = settings.__user_thread_max__
 REVISION_THREADS = settings.__rev_thread_max__
 
+TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
+DEFAULT_INERVAL_LENGTH = 24
+
 # Registered metrics types
 metric_dict = \
     {
@@ -91,8 +94,6 @@ aggregator_dict = \
         'average+blocks': block_rate_agg,
         'dist+time_to_threshold': ttt_stats_agg,
     }
-
-TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 def get_metric_names():
@@ -166,7 +167,11 @@ def process_data_request(metric_handle, users, **kwargs):
     if aggregator_func:
         if time_series:
             # interval length in hours
-            interval = int(kwargs['interval'])
+            if kwargs['interval']:
+                interval = int(kwargs['interval'])
+            else:
+                interval = DEFAULT_INERVAL_LENGTH
+
             total_intervals = (date_parse(end) - date_parse(start)).\
                 total_seconds() / (3600 * interval)
             time_threads = max(1, int(total_intervals / INTERVALS_PER_THREAD))
@@ -206,12 +211,12 @@ def process_data_request(metric_handle, users, **kwargs):
             logging.info(__name__ + ':: Initiating aggregator for '
                                     '%(metric)s with %(agg)s from '
                                     '%(start)s to %(end)s.' %
-                                     {
-                                     'metric': metric_class.__name__,
-                                     'agg': aggregator_func.__name__,
-                                     'start': str(start),
-                                     'end': str(end),
-                                     })
+                                    {
+                                        'metric': metric_class.__name__,
+                                        'agg': aggregator_func.__name__,
+                                        'start': str(start),
+                                        'end': str(end),
+                                    })
             metric_obj.process(users, num_threads=USER_THREADS,
                                rev_threads=REVISION_THREADS,
                                log_progress=True, **kwargs)
