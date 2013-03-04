@@ -227,20 +227,6 @@ def contact():
     return render_template('contact.html')
 
 
-@app.route('/tags/')
-def tags():
-    """ View for tag definitions where cohort meta data can be reviewed """
-    #@@@ TODO make tag list generation a dedicated method
-    conn = dl.Connector(instance='slave')
-    conn._cur_.execute('select * from usertags_meta')
-
-    f = dl.DataLoader().cast_elems_to_string
-    utm = [escape(", ".join(f(r))) for r in conn._cur_]
-
-    del conn
-    return render_template('tags.html', data=utm)
-
-
 @app.route('/metrics/', methods=['POST', 'GET'])
 def all_metrics():
     """ Display a list of available metrics """
