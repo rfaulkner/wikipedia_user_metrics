@@ -7,7 +7,6 @@ from user_metrics.config import logging
 
 from numpy import median, min, max
 from collections import namedtuple
-import collections
 import user_metric as um
 import os
 from user_metrics.etl.aggregator import list_sum_by_group, \
@@ -58,16 +57,9 @@ class BytesAdded(um.UserMetric):
             'init': {},
             'process':
                     {
-                        'log_progress': ['bool',
-                                         'Enable logging for processing.',
-                                         False],
-                        'log_frequency': ['int',
-                                          'Revision frequency on which to '
-                                          'log (ie. log every n revisions)',
-                                          1000],
-                        'num_threads': ['int',
-                                        'Number of worker processes.',
-                                        1]
+                        'log_': [bool, 'Enable logging for processing.',
+                                 False],
+                        'k_': [int, 'Number of worker processes.', 30]
                     }
         }
 
@@ -103,25 +95,19 @@ class BytesAdded(um.UserMetric):
 
         self.apply_default_kwargs(kwargs, 'process')
 
-        k = kwargs['num_threads']
-        log_progress = bool(kwargs['log_progress'])
-        log_frequency = int(kwargs['log_frequency'])
-
         if not hasattr(users, '__iter__'):
             users = [users]
 
         # get revisions
-        args = [log_progress, self.datetime_start,
-                self.datetime_end, self.project, self.namespace,
-                self.period_type, self.t]
-        revs = mpw.build_thread_pool(users, _get_revisions, k, args)
+        args = self._pack_params()
+        revs = mpw.build_thread_pool(users, _get_revisions, self.k_, args)
 
         # Start worker threads and aggregate results for bytes added
-        args = [log_progress, log_frequency, self.project]
+
         self._results = \
             list_sum_by_group(mpw.build_thread_pool(revs,
                                                     _process_help,
-                                                    k,
+                                                    self.k_,
                                                     args), 0)
 
         # Add any missing users - O(n)
@@ -135,42 +121,28 @@ class BytesAdded(um.UserMetric):
 
 def _get_revisions(args):
     """ Retrieve total set of revision records for users within timeframe """
+    um.log_pool_worker_start(__name__, _get_revisions.__name__, args[0], args[1])
 
-    MethodArgsClass = collections.namedtuple('MethodArg',
-                                             'log datetime_start datetime_end '
-                                             'project namespace period_type t')
     users = args[0]
     state = args[1]
-    arg_obj = MethodArgsClass(state[0], state[1], state[2], state[3],
-                              state[4], state[5], state[6])
 
-    if arg_obj.log:
-        logging.info(__name__ +
-                     '::Querying revisions for %(count)s users '
-                     '(project = %(project)s, '
-                     'namespace = %(namespace)s, '
-                     'PID = %(pid)s)... ' %
-                     {
-                         'count': len(users),
-                         'project': arg_obj.project,
-                         'namespace': arg_obj.namespace,
-                         'pid': os.getpid()
-                     }
-                     )
-
+    metric_params = um.UserMetric._unpack_params(state)
     query_args_type = namedtuple('QueryArgs', 'date_start date_end namespace')
+
     revs = list()
-    umpd_obj = UMP_MAP[arg_obj.period_type](users, arg_obj)
+    umpd_obj = UMP_MAP[metric_params.period_type](users, metric_params)
     try:
         for t in umpd_obj:
             revs += \
-                list(query_mod.rev_query(t.user, arg_obj.project,
+                list(query_mod.rev_query(t.user, metric_params.project,
                                          query_args_type(t.start, t.end,
-                                                         arg_obj.namespace)))
+                                                         metric_params.namespace)))
     except query_mod.UMQueryCallError as e:
         logging.error('{0}:: {1}. PID={2}'.format(__name__,
                                                   e.message, os.getpid()))
         return []
+
+    um.log_pool_worker_end(__name__, _process_help.__name__)
     return revs
 
 
@@ -199,12 +171,12 @@ def _process_help(args):
         - Return:
             - Dictionary. key(string): user handle, value(Float): edit counts
     """
+    um.log_pool_worker_start(__name__, _process_help.__name__, args[0], args[1])
 
-    BytesAddedArgsClass = collections.namedtuple('BytesAddedArgs',
-                                                 'is_log freq project')
     revs = args[0]
     state = args[1]
-    thread_args = BytesAddedArgsClass(state[0], state[1], state[2])
+
+    metric_params = um.UserMetric._unpack_params(state)
     bytes_added = dict()
 
     # Get the difference for each revision length from the parent
@@ -213,11 +185,6 @@ def _process_help(args):
     missed_records = 0
     total_rows = len(revs)
 
-    if thread_args.is_log:
-        logging.info(__name__ +
-                     '::Processing revision data '
-                     '(%s rows) by user... (PID = %s)' %
-                     (total_rows, os.getpid()))
 
     for row in revs:
         try:
@@ -239,7 +206,7 @@ def _process_help(args):
         else:
             try:
                 parent_rev_len = query_mod.rev_len_query(parent_rev_id,
-                                                         thread_args.project)
+                                                         metric_params.project)
             except query_mod.UMQueryCallError:
                 missed_records += 1
                 logging.error(__name__ +
@@ -271,23 +238,16 @@ def _process_help(args):
             bytes_added[user][3] += bytes_added_bit
         bytes_added[user][4] += 1
 
-        if thread_args.freq and row_count % thread_args.freq == 0 and \
-                thread_args.is_log:
-            logging.info(
-                __name__ + '::Processed %s of %s records. '
-                           '(PID = %s)' % (row_count,
-                                           total_rows,
-                                           os.getpid()))
-
         row_count += 1
 
     results = [[user] + bytes_added[user] for user in bytes_added]
-    if thread_args.is_log:
-        logging.info(
-            __name__ + '::Processed %s out of %s records. (PID = %s)' % (
-                total_rows - missed_records, total_rows, os.getpid()))
+
+    extra = 'Processed {0} out of {1} records.'.\
+        format(total_rows - missed_records, total_rows)
+    um.log_pool_worker_end(__name__, _process_help.__name__, extra=extra)
 
     return results
+
 
 # ==========================
 # DEFINE METRIC AGGREGATORS
@@ -327,5 +287,5 @@ if __name__ == "__main__":
     for r in BytesAdded(date_start='20120101000000', t=10000).\
         process(['156171', '13234584'],
                 num_threads=10,
-                log_progress=True):
+                log_=True):
         print r
