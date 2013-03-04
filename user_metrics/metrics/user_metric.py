@@ -55,6 +55,7 @@ from collections import namedtuple
 from user_metrics.metrics.users import USER_METRIC_PERIOD_TYPE
 from user_metrics.utils import build_namedtuple
 from os import getpid
+import user_metrics.config.settings as conf
 
 
 def pre_metrics_init(init_f):
@@ -169,7 +170,13 @@ class UserMetric(object):
             'namespace': [list, 'The namespace over which the '
                                 'metric is computed.', 0],
         },
-        'process': {}
+        'process': {
+            'log_': [bool, 'Enable logging for processing.', True],
+            'k_': [int, 'Number of worker processes over users.',
+                   conf.__user_thread_max__],
+            'kr_': [int, 'Number of worker processes over revisions.',
+                    conf.__rev_thread_max__],
+        }
     }
 
     def _pack_params(self):
