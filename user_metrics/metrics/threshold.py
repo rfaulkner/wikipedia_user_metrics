@@ -132,7 +132,7 @@ def _process_help(args):
         try:
             threshold_ts = format_mediawiki_timestamp(date_parse(r[1]) +
                                                       timedelta(hours=
-                                                      thread_args.t))
+                                                      int(thread_args.t)))
             uid = long(r[0])
             count = query_mod.rev_count_query(uid,
                                               thread_args.survival,
