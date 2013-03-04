@@ -291,6 +291,9 @@ class UserMetric(object):
             if not users:
                 raise Exception('No users to pass to process method.')
 
+            # Ensure user IDs are strings
+            users = dl.DataLoader().cast_elems_to_string(users)
+
             # Add attributes from _param_types
             params = self._param_types['process']
             for att in self._param_types['process']:
