@@ -154,13 +154,11 @@ def live_account_query(users, project, args):
 
     from_clause = '%(project)s.edit_page_tracking AS e RIGHT JOIN ' \
                   '%(project)s.logging AS l ON e.ept_user = l.log_user'
-    from_clause = from_clause % {"project": project}
     if ns_cond:
         from_clause += " LEFT JOIN %(project)s.page as p " \
-                       "ON e.ept_title = p.page_title" % {
-                       "project": project
-                       }
-    sql = query_store[live_account_query.__name__] % {
+                       "ON e.ept_title = p.page_title"
+    from_clause = from_clause % {"project": project}
+    sql = query_store[live_account_query.__query_name__] % {
         'from_clause': from_clause,
         'where_clause': where_clause,
     }

@@ -322,7 +322,7 @@ class UMPRegistration(UserMetricPeriod):
         for row in query_mod.user_registration_date(users, metric.project,
                                                     None):
             reg = date_parse(row[1])
-            end = reg + timedelta(hours=metric.t)
+            end = reg + timedelta(hours=int(metric.t))
             yield USER_METRIC_PERIOD_DATA(row[0],
                                           format_mediawiki_timestamp(reg),
                                           format_mediawiki_timestamp(end))

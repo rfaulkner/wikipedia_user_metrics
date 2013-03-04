@@ -54,6 +54,8 @@ import user_metrics.etl.data_loader as dl
 from collections import namedtuple
 from user_metrics.metrics.users import USER_METRIC_PERIOD_TYPE
 from user_metrics.utils import build_namedtuple
+from os import getpid
+import user_metrics.config.settings as conf
 
 
 def pre_metrics_init(init_f):
@@ -61,7 +63,7 @@ def pre_metrics_init(init_f):
     def wrapper(self, **kwargs):
         # Add params from base class
         self.append_params(UserMetric)
-        self.apply_default_kwargs(kwargs, 'init')
+        self.assign_attributes(kwargs, 'init')
 
         # Call init
         init_f(self, **kwargs)
@@ -111,6 +113,26 @@ def aggregator(agg_method, metric, data_header):
     return aggregate_data_class(agg_header, data)
 
 
+def log_pool_worker_start(metric_name, worker_name, data, args):
+    """
+        Logging method for processing pool workers.
+    """
+    logging.debug('{0} :: {1}\n'
+                  '\tData = {2} rows\n'
+                  '\tArgs = {3}\n'
+                  '\tPID = {4}\n'.format(metric_name, worker_name, len(data),
+                                         str(args), getpid()))
+
+
+def log_pool_worker_end(metric_name, worker_name, extra=''):
+    """
+        Logging method for job completion.
+    """
+    logging.debug('{0} :: {1}\n'
+                  '\tPID = {2} complete.\n'
+                  '\t{3}\n'.format(metric_name, worker_name, getpid(), extra))
+
+
 class UserMetricError(Exception):
     """ Basic exception class for UserMetric types """
     def __init__(self, message="Unable to process results using "
@@ -120,7 +142,7 @@ class UserMetricError(Exception):
 
 class UserMetric(object):
 
-    ALL_NAMESPACES = 'all_namespaces'
+    ALL_NAMESPACES = 'all'
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
     DEFAULT_DATE_START = '20101025080000'
@@ -148,8 +170,22 @@ class UserMetric(object):
             'namespace': [list, 'The namespace over which the '
                                 'metric is computed.', 0],
         },
-        'process': {}
+        'process': {
+            'log_': [bool, 'Enable logging for processing.', True],
+            'k_': [int, 'Number of worker processes over users.',
+                   conf.__user_thread_max__],
+            'kr_': [int, 'Number of worker processes over revisions.',
+                    conf.__rev_thread_max__],
+        }
     }
+
+    def append_params(self, class_ref):
+        """ Append params from class reference """
+        if hasattr(class_ref, '_param_types'):
+            for k, v in class_ref._param_types['init'].iteritems():
+                self._param_types['init'][k] = v
+            for k, v in class_ref._param_types['process'].iteritems():
+                self._param_types['process'][k] = v
 
     def _pack_params(self):
         """
@@ -185,23 +221,21 @@ class UserMetric(object):
             values.append(v)
         return build_namedtuple(names, types, values)
 
-    def apply_default_kwargs(self, kwargs, arg_type):
+    def assign_attributes(self, kwargs, arg_type):
         """ Apply parameter defaults where necessary """
-        if hasattr(kwargs, '__iter__') and arg_type in self._param_types:
-            for k in self._param_types[arg_type]:
-                if not k in kwargs or not kwargs[k]:
-                    kwargs[k] = self._param_types[arg_type][k][2]
+        params = self._param_types[arg_type]
+        for att in params:
+            if att in kwargs and kwargs[att]:
+                setattr(self, att, kwargs[att])
+            else:
+                setattr(self, att, params[att][2])
 
     def __init__(self, **kwargs):
 
         # Stores results of a process request
         self._results = list()
 
-        for att in self._param_types['init']:
-            if not att in kwargs:
-                setattr(self, att, att[2])
-            else:
-                setattr(self, att, kwargs[att])
+        self.assign_attributes(kwargs, 'init')
 
         # Initialize namespace attribute
         if not self.namespace == self.ALL_NAMESPACES:
@@ -218,14 +252,6 @@ class UserMetric(object):
 
     def __iter__(self):
         return (r for r in self._results)
-
-    def append_params(self, class_ref):
-        """ Append params from class reference """
-        if hasattr(class_ref, '_param_types'):
-            for k, v in class_ref._param_types['init'].iteritems():
-                self.__class__._param_types['init'][k] = v
-            for k, v in class_ref._param_types['process'].iteritems():
-                self.__class__._param_types['process'][k] = v
 
     @classmethod
     def _construct_data_point(cls):
@@ -248,7 +274,7 @@ class UserMetric(object):
         raise NotImplementedError()
 
     @staticmethod
-    def pre_process_users(proc_func):
+    def pre_process_metric_call(proc_func):
         def wrapper(self, users, **kwargs):
 
             # Duck-type the "cohort" ref for a ID generating interface
@@ -261,6 +287,16 @@ class UserMetric(object):
             # If users are empty flag an error
             if not users:
                 raise Exception('No users to pass to process method.')
+
+            # Ensure user IDs are strings
+            users = dl.DataLoader().cast_elems_to_string(users)
+
+            # Add attributes from _param_types
+            self.assign_attributes(kwargs, 'process')
+
+            # Echo input params for metric process call
+            if hasattr(self, 'log_') and self.log_:
+                logging.info(__name__ + "::parameters = " + str(kwargs))
 
             return proc_func(self, users, **kwargs)
         return wrapper

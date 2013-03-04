@@ -42,16 +42,13 @@ class Threshold(um.UserMetric):
     # Structure that defines parameters for Threshold class
     _param_types = {
         'init': {
-            't': ['int', 'The time in minutes until the threshold.', 24],
-            'n': ['int', 'Revision threshold that is '
-                         'to be exceeded in time `t`.', 1],
+            't': [int, 'The time in minutes until the threshold.', 24],
+            'n': [int, 'Revision threshold that is '
+                       'to be exceeded in time `t`.', 1],
         },
         'process': {
-            'log_progress': ['bool', 'Enable logging for processing.', False],
-            'num_threads': ['int', 'Number of worker processes over users.',
-                            1],
-            'survival': ['bool', 'Indicates whether this is '
-                                 'to be processed as the survival metric.',
+            'survival_': [bool, 'Indicates whether this is '
+                                'to be processed as the survival metric.',
                          False],
         }
     }
@@ -71,16 +68,14 @@ class Threshold(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-        um.UserMetric.__init__(self, **kwargs)
-        self._t_ = int(kwargs['t']) if 't' in kwargs else 1440
-        self._n_ = int(kwargs['n']) if 'n' in kwargs else 1
+        super(Threshold, self).__init__(**kwargs)
 
     @staticmethod
     def header():
         return ['user_id', 'has_reached_threshold']
 
-    @um.UserMetric.pre_process_users
-    def process(self, user_handle, **kwargs):
+    @um.UserMetric.pre_process_metric_call
+    def process(self, users, **kwargs):
         """
             This function gathers threahold (survival) metric data by: ::
 
@@ -98,21 +93,14 @@ class Threshold(um.UserMetric):
                 determine survival rather than a threshold metric
         """
 
-        self.apply_default_kwargs(kwargs, 'process')
-
-        k = kwargs['num_threads']
-        log_progress = bool(kwargs['log_progress'])
-        survival = bool(kwargs['survival'])
-
         # Get registration dates for users
-        users = query_mod.user_registration_date(user_handle,
+        users = query_mod.user_registration_date(users,
                                                  self.project, None)
-
         # Process results
-        args = [self.project, self.namespace, self._n_,
-                self._t_, log_progress, survival]
-        self._results = mpw.build_thread_pool(users, _process_help, k, args)
-
+        args = [self.project, self.namespace, self.n,
+                self.t, self.log_, self.survival_]
+        self._results = mpw.build_thread_pool(users, _process_help,
+                                              self.k_, args)
         return self
 
 
@@ -167,6 +155,10 @@ def _process_help(args):
 
     return results
 
+
+# ==========================
+# DEFINE METRIC AGGREGATORS
+# ==========================
 
 # Build "rate" decorator
 threshold_editors_agg = boolean_rate

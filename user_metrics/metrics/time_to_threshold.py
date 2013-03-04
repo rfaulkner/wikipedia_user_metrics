@@ -53,8 +53,7 @@ class TimeToThreshold(um.UserMetric):
     _param_types = {
         'init':
         {
-            'threshold_type_class': ['str',
-                                     'Type of threshold to use.',
+            'threshold_type_class': [str, 'Type of threshold to use.',
                                      'edit_count_threshold'],
         },
         'process': {},
@@ -76,15 +75,11 @@ class TimeToThreshold(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-
-        um.UserMetric.__init__(self, **kwargs)
-
-        # Add the parameter definitions from the threshold type
-        self.apply_default_kwargs(kwargs, 'init')
+        super(TimeToThreshold, self).__init__(**kwargs)
 
         try:
             self._threshold_obj_ = self.__threshold_types[
-                kwargs['threshold_type_class']](**kwargs)
+                self.threshold_type_class](**kwargs)
         except NameError:
             logging.error(__name__ + '::Invalid threshold class. '
                                      'Using default (EditCountThreshold).')
@@ -94,11 +89,10 @@ class TimeToThreshold(um.UserMetric):
     def header():
         return ['user_id', 'minutes_diff']
 
-    @um.UserMetric.pre_process_users
-    def process(self, user_handle, **kwargs):
+    @um.UserMetric.pre_process_metric_call
+    def process(self, users, **kwargs):
         """ Wrapper for specific threshold objects """
-        self.apply_default_kwargs(kwargs, 'process')
-        self._results = self._threshold_obj_.process(user_handle, self,
+        self._results = self._threshold_obj_.process(users, self,
                                                      **kwargs)
         return self
 
@@ -145,7 +139,7 @@ class TimeToThreshold(um.UserMetric):
                 raise um.UserMetricError(
                     str(self.__class__()) + ': Invalid init params.')
 
-        def process(self, user_handle, threshold_obj, **kwargs):
+        def process(self, users, threshold_obj, **kwargs):
             """
                 First determine if the user has made an adequate number of
                 edits.  If so, compute the number of minutes that passed
@@ -162,14 +156,10 @@ class TimeToThreshold(um.UserMetric):
 
             minutes_to_threshold = list()
 
-            # ensure the handles are iterable
-            if not hasattr(user_handle, '__iter__'):
-                user_handle = [user_handle]
-
             # For each user gather their revisions
-            for user in user_handle:
+            for user in users:
                 revs = query_mod.\
-                    time_to_threshold_revs_query(user, threshold_obj._project_,
+                    time_to_threshold_revs_query(user, threshold_obj.project,
                                                  None)
                 revs = [rev[0] for rev in revs]
                 minutes_to_threshold.append(
@@ -208,6 +198,7 @@ class TimeToThreshold(um.UserMetric):
             return int(time_diff.seconds / 60) + abs(time_diff.days) * 24
 
     __threshold_types = {'edit_count_threshold': EditCountThreshold}
+
 
 # ==========================
 # DEFINE METRIC AGGREGATORS

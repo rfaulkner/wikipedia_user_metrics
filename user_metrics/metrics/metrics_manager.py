@@ -57,6 +57,9 @@ MAX_THREADS = 5
 USER_THREADS = settings.__user_thread_max__
 REVISION_THREADS = settings.__rev_thread_max__
 
+TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
+DEFAULT_INERVAL_LENGTH = 24
+
 # Registered metrics types
 metric_dict = \
     {
@@ -164,7 +167,11 @@ def process_data_request(metric_handle, users, **kwargs):
     if aggregator_func:
         if time_series:
             # interval length in hours
-            interval = int(kwargs['interval'])
+            if kwargs['interval']:
+                interval = int(kwargs['interval'])
+            else:
+                interval = DEFAULT_INERVAL_LENGTH
+
             total_intervals = (date_parse(end) - date_parse(start)).\
                 total_seconds() / (3600 * interval)
             time_threads = max(1, int(total_intervals / INTERVALS_PER_THREAD))
@@ -180,11 +187,12 @@ def process_data_request(metric_handle, users, **kwargs):
                          'end': str(end),
                          })
             metric_threads = '{"num_threads" : %(user_threads)s, ' + \
-                             '"rev_threads" : %(rev_threads)s}' % \
-                             {
-                             'user_threads': USER_THREADS,
-                             'rev_threads': REVISION_THREADS
-                             }
+                             '"rev_threads" : %(rev_threads)s}'
+            metric_threads %= {
+                'user_threads': USER_THREADS,
+                'rev_threads': REVISION_THREADS
+            }
+
             out = tspm.build_time_series(start,
                                          end,
                                          interval,
@@ -195,22 +203,20 @@ def process_data_request(metric_handle, users, **kwargs):
                                          metric_threads=metric_threads,
                                          log=True)
 
-            count = 1
             for row in out:
-                results['metric'][count] = " ".join(
-                    to_string([row[0][:10] + 'T' + row[0][11:13]] + row[3:]))
-                count += 1
+                timestamp = date_parse(row[0][:19]).strftime(TIMESTAMP_FORMAT)
+                results['metric'][timestamp] = row[3:]
         else:
 
             logging.info(__name__ + ':: Initiating aggregator for '
                                     '%(metric)s with %(agg)s from '
                                     '%(start)s to %(end)s.' %
-                                     {
-                                     'metric': metric_class.__name__,
-                                     'agg': aggregator_func.__name__,
-                                     'start': str(start),
-                                     'end': str(end),
-                                     })
+                                    {
+                                        'metric': metric_class.__name__,
+                                        'agg': aggregator_func.__name__,
+                                        'start': str(start),
+                                        'end': str(end),
+                                    })
             metric_obj.process(users, num_threads=USER_THREADS,
                                rev_threads=REVISION_THREADS,
                                log_progress=True, **kwargs)

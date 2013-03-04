@@ -55,13 +55,13 @@ class EditCount(um.UserMetric):
 
     @um.pre_metrics_init
     def __init__(self, **kwargs):
-        um.UserMetric.__init__(self, **kwargs)
+        super(EditCount, self).__init__(**kwargs)
 
     @staticmethod
     def header():
         return ['user_id', 'edit_count']
 
-    @um.UserMetric.pre_process_users
+    @um.UserMetric.pre_process_metric_call
     def process(self, users, **kwargs):
         """
             Determine edit count.  The parameter *user_handle* can be either
@@ -78,14 +78,10 @@ class EditCount(um.UserMetric):
                     stores user names or user ids
         """
 
-        # Set defaults
-        self.apply_default_kwargs(kwargs, 'process')
-        self.k = kwargs['k']
-
         # Pack args, call thread pool
         args = self._pack_params()
         results = mpw.build_thread_pool(users, _process_help,
-                                        self.k, args)
+                                        self.k_, args)
 
         # Get edit counts from query - all users not appearing have
         # an edit count of 0
