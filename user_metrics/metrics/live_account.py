@@ -16,8 +16,9 @@ from user_metrics.metrics import query_mod
 
 # Definition of persistent state for RevertRate objects
 LiveAccountArgsClass = namedtuple('LiveAccountArgs',
-                                    'project namespace log '
-                                    'date_start date_end t')
+                                  'project namespace log '
+                                  'date_start date_end t')
+
 
 class LiveAccount(um.UserMetric):
     """
@@ -61,7 +62,7 @@ class LiveAccount(um.UserMetric):
 
     # Structure that defines parameters for RevertRate class
     _param_types = {
-        'init' : {
+        'init': {
             't': ['int', 'The time in minutes until the threshold.', 60],
         },
         'process': {}
@@ -74,7 +75,7 @@ class LiveAccount(um.UserMetric):
         'float_fields': [],
         'integer_fields': [],
         'boolean_fields': [1],
-        }
+    }
 
     _agg_indices = {}
 
@@ -83,7 +84,8 @@ class LiveAccount(um.UserMetric):
         super(LiveAccount, self).__init__(**kwargs)
 
     @staticmethod
-    def header(): return ['user_id', 'is_active_account', ]
+    def header():
+        return ['user_id', 'is_active_account', ]
 
     @um.UserMetric.pre_process_metric_call
     def process(self, user_handle, **kwargs):
@@ -100,16 +102,14 @@ def _process_help(args):
 
     # Unpack args
     state = args[1]
-    thread_args = LiveAccountArgsClass(state[0],state[1],state[2],state[3],
-                                        state[4],state[5])
+    thread_args = LiveAccountArgsClass(state[0], state[1], state[2], state[3],
+                                       state[4], state[5])
     users = args[0]
 
     # Log progress
     if thread_args.log:
         logging.debug(__name__ + '::Computing live account. (PID = %s)' %
-                                getpid())
-        logging.debug(__name__ + '::From %s to %s. (PID = %s)' % (
-            str(thread_args.date_start), str(thread_args.date_end), getpid()))
+                                 getpid())
 
     # Extract edit button click from edit_page_tracking table (namespace,
     # article title, timestamp) of first click and registration timestamps
@@ -123,11 +123,12 @@ def _process_help(args):
 
     # Iterate over results to determine boolean indicating whether
     # account is "live"
-    results = { long(user) : -1 for user in users}
+    results = {long(user): -1 for user in users}
     for row in query_results:
         try:
+            # get the difference in minutes
             diff = (date_parse(row[2]) - date_parse(row[1])).total_seconds()
-            diff /= 60 # get the difference in minutes
+            diff /= 60
         except Exception:
             continue
 
@@ -142,14 +143,15 @@ def _process_help(args):
 @decorator_builder(LiveAccount.header())
 def live_accounts_agg(metric):
     """ Computes the fraction of editors that have "live" accounts """
-    total=0
-    pos=0
+    total = 0
+    pos = 0
     for r in metric.__iter__():
         try:
-            if r[1]: pos+=1
-            total+=1
-        except IndexError: continue
-        except TypeError: continue
+            if r[1]:
+                pos += 1
+            total += 1
+        except (IndexError, TypeError):
+            continue
     if total:
         return [total, pos, float(pos) / total]
     else:
@@ -162,11 +164,12 @@ live_accounts_agg = decorator_builder(LiveAccount.header())(live_accounts_agg)
 setattr(live_accounts_agg, um.METRIC_AGG_METHOD_FLAG, True)
 setattr(live_accounts_agg, um.METRIC_AGG_METHOD_NAME, 'live_accounts_agg')
 setattr(live_accounts_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
-                                                        'is_live','rate'])
-setattr(live_accounts_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 1})
+                                                       'is_live', 'rate'])
+setattr(live_accounts_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx': 1})
 
 if __name__ == "__main__":
     users = ['17792132', '17797320', '17792130', '17792131', '17792136',
              13234584, 156171]
     la = LiveAccount()
-    for r in la.process(users,log=True): print r
+    for r in la.process(users, log=True):
+        print r
