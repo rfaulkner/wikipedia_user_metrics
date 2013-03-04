@@ -277,7 +277,7 @@ class UserMetric(object):
         raise NotImplementedError()
 
     @staticmethod
-    def pre_process_users(proc_func):
+    def pre_process_metric_call(proc_func):
         def wrapper(self, users, **kwargs):
 
             # Duck-type the "cohort" ref for a ID generating interface
@@ -298,6 +298,10 @@ class UserMetric(object):
                     setattr(self, att, params[att][2])
                 else:
                     setattr(self, att, kwargs[att])
+
+            # Echo input params for metric process call
+            if hasattr(self, 'log_') and self.log_:
+                logging.info(__name__ + "::parameters = " + str(kwargs))
 
             return proc_func(self, users, **kwargs)
         return wrapper
