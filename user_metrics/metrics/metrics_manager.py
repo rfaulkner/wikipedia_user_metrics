@@ -92,6 +92,8 @@ aggregator_dict = \
         'dist+time_to_threshold': ttt_stats_agg,
     }
 
+TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
+
 
 def get_metric_names():
     """ Returns the names of metric handles as defined by this module """
@@ -196,11 +198,9 @@ def process_data_request(metric_handle, users, **kwargs):
                                          metric_threads=metric_threads,
                                          log=True)
 
-            count = 1
             for row in out:
-                results['metric'][count] = " ".join(
-                    to_string([row[0][:10] + 'T' + row[0][11:13]] + row[3:]))
-                count += 1
+                timestamp = date_parse(row[0][:19]).strftime(TIMESTAMP_FORMAT)
+                results['metric'][timestamp] = row[3:]
         else:
 
             logging.info(__name__ + ':: Initiating aggregator for '
