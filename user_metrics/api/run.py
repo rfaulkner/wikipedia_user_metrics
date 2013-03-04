@@ -19,8 +19,8 @@
     active jobs. Processes will be created and assume one of the following
     states throughout their existence: ::
 
-        * 'pending' - The request has yet to be fully processed and exposed
-            but is underway
+        * 'pending' - The request has yet to be begin being processed
+        * 'running' - The request is being processed
         * 'success' - The request has finished processing and is exposed at
             the url
         * 'failure' - The result has finished processing but dailed to expose
@@ -143,9 +143,15 @@ processQ = list()
 QStructClass = collections.namedtuple('QStruct', 'id process request url '
                                                  'queue status')
 
-
 # REGEX to identify refresh flags in the URL
 REFRESH_REGEX = r'refresh[^&]*&|\?refresh[^&]*$|&refresh[^&]*$'
+
+# Process status types
+JOB_STATUS_TYPES = ['pending', 'running', 'success', 'failure']
+JOB_STATUS = eval('enum("' + '","'.join(JOB_STATUS_TYPES) +
+                  '", **' + str({t[0]: t[1] for t in zip(JOB_STATUS_TYPES,
+                      JOB_STATUS_TYPES)}) + ')')
+
 
 ######
 #
@@ -346,7 +352,7 @@ def output(cohort, metric):
         # Ensure that the job for this url is not already running
         is_pending_job = False
         for p in processQ:
-            if not cmp(rm, p.request) and p.status[0] == 'pending':
+            if not cmp(rm, p.request) and p.status[0] == JOB_STATUS.pending:
                 is_pending_job = True
 
         # Queue the job
@@ -361,7 +367,7 @@ def output(cohort, metric):
             logging.info(__name__ + '::Appending request %s to the queue...'
                                     % rm)
             processQ.append(QStructClass(global_id, p, rm, url, q,
-                                         ['pending']))
+                                         [JOB_STATUS.pending]))
             return render_template('processing.html', url_str=str(rm))
         else:
             return redirect(url_for('job_queue') + '?error=0')
@@ -375,9 +381,9 @@ def job_queue():
 
     def error_class(em):
         return {
-            'failure': 'error',
-            'pending': 'warning',
-            'success': 'success'
+            JOB_STATUS.failure: 'error',
+            JOB_STATUS.pending: 'warning',
+            JOB_STATUS.success: 'success'
         }.get(em, '')
 
     p_list = list()
@@ -397,16 +403,16 @@ def job_queue():
 
             # once a process has finished working remove it and put its
             # contents into the cache
-            if not p.process.is_alive() and p.status[0] == 'pending':
+            if not p.process.is_alive() and p.status[0] == JOB_STATUS.pending:
                 q_response = make_response(jsonify(queue_data[p.id]))
                 del queue_data[p.id]
                 set_data(p.request, q_response, pkl_data)
 
-                p.status[0] = 'success'
+                p.status[0] = JOB_STATUS.success
                 logging.info(__name__ + '::Completed request %s.' % p.url)
 
         except Exception as e:
-            p.status[0] = 'failure'
+            p.status[0] = JOB_STATUS.failure
             logging.error(__name__ + "::Could not update request: %s.  "
                                      "Exception: %s" % (p.url, e.message))
 
