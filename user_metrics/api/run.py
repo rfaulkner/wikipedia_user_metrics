@@ -170,7 +170,6 @@ def process_metrics(p, rm):
     """ Worker process for requests -
         this will typically operate in a forked process """
 
-    conn = dl.Connector(instance='slave')
     logging.info(__name__ + '::START JOB %s (PID = %s)' % (str(rm),
                                                            os.getpid()))
 
@@ -194,7 +193,6 @@ def process_metrics(p, rm):
     results = mm.process_data_request(rm.metric, users, **args)
 
     p.put(jsonify(results))
-    del conn
     logging.info(__name__ + '::END JOB %s (PID = %s)' % (str(rm), os.getpid()))
 
 
