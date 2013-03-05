@@ -115,6 +115,8 @@ from user_metrics.utils import unpack_fields
 
 from engine import *
 from engine.request_manager import job_control
+from engine.request import *
+
 
 ######
 #
@@ -363,7 +365,9 @@ def output(cohort, metric):
 
     d =unpack_fields(rm)
     d['url'] = url
-    request_queue.put(d)
+    request_queue.put({'cohort': cohort,
+                       'cohort_refresh_ts': cohort_refresh_ts,
+                       'metric': metric})
 
     data = get_data(rm, pkl_data)
     if data and not refresh:
