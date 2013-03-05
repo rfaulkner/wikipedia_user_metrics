@@ -74,13 +74,17 @@ def build_namedtuple(names, types, values):
 def unpack_fields(obj):
     """
         Unpacks the values from a named tuple into a dict.  This method
-        expects the '_fields' attribute to exist.  namedtuples expose
-        this interface.
+        expects the '_fields' or 'todict' attribute to exist.  namedtuples
+        expose the fromer interface while recordtypes expose the latter.
     """
     d = OrderedDict()
+
     if hasattr(obj, '_fields'):
         for field in obj._fields:
             d[field] = getattr(obj, field)
+    elif hasattr(obj, 'todict'):
+        d = OrderedDict(obj.todict())
+
     return d
 
 
