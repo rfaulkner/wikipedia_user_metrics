@@ -4,7 +4,7 @@
 
 MW_TIMESTAMP_FORMAT = "%Y%m%d%H%M%S"
 from dateutil.parser import parse as date_parse
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 
 
 def format_mediawiki_timestamp(timestamp_repr):
@@ -69,6 +69,19 @@ def build_namedtuple(names, types, values):
             arg_list.append(str(v))
 
     return eval('param_type(' + ','.join(arg_list) + ')')
+
+
+def unpack_fields(obj):
+    """
+        Unpacks the values from a named tuple into a dict.  This method
+        expects the '_fields' attribute to exist.  namedtuples expose
+        this interface.
+    """
+    d = OrderedDict()
+    if hasattr(obj, '_fields'):
+        for field in obj._fields:
+            d[field] = getattr(obj, field)
+    return d
 
 
 # Rudimentary Testing
