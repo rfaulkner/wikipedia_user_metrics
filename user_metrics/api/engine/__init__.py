@@ -108,16 +108,26 @@ import user_metrics.metrics.metrics_manager as mm
 
 from user_metrics.config import logging
 
-# ------------------------------------
-# Define constants for request_manager
-# ------------------------------------
+#
+# Define constants for request_manager module
+# ===========================================
 
-# Process status types
+# Define Process status types
 JOB_STATUS_TYPES = ['pending', 'running', 'success', 'failure']
 JOB_STATUS = eval('enum("' + '","'.join(JOB_STATUS_TYPES) +
                   '", **' + str({t[0]: t[1] for t in zip(JOB_STATUS_TYPES,
     JOB_STATUS_TYPES)}) + ')')
-CONCURRENT_JOBS = 1
+
+# Number of maximum concurrently running jobs
+MAX_CONCURRENT_JOBS = 1
+
+# Time to block on waiting for a new request to appear in the queue
+QUEUE_WAIT = 1
+
+#
+# Define remaining constants
+# ==========================
+# @TODO break these out into separate modules
 
 # Regex that matches a MediaWiki user ID
 MW_UID_REGEX = r'^[0-9]{5}[0-9]*$'
