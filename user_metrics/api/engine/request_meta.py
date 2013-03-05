@@ -39,7 +39,7 @@ from user_metrics.utils.record_type import *
 from dateutil.parser import parse as date_parse
 import user_metrics.metrics.metrics_manager as mm
 from user_metrics.api import MetricsAPIError
-from user_metrics.api.engine import DATETIME_STR_FORMAT, DEFAULT_QUERY_VAL
+from user_metrics.api.engine import *
 from collections import namedtuple
 from flask import escape
 
