@@ -85,6 +85,15 @@
     View & Method Definitions
     ~~~~~~~~~~~~~~~~~~~~~~~~~
 """
+
+__author__ = {
+    "dario taraborelli": "dario@wikimedia.org",
+    "ryan faulkner": "rfaulkner@wikimedia.org"
+}
+__date__ = "2012-12-21"
+__license__ = "GPL (version 2 or later)"
+
+
 from flask import Flask, render_template, Markup, jsonify, \
     redirect, url_for, make_response, request, escape
 
@@ -102,8 +111,10 @@ from shutil import copyfile
 from user_metrics.metrics.users import MediaWikiUser
 import user_metrics.etl.data_loader as dl
 import user_metrics.metrics.metrics_manager as mm
+from user_metrics.utils import unpack_fields
 
 from engine import *
+from engine.request_manager import job_control
 
 ######
 #
@@ -139,6 +150,13 @@ error_codes = {
 global processQ
 processQ = list()
 
+# Global queues for API service requests and responses
+global request_queue
+request_queue = mp.Queue()
+
+global response_queue
+response_queue = mp.Queue()
+
 # Class defining all objects contained on the processQ
 QStructClass = collections.namedtuple('QStruct', 'id process request url '
                                                  'queue status')
@@ -146,11 +164,6 @@ QStructClass = collections.namedtuple('QStruct', 'id process request url '
 # REGEX to identify refresh flags in the URL
 REFRESH_REGEX = r'refresh[^&]*&|\?refresh[^&]*$|&refresh[^&]*$'
 
-# Process status types
-JOB_STATUS_TYPES = ['pending', 'running', 'success', 'failure']
-JOB_STATUS = eval('enum("' + '","'.join(JOB_STATUS_TYPES) +
-                  '", **' + str({t[0]: t[1] for t in zip(JOB_STATUS_TYPES,
-                      JOB_STATUS_TYPES)}) + ')')
 
 
 ######
@@ -200,6 +213,9 @@ def process_metrics(p, rm):
 
     p.put(jsonify(results))
     logging.info(__name__ + '::END JOB %s (PID = %s)' % (str(rm), os.getpid()))
+
+
+
 
 
 ######
@@ -344,6 +360,11 @@ def output(cohort, metric):
 
     # Determine if the request maps to an existing response.  If so return it.
     # Otherwise compute.
+
+    d =unpack_fields(rm)
+    d['url'] = url
+    request_queue.put(d)
+
     data = get_data(rm, pkl_data)
     if data and not refresh:
         return data
@@ -509,6 +530,7 @@ class APIMethods(object):
     """ Provides initialization and boilerplate for API execution """
 
     __instance = None   # Singleton instance
+    __job_controller_proc = None
 
     def __new__(cls):
         """ This class is Singleton, return only one instance """
@@ -519,7 +541,11 @@ class APIMethods(object):
     def __init__(self):
         """ Load cached data from pickle file. """
         global pkl_data
-        global bad_pickle
+        global glob_queue
+
+        # Setup the job controller
+        if not self.__job_controller_proc:
+            self._setup_controller(glob_queue)
 
         # Open the pickled data for reading.
         try:
@@ -549,9 +575,11 @@ class APIMethods(object):
             pkl_file.close()
 
     def close(self):
-        """  When the instance is deleted store the pickled data """
+        """ When the instance is deleted store the pickled data and shutdown
+            the job controller """
         global pkl_data
 
+        # Handle persisting data to file
         pkl_file = None
         try:
             pkl_file = open(settings.__data_file_dir__ + 'api_data.pkl', 'wb')
@@ -561,6 +589,25 @@ class APIMethods(object):
         finally:
             if hasattr(pkl_file, 'close'):
                 pkl_file.close()
+
+        # Try to shutdown the job control proc gracefully
+        try:
+            if self.__job_controller_proc and\
+               hasattr(self.__job_controller_proc, 'is_alive') and\
+               self.__job_controller_proc.is_alive():
+                self.__job_controller_proc.terminate()
+        except Exception:
+            logging.error(__name__ + ' :: Could not shut down controller.')
+
+    def _setup_controller(self, queue):
+        """
+            Sets up the process that handles API jobs
+        """
+        self.__job_controller_proc = mp.Process(target=job_control,
+                                                args=(queue,))
+        if not self.__job_controller_proc.is_alive():
+            self.__job_controller_proc.start()
+
 
 ######
 #
