@@ -9,9 +9,10 @@ __date__ = "2013-03-05"
 __license__ = "GPL (version 2 or later)"
 
 from user_metrics.config import logging
-from user_metrics.api.engine import JOB_STATUS, MAX_CONCURRENT_JOBS, \
+from user_metrics.api.engine import MAX_CONCURRENT_JOBS, \
     QUEUE_WAIT
-from user_metrics.utils import build_namedtuple, record_type
+from user_metrics.utils import record_type
+from user_metrics.api.engine.request import RequestMetaFactory
 
 
 def job_control(request_queue, response_queue):
@@ -74,7 +75,10 @@ def job_control(request_queue, response_queue):
 
         # Add newest job to the queue
         if item and concurrent_jobs <= MAX_CONCURRENT_JOBS:
-            wait_queue.append(item)
+            rm = RequestMetaFactory(item['cohort'],
+                                    item['cohort_refresh_ts'],
+                                    item['metric'])
+            wait_queue.append(rm)
 
 
     logging.debug('{0} :: {1}  - FINISHING.'
