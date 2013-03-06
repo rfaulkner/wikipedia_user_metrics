@@ -169,9 +169,17 @@ def job_control(request_queue):
         # ---------------------------
 
         if req_item and concurrent_jobs <= MAX_CONCURRENT_JOBS:
+
+            # Build the request item
             rm = RequestMetaFactory(req_item['cohort_expr'],
                                     req_item['cohort_gen_timestamp'],
                                     req_item['metric'])
+
+            # Populate the request data
+            for key in req_item:
+                if req_item[key]:
+                    setattr(rm, key, req_item[key])
+
             logging.debug('{0} :: {1}\n\tREQUEST -> WAIT {2}'
             .format(__name__, job_control.__name__, str(req_item)))
             wait_queue.append(rm)
