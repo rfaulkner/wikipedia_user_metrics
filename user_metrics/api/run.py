@@ -53,8 +53,10 @@ from user_metrics.api.views import app
 from user_metrics.api.engine.request_meta import request_queue, \
     response_queue
 from user_metrics.api.engine import DATETIME_STR_FORMAT
+from user_metrics.api.views import api_data
 
 job_controller_proc = None
+
 
 ######
 #
@@ -117,4 +119,4 @@ if __name__ == '__main__':
     try:
         app.run(debug=True, use_reloader=False)
     finally:
-        teardown({})
+        teardown(api_data)
