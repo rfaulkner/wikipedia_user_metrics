@@ -209,12 +209,22 @@ def output(cohort, metric):
     # 1. The response already exists in the hash, return.
     # 2. Otherwise, add the request tot the queue.
     data = get_data(rm, api_data)
+    key_sig = build_key_signature(rm, hash_result=True)
+
+    # Determine if request is already hashed
     if data and not refresh:
         return data
+
+    # Determine if the job is already running
+    elif key_sig in requests_made and \
+        requests_made[key_sig][0]:
+        return render_template('processing.html',
+                               error=error_codes[0],
+                               url_str=str(rm))
+    # Add the request to the queue
     else:
-        # Add the request to the queue
+
         request_queue.put(unpack_fields(rm))
-        key_sig = build_key_signature(rm, hash_result=True)
         requests_made[key_sig] = [True, url, rm]
 
     return render_template('processing.html', url_str=str(rm))
