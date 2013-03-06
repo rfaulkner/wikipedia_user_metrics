@@ -138,6 +138,7 @@ def user_request(user, metric):
             logging.error(error_codes[3])
             return redirect(url_for('all_cohorts') + '?error=3')
 
+    # redirect to output view
     url = sub('user', 'cohorts', url)
     return redirect(url)
 
@@ -235,6 +236,7 @@ def job_queue():
         url = requests_made[key][1]
         is_alive = str(requests_made[key][0])
 
+        p_list.append('<tr><td>')
         response_url = "".join(['<a href="',
                                 request.url_root,
                                 url + '">', url, '</a>'])
