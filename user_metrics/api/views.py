@@ -17,16 +17,15 @@ __license__ = "GPL (version 2 or later)"
 
 
 from flask import Flask, render_template, Markup, redirect, url_for, \
-    request, escape
+    request, escape, jsonify, make_response
 from re import search, sub
 from user_metrics.etl.data_loader import Connector
 from user_metrics.metrics.metrics_manager import get_metric_names
 from user_metrics.config import logging
+from user_metrics.utils import unpack_fields
 from user_metrics.api.engine.data import build_key_tree, get_cohort_id, \
     get_cohort_refresh_datetime, get_data, get_url_from_keys
-
 from user_metrics.api.engine import MW_UNAME_REGEX, HASH_KEY_DELIMETER
-
 from user_metrics.api import MetricsAPIError, pkl_data
 from user_metrics.api.engine.request_meta import request_queue, \
     filter_request_input, format_request_params, RequestMetaFactory, \
@@ -205,9 +204,8 @@ def output(cohort, metric):
     if data and not refresh:
         return data
     else:
-        request_queue.put({'cohort': cohort,
-                           'cohort_refresh_ts': cohort_refresh_ts,
-                           'metric': metric})
+        # Add the request to the queue
+        request_queue.put(unpack_fields(rm))
 
     return render_template('processing.html', url_str=str(rm))
 
