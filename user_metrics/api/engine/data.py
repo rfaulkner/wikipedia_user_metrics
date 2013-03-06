@@ -137,8 +137,9 @@ def get_data(request_meta, hash_table_ref):
     # @TODO rather than iterate through REQUEST_META_BASE &
     #   REQUEST_META_QUERY_STR look only at existing attributes
 
-    logging.debug(__name__ + "::Attempting to pull data for request {0}".
+    logging.debug(__name__ + " :: Attempting to pull data for request {0}".
     format(str(request_meta)))
+
     for key_name in REQUEST_META_BASE + REQUEST_META_QUERY_STR:
         if hasattr(request_meta, key_name) and getattr(request_meta, key_name):
             key = getattr(request_meta, key_name)
@@ -164,29 +165,16 @@ def set_data(request_meta, data, hash_table_ref):
         Given request meta-data and a dataset create a key path in the global
         hash to store the data
     """
+    key_sig = build_key_signature(request_meta)
 
-    key_sig = list()
+    if not key_sig:
+        logging.error(__name__ + ' :: Could not consruct a key '
+                                 'signature from request.')
+        return
 
-    # Build the key signature -- These keys must exist
-    for key_name in REQUEST_META_BASE:
-        key = getattr(request_meta, key_name)
-        if key:
-            key_sig.append(key_name + HASH_KEY_DELIMETER + key)
-        else:
-            logging.error(__name__ + '::Request must include %s. '
-                                     'Cannot set data %s.' %
-                                     (key_name, str(request_meta)))
-            return
-
-    # These keys may optionally exist
-    for key_name in REQUEST_META_QUERY_STR:
-        if hasattr(request_meta, key_name):
-            key = getattr(request_meta, key_name)
-            if key:
-                key_sig.append(key_name + HASH_KEY_DELIMETER + key)
-
-    logging.debug(__name__ + "::Adding data to hash @ key signature = {0}".
+    logging.debug(__name__ + " :: Adding data to hash @ key signature = {0}".
     format(str(key_sig)))
+
     # For each key in the key signature add a nested key to the hash
     last_item = key_sig[len(key_sig) - 1]
     for key in key_sig:
@@ -199,6 +187,37 @@ def set_data(request_meta, data, hash_table_ref):
             hash_table_ref = hash_table_ref[key]
         else:
             hash_table_ref[key] = data
+
+
+def build_key_signature(request_meta):
+    """
+        Given a RequestMeta object contruct a hashkey.
+
+        Parameters
+        ~~~~~~~~~~
+
+            request_meta : RequestMeta
+                Stores request data.
+    """
+    key_sig = list()
+
+    # Build the key signature -- These keys must exist
+    for key_name in REQUEST_META_BASE:
+        key = getattr(request_meta, key_name)
+        if key:
+            key_sig.append(key_name + HASH_KEY_DELIMETER + key)
+        else:
+            logging.error(__name__ + ' :: Request must include %s. '
+                                     'Cannot set data %s.' %
+                                     (key_name, str(request_meta)))
+            return ''
+    # These keys may optionally exist
+    for key_name in REQUEST_META_QUERY_STR:
+        if hasattr(request_meta, key_name):
+            key = getattr(request_meta, key_name)
+            if key:
+                key_sig.append(key_name + HASH_KEY_DELIMETER + key)
+    return key_sig
 
 
 def get_url_from_keys(keys, path_root):
