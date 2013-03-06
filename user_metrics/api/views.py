@@ -26,12 +26,13 @@ from user_metrics.metrics.metrics_manager import get_metric_names
 from user_metrics.config import logging
 from user_metrics.utils import unpack_fields
 from user_metrics.api.engine.data import build_key_tree, get_cohort_id, \
-    get_cohort_refresh_datetime, get_data, get_url_from_keys, set_data
-from user_metrics.api.engine import MW_UNAME_REGEX, HASH_KEY_DELIMETER
+    get_cohort_refresh_datetime, get_data, get_url_from_keys, set_data, \
+    build_key_signature, get_keys_from_tree
+from user_metrics.api.engine import MW_UNAME_REGEX
 from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine.request_meta import request_queue, \
     filter_request_input, format_request_params, RequestMetaFactory, \
-    REQUEST_META_QUERY_STR, response_queue, rebuild_unpacked_request
+    response_queue, rebuild_unpacked_request
 
 
 # REGEX to identify refresh flags in the URL
@@ -176,9 +177,9 @@ def output(cohort, metric):
         All of the setup and execution for a request happens here. """
 
     process_responses()
-    url = request.url.split(request.url_root)[1]
 
-    # Check for refresh flag - drop from url
+    # Get URL.  Check for refresh flag - drop from url
+    url = request.url.split(request.url_root)[1]
     refresh = True if 'refresh' in request.args else False
     if refresh:
         url = sub(REFRESH_REGEX, '', url)
@@ -192,27 +193,28 @@ def output(cohort, metric):
         logging.error(__name__ + '::Could not retrieve refresh '
                                  'time of cohort.')
 
-    # Build a request. Populate with request parameters from query args.
-    # Filter the input discarding any url junk
+    # Build a request.
+    # 1. Populate with request parameters from query args.
+    # 2. Filter the input discarding any url junk
+    # 3. Process defaults for request parameters
     rm = RequestMetaFactory(cohort, cohort_refresh_ts, metric)
     filter_request_input(request, rm)
-
-    # Process defaults for request parameters
     try:
         format_request_params(rm)
     except MetricsAPIError as e:
         return redirect(url_for('all_cohorts') + '?error=' + e.message)
 
-    # Determine if the request maps to an existing response.  If so return it.
-    # Otherwise compute.
-
+    # Determine if the request maps to an existing response.
+    # 1. The response already exists in the hash, return.
+    # 2. Otherwise, add the request tot the queue.
     data = get_data(rm, api_data)
-
     if data and not refresh:
         return data
     else:
         # Add the request to the queue
         request_queue.put(unpack_fields(rm))
+        key_sig = build_key_signature(rm, hash_result=True)
+        requests_made[key_sig] = [True, url, rm]
 
     return render_template('processing.html', url_str=str(rm))
 
@@ -225,18 +227,20 @@ def job_queue():
     error = get_errors(request.args)
 
     p_list = list()
-    p_list.append(Markup('<thead><tr><th>is_alive</th><th>PID</th><th>url'
-                         '</th><th>status</th></tr></thead>\n<tbody>\n'))
-    for p in requests_made:
-
-
+    p_list.append(Markup('<thead><tr><th>is_alive</th><th>url'
+                         '</th></tr></thead>\n<tbody>\n'))
+    for key in requests_made:
         # Log the status of the job
+
+        url = requests_made[key][1]
+        is_alive = str(requests_made[key][0])
+
         response_url = "".join(['<a href="',
-                                request.url_root, p.url + '">', p.url, '</a>'])
-        p_list.append("</td><td>".join([str(p.process.is_alive()),
-                                        str(p.process.pid),
+                                request.url_root,
+                                url + '">', url, '</a>'])
+        p_list.append("</td><td>".join([is_alive,
                                         escape(Markup(response_url)),
-                                        p.status[0]]))
+                                        ]))
         p_list.append(Markup('</td></tr>'))
     p_list.append(Markup('\n</tbody>'))
 
@@ -248,70 +252,35 @@ def job_queue():
 
 @app.route('/all_requests')
 def all_urls():
-    """ View for listing all requests """
+    """ View for listing all requests.  Retireves from cache """
 
     # Build a tree containing nested key values
     tree = build_key_tree(api_data)
-    key_sigs = list()
-
-    # Depth first traversal - get the key signatures
-    for node in tree:
-        stack_trace = [node]
-        while stack_trace:
-            if stack_trace[-1]:
-                ptr = stack_trace[-1][1]
-                try:
-                    stack_trace.append(ptr.next())
-                except StopIteration:
-                    # no more children
-                    stack_trace.pop()
-            else:
-                key_sigs.append([elem[0] for elem in stack_trace[:-1]])
-                stack_trace.pop()
+    key_sigs = get_keys_from_tree(tree)
 
     # Compose urls from key sigs
     url_list = list()
     for key_sig in key_sigs:
+
         url = get_url_from_keys(key_sig, 'stored')
         url_list.append("".join(['<a href="',
-                                 request.url_root, url + '">', url, '</a>']))
+                                 request.url_root, url + '">',
+                                 url,
+                                 '</a>']))
     return render_template('all_urls.html', urls=url_list)
-
-
-@app.route('/stored/<string:cohort>/<string:metric>')
-def stored_requests(cohort, metric):
-    """ View for processing stored requests """
-    hash_ref = api_data
-
-    # Parse the cohort and metric IDs
-    try:
-        hash_ref = hash_ref['cohort_expr' + HASH_KEY_DELIMETER + cohort][
-                   'metric' + HASH_KEY_DELIMETER + metric]
-    except Exception:
-        logging.error(__name__ + '::Request not found for: %s' % request.url)
-        return redirect(url_for('cohorts') + '?error=2')
-
-    # Parse the parameter values
-    for param in REQUEST_META_QUERY_STR:
-        if param in request.args:
-            try:
-                hash_ref = hash_ref[param + HASH_KEY_DELIMETER +
-                                    request.args[param]]
-            except KeyError:
-                logging.error(__name__ + '::Request not found for: %s' %
-                                         request.url)
-                return redirect(url_for('cohorts') + '?error=2')
-
-    # Ensure that that the data is a HTTP response object
-    if hasattr(hash_ref, 'status_code'):
-        return hash_ref
-    else:
-        return redirect(url_for('cohort') + '?error=2')
 
 
 def process_responses():
     """ Pulls responses off of the queue. """
     while not response_queue.empty():
         res = response_queue.get()
+
+        request_meta = rebuild_unpacked_request(res[0])
+        key_sig = build_key_signature(request_meta, hash_result=True)
+
+        # Set request in list to "not alive"
+        if key_sig in requests_made:
+            requests_made[key_sig][0] = False
+
         data = make_response(jsonify(res[1]))
-        set_data(rebuild_unpacked_request(res[0]), data, api_data)
+        set_data(request_meta, data, api_data)
