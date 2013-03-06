@@ -57,8 +57,6 @@ __author__ = {
 __date__ = "2013-03-05"
 __license__ = "GPL (version 2 or later)"
 
-from flask import jsonify, make_response
-
 from user_metrics.config import logging
 from user_metrics.api import pkl_data
 from user_metrics.api.engine import MAX_CONCURRENT_JOBS, \
@@ -70,7 +68,6 @@ from user_metrics.metrics.users import MediaWikiUser
 from user_metrics.metrics.metrics_manager import process_data_request
 
 from multiprocessing import Process, Queue
-from json import loads
 from collections import namedtuple
 from re import search
 from os import getpid
@@ -129,17 +126,17 @@ def job_control(request_queue):
             if not job_item.process.is_alive():
 
                 # Pull data off of the queue and add it to the queue data
-                queue_data = loads(job_item.queue.get().data)
-                response = make_response(jsonify(queue_data))
+                data = job_item.queue.get()
+                set_data(job_item.request, data, pkl_data)
 
-                set_data(job_item.request, response, pkl_data)
-                # response_queue.put(response)
                 del job_queue[job_queue.index(job_item)]
 
                 concurrent_jobs -= 1
 
-                logging.debug('{0} :: {1}  - RUN -> RESPONSE {2}'
-                .format(__name__, job_control.__name__, str(job_item)))
+                logging.debug('{0} :: {1}  - RUN -> RESPONSE {2}, ' \
+                              'Concurrent jobs = {3}'\
+                .format(__name__, job_control.__name__, str(job_item),
+                        concurrent_jobs))
 
 
         # Process pending jobs
@@ -155,13 +152,14 @@ def job_control(request_queue):
 
                 job_item = job_item_type(job_id, proc, wait_req, req_q)
                 job_queue.append(job_item)
-                # job_queue.append(wait_req)
 
                 concurrent_jobs += 1
                 job_id += 1
 
-                logging.debug('{0} :: {1}  - WAIT -> RUN {2}'
-                .format(__name__, job_control.__name__, str(wait_req)))
+                logging.debug('{0} :: {1}  - WAIT -> RUN {2}, ' \
+                              'Concurrent jobs = {3}'\
+                .format(__name__, job_control.__name__, str(wait_req),
+                        concurrent_jobs))
 
 
         # Add newest job to the queue
@@ -205,7 +203,7 @@ def process_metrics(p, rm):
 
     # process request
     results = process_data_request(rm.metric, users, **args)
+    p.put(results)
 
-    p.put(jsonify(results))
     logging.info(__name__ + ' :: END JOB %s (PID = %s)' % (str(rm), getpid()))
 
