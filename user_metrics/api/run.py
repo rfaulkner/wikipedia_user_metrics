@@ -47,11 +47,11 @@ import cPickle
 import multiprocessing as mp
 from datetime import datetime
 
-from user_metrics.api import api_data
 from user_metrics.config import logging, settings
 from engine.request_manager import job_control
 from user_metrics.api.views import app
-from user_metrics.api.engine.request_meta import request_queue
+from user_metrics.api.engine.request_meta import request_queue, \
+    response_queue
 from user_metrics.api.engine import DATETIME_STR_FORMAT
 
 job_controller_proc = None
@@ -63,7 +63,7 @@ job_controller_proc = None
 #######
 
 
-def teardown():
+def teardown(data):
     """ When the instance is deleted store the pickled data and shutdown
         the job controller """
 
@@ -74,7 +74,7 @@ def teardown():
         pkl_file = open(settings.__data_file_dir__ +
                         'api_data_{0}.pkl'.
                         format(timestamp), 'wb')
-        cPickle.dump(api_data, pkl_file)
+        cPickle.dump(data, pkl_file)
     except Exception:
         logging.error(__name__ + '::Could not pickle data.')
     finally:
@@ -91,12 +91,12 @@ def teardown():
         logging.error(__name__ + ' :: Could not shut down controller.')
 
 
-def setup_controller(req_queue):
+def setup_controller(req_queue, res_queue):
     """
         Sets up the process that handles API jobs
     """
     job_controller_proc = mp.Process(target=job_control,
-                                     args=(req_queue,))
+                                     args=(req_queue, res_queue))
 
     if not job_controller_proc.is_alive():
         job_controller_proc.start()
@@ -113,8 +113,8 @@ if __name__ == '__main__':
 
     # initialize API data - get the instance
 
-    setup_controller(request_queue)
+    setup_controller(request_queue, response_queue)
     try:
         app.run(debug=True, use_reloader=False)
     finally:
-        teardown()
+        teardown({})

@@ -58,24 +58,25 @@ __date__ = "2013-03-05"
 __license__ = "GPL (version 2 or later)"
 
 from user_metrics.config import logging
-from user_metrics.api import api_data
 from user_metrics.api.engine import MAX_CONCURRENT_JOBS, \
     QUEUE_WAIT, MW_UID_REGEX
-from user_metrics.api.engine.data import get_users, set_data
+from user_metrics.api.engine.data import get_users
 from user_metrics.api.engine.request_meta import QUERY_PARAMS_BY_METRIC, \
-    RequestMetaFactory
+    rebuild_unpacked_request
 from user_metrics.metrics.users import MediaWikiUser
 from user_metrics.metrics.metrics_manager import process_data_request
+from user_metrics.utils import unpack_fields
 
 from multiprocessing import Process, Queue
 from collections import namedtuple
 from re import search
 from os import getpid
 
+# Defines the job item type used to temporarily store job progress
 job_item_type = namedtuple('JobItem', 'id process request queue')
 
 
-def job_control(request_queue):
+def job_control(request_queue, response_queue):
     """
         Controls the execution of user metrics requests
 
@@ -115,8 +116,8 @@ def job_control(request_queue):
 
         except Exception:
             req_item = None
-            logging.debug('{0} :: {1}  - Listening ...'
-            .format(__name__, job_control.__name__))
+            #logging.debug('{0} :: {1}  - Listening ...'
+            #.format(__name__, job_control.__name__))
 
 
         # Process complete jobs
@@ -128,7 +129,7 @@ def job_control(request_queue):
 
                 # Pull data off of the queue and add it to the queue data
                 data = job_item.queue.get()
-                set_data(job_item.request, data, api_data)
+                response_queue.put([unpack_fields(job_item.request), data])
 
                 del job_queue[job_queue.index(job_item)]
 
@@ -171,14 +172,7 @@ def job_control(request_queue):
         if req_item and concurrent_jobs <= MAX_CONCURRENT_JOBS:
 
             # Build the request item
-            rm = RequestMetaFactory(req_item['cohort_expr'],
-                                    req_item['cohort_gen_timestamp'],
-                                    req_item['metric'])
-
-            # Populate the request data
-            for key in req_item:
-                if req_item[key]:
-                    setattr(rm, key, req_item[key])
+            rm = rebuild_unpacked_request(req_item)
 
             logging.debug('{0} :: {1}\n\tREQUEST -> WAIT {2}'
             .format(__name__, job_control.__name__, str(req_item)))

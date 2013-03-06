@@ -19,25 +19,31 @@ __license__ = "GPL (version 2 or later)"
 from flask import Flask, render_template, Markup, redirect, url_for, \
     request, escape, jsonify, make_response
 from re import search, sub
+from collections import OrderedDict
+
 from user_metrics.etl.data_loader import Connector
 from user_metrics.metrics.metrics_manager import get_metric_names
 from user_metrics.config import logging
 from user_metrics.utils import unpack_fields
 from user_metrics.api.engine.data import build_key_tree, get_cohort_id, \
-    get_cohort_refresh_datetime, get_data, get_url_from_keys
+    get_cohort_refresh_datetime, get_data, get_url_from_keys, set_data
 from user_metrics.api.engine import MW_UNAME_REGEX, HASH_KEY_DELIMETER
-from user_metrics.api import MetricsAPIError, api_data
+from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine.request_meta import request_queue, \
     filter_request_input, format_request_params, RequestMetaFactory, \
-    REQUEST_META_QUERY_STR
+    REQUEST_META_QUERY_STR, response_queue, rebuild_unpacked_request
 
 
 # REGEX to identify refresh flags in the URL
 REFRESH_REGEX = r'refresh[^&]*&|\?refresh[^&]*$|&refresh[^&]*$'
 
 # Queue for storing all active processes
-global processQ
-processQ = list()
+global requests_made
+requests_made = OrderedDict()
+
+# Stores cached requests (this should eventually be replaced with
+# a proper cache)
+api_data = OrderedDict()
 
 
 # Error codes for web requests
@@ -169,6 +175,7 @@ def output(cohort, metric):
     """ View corresponding to a data request -
         All of the setup and execution for a request happens here. """
 
+    process_responses()
     url = request.url.split(request.url_root)[1]
 
     # Check for refresh flag - drop from url
@@ -214,12 +221,13 @@ def output(cohort, metric):
 def job_queue():
     """ View for listing current jobs working """
 
+    process_responses()
     error = get_errors(request.args)
 
     p_list = list()
     p_list.append(Markup('<thead><tr><th>is_alive</th><th>PID</th><th>url'
                          '</th><th>status</th></tr></thead>\n<tbody>\n'))
-    for p in processQ:
+    for p in requests_made:
 
 
         # Log the status of the job
@@ -299,3 +307,11 @@ def stored_requests(cohort, metric):
         return hash_ref
     else:
         return redirect(url_for('cohort') + '?error=2')
+
+
+def process_responses():
+    """ Pulls responses off of the queue. """
+    while not response_queue.empty():
+        res = response_queue.get()
+        data = make_response(jsonify(res[1]))
+        set_data(rebuild_unpacked_request(res[0]), data, api_data)
