@@ -27,6 +27,7 @@
     .. _recordtype: http://www.python.org/
     .. _mediator: http://en.wikipedia.org/wiki/Mediator_pattern
     .. _metrics_manager: http://www.python.org/
+
 """
 
 __author__ = "ryan faulkner"
@@ -39,9 +40,11 @@ from user_metrics.utils.record_type import *
 from dateutil.parser import parse as date_parse
 import user_metrics.metrics.metrics_manager as mm
 from user_metrics.api import MetricsAPIError
-from user_metrics.api.engine import *
+from user_metrics.api.engine import DEFAULT_QUERY_VAL, DATETIME_STR_FORMAT
 from collections import namedtuple
 from flask import escape
+from multiprocessing import Queue
+
 
 # Define standard variable names in the query string - store in named tuple
 RequestMeta = recordtype('RequestMeta',
@@ -49,6 +52,10 @@ RequestMeta = recordtype('RequestMeta',
     'time_series aggregator restrict project '
     'namespace date_start date_end interval t n')
 
+
+# API queues for API service requests and responses
+request_queue = Queue()
+response_queue = Queue()
 
 def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
     """
