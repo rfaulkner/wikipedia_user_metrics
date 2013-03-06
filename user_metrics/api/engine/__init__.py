@@ -37,6 +37,7 @@ __license__ = "GPL (version 2 or later)"
 from re import search
 import user_metrics.etl.data_loader as dl
 from user_metrics.api import MetricsAPIError
+from user_metrics.utils import enum
 
 #
 # Define constants for request_manager module
