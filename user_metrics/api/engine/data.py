@@ -51,6 +51,7 @@ from flask import escape, redirect, url_for
 from datetime import datetime
 from re import search
 from collections import OrderedDict
+from hashlib import sha1
 
 import user_metrics.etl.data_loader as dl
 from user_metrics.config import logging
@@ -189,7 +190,7 @@ def set_data(request_meta, data, hash_table_ref):
             hash_table_ref[key] = data
 
 
-def build_key_signature(request_meta):
+def build_key_signature(request_meta, hash_result=False):
     """
         Given a RequestMeta object contruct a hashkey.
 
@@ -217,7 +218,11 @@ def build_key_signature(request_meta):
             key = getattr(request_meta, key_name)
             if key:
                 key_sig.append(key_name + HASH_KEY_DELIMETER + key)
-    return key_sig
+
+    if hash_result:
+        return sha1(str(key_sig).encode('utf-8')).hexdigest()
+    else:
+        return key_sig
 
 
 def get_url_from_keys(keys, path_root):
@@ -246,3 +251,25 @@ def build_key_tree(nested_dict):
             yield (key, build_key_tree(nested_dict[key]))
     else:
         yield None
+
+
+def get_keys_from_tree(tree):
+    """
+        Depth first traversal - get the key signatures from structure
+         produced by ``build_key_tree``.
+    """
+    key_sigs = list()
+    for node in tree:
+        stack_trace = [node]
+        while stack_trace:
+            if stack_trace[-1]:
+                ptr = stack_trace[-1][1]
+                try:
+                    stack_trace.append(ptr.next())
+                except StopIteration:
+                    # no more children
+                    stack_trace.pop()
+            else:
+                key_sigs.append([elem[0] for elem in stack_trace[:-1]])
+                stack_trace.pop()
+    return key_sigs
