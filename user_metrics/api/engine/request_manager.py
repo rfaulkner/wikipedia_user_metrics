@@ -1,5 +1,54 @@
 """
     This module implements the request manager functionality.
+
+    Job Queue and Processing
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+
+    As requests are issued via http to the API a process queue will store all
+    active jobs. Processes will be created and assume one of the following
+    states throughout their existence: ::
+
+        * 'pending' - The request has yet to be begin being processed
+        * 'running' - The request is being processed
+        * 'success' - The request has finished processing and is exposed at
+            the url
+        * 'failure' - The result has finished processing but dailed to expose
+            results
+
+    When a process a request is received and a job is created to service that
+    request it enters the 'pending' state. If the job returns without
+    exception it enters the 'success' state, otherwise it enters the 'failure'
+    state.  The job remains in either of these states until it is cleared
+    from the process queue.
+
+    Response Data
+    ^^^^^^^^^^^^^
+
+    As requests are made to the API the data generated and formatted as JSON.
+    The definition of is as follows: ::
+
+        {   header : header_list,
+            cohort_expr : cohort_gen_timestamp : metric : timeseries :
+            aggregator : date_start : date_end : [ metric_param : ]* : data
+        }
+
+    Where each component is defined: ::
+
+        header_str := list(str), list of header values
+        cohort_expr := str, cohort ID expression
+        cohort_gen_timestamp := str, cohort generation timestamp (earliest of
+            all cohorts in expression)
+        metric := str, user metric handle
+        timeseries := boolean, indicates if this is a timeseries
+        aggregator := str, aggregator used
+        date_start := str, start datetime of request
+        date_end := str, end datetime of request
+        metric_param := -, optional metric parameters
+        data := list(tuple), set of data points
+
+    Request data is mapped to a query via metric objects and hashed in the
+    dictionary `pkl_data`.
+
 """
 
 __author__ = {
@@ -11,10 +60,12 @@ __license__ = "GPL (version 2 or later)"
 from flask import jsonify, make_response
 
 from user_metrics.config import logging
+from user_metrics.api import pkl_data
 from user_metrics.api.engine import MAX_CONCURRENT_JOBS, \
-    QUEUE_WAIT, MW_UID_REGEX, get_users
-from user_metrics.api.engine.request_meta import QUERY_PARAMS_BY_METRIC
-from user_metrics.api.engine.request_meta import RequestMetaFactory
+    QUEUE_WAIT, MW_UID_REGEX
+from user_metrics.api.engine.data import get_users, set_data
+from user_metrics.api.engine.request_meta import QUERY_PARAMS_BY_METRIC, \
+    RequestMetaFactory
 from user_metrics.metrics.users import MediaWikiUser
 from user_metrics.metrics.metrics_manager import process_data_request
 
@@ -83,6 +134,7 @@ def job_control(request_queue, response_queue):
                 queue_data = loads(job_item.queue.get().data)
                 response = make_response(jsonify(queue_data))
 
+                set_data(job_item.request, response, pkl_data)
                 response_queue.put(response)
                 del job_queue[job_queue.index(job_item)]
 
@@ -99,14 +151,13 @@ def job_control(request_queue, response_queue):
             if concurrent_jobs <= MAX_CONCURRENT_JOBS:
                 # prepare job from item
 
-                # req_q = Queue()
-                # proc = Process(target=process_metrics, args=(req_q, wait_req))
-                # proc.start()
-                #
-                # job_item = job_item_type(job_id, proc, wait_req, req_q)
-                # job_queue.append(job_item)
+                req_q = Queue()
+                proc = Process(target=process_metrics, args=(req_q, wait_req))
+                proc.start()
 
-                job_queue.append(wait_req)
+                job_item = job_item_type(job_id, proc, wait_req, req_q)
+                job_queue.append(job_item)
+                # job_queue.append(wait_req)
 
                 concurrent_jobs += 1
                 job_id += 1
@@ -159,3 +210,4 @@ def process_metrics(p, rm):
 
     p.put(jsonify(results))
     logging.info(__name__ + ' :: END JOB %s (PID = %s)' % (str(rm), getpid()))
+
