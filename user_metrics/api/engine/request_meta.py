@@ -36,7 +36,7 @@ __date__ = "2013-03-05"
 __license__ = "GPL (version 2 or later)"
 
 
-from user_metrics.utils.record_type import *
+from user_metrics.utils.record_type import recordtype
 from dateutil.parser import parse as date_parse
 import user_metrics.metrics.metrics_manager as mm
 from user_metrics.api import MetricsAPIError
@@ -192,3 +192,23 @@ def filter_request_input(request, request_meta_obj):
                 setattr(request_meta_obj, param, DEFAULT_QUERY_VAL)
             else:
                 setattr(request_meta_obj, param, request.args[param])
+
+
+def rebuild_unpacked_request(unpacked_req):
+    """ Takes an unpacked (user_metrics.utils.unpack_fields) RequestMeta object
+        and composes a RequestMeta object
+    """
+    try:
+        # Build the request item
+        rm = RequestMetaFactory(unpacked_req['cohort_expr'],
+            unpacked_req['cohort_gen_timestamp'],
+            unpacked_req['metric'])
+
+        # Populate the request data
+        for key in unpacked_req:
+            if unpacked_req[key]:
+                setattr(rm, key, unpacked_req[key])
+        return rm
+    except KeyError:
+        raise MetricsAPIError(__name__ + ' :: rebuild_unpacked_request - '
+                                         'Invalid fields.')
