@@ -54,6 +54,7 @@ from user_metrics.api.views import app
 from user_metrics.api.engine.request_meta import request_queue
 from user_metrics.api.engine import DATETIME_STR_FORMAT
 
+job_controller_proc = None
 
 ######
 #
@@ -62,61 +63,43 @@ from user_metrics.api.engine import DATETIME_STR_FORMAT
 #######
 
 
-class APIMethods(object):
-    """ Provides initialization and boilerplate for API execution """
+def teardown():
+    """ When the instance is deleted store the pickled data and shutdown
+        the job controller """
 
-    __instance = None   # Singleton instance
-    __job_controller_proc = None
+    # Handle persisting data to file
+    pkl_file = None
+    try:
+        timestamp = datetime.now().strftime(DATETIME_STR_FORMAT)
+        pkl_file = open(settings.__data_file_dir__ +
+                        'api_data_{0}.pkl'.
+                        format(timestamp), 'wb')
+        cPickle.dump(api_data, pkl_file)
+    except Exception:
+        logging.error(__name__ + '::Could not pickle data.')
+    finally:
+        if hasattr(pkl_file, 'close'):
+            pkl_file.close()
 
-    def __new__(cls):
-        """ This class is Singleton, return only one instance """
-        if not cls.__instance:
-            cls.__instance = super(APIMethods, cls).__new__(cls)
-        return cls.__instance
-
-    def __init__(self):
-        """ Load cached data from pickle file. """
-
-        # Setup the job controller
-        if not self.__job_controller_proc:
-            self._setup_controller(request_queue)
+    # Try to shutdown the job control proc gracefully
+    try:
+        if job_controller_proc and\
+           hasattr(job_controller_proc, 'is_alive') and\
+           job_controller_proc.is_alive():
+            job_controller_proc.terminate()
+    except Exception:
+        logging.error(__name__ + ' :: Could not shut down controller.')
 
 
-    def close(self):
-        """ When the instance is deleted store the pickled data and shutdown
-            the job controller """
+def setup_controller(req_queue):
+    """
+        Sets up the process that handles API jobs
+    """
+    job_controller_proc = mp.Process(target=job_control,
+                                     args=(req_queue,))
 
-        # Handle persisting data to file
-        pkl_file = None
-        try:
-            timestamp = datetime.now().strftime(DATETIME_STR_FORMAT)
-            pkl_file = open(settings.__data_file_dir__ +
-                            'api_data_{0}.pkl'.
-                            format(timestamp), 'wb')
-            cPickle.dump(api_data, pkl_file)
-        except Exception:
-            logging.error(__name__ + '::Could not pickle data.')
-        finally:
-            if hasattr(pkl_file, 'close'):
-                pkl_file.close()
-
-        # Try to shutdown the job control proc gracefully
-        try:
-            if self.__job_controller_proc and\
-               hasattr(self.__job_controller_proc, 'is_alive') and\
-               self.__job_controller_proc.is_alive():
-                self.__job_controller_proc.terminate()
-        except Exception:
-            logging.error(__name__ + ' :: Could not shut down controller.')
-
-    def _setup_controller(self, req_queue):
-        """
-            Sets up the process that handles API jobs
-        """
-        self.__job_controller_proc = mp.Process(target=job_control,
-                                                args=(req_queue,))
-        if not self.__job_controller_proc.is_alive():
-            self.__job_controller_proc.start()
+    if not job_controller_proc.is_alive():
+        job_controller_proc.start()
 
 
 ######
@@ -129,8 +112,9 @@ class APIMethods(object):
 if __name__ == '__main__':
 
     # initialize API data - get the instance
-    a = APIMethods()
+
+    setup_controller(request_queue)
     try:
-        app.run(debug=True)
+        app.run(debug=True, use_reloader=False)
     finally:
-        a.close()
+        teardown()

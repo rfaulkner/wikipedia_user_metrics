@@ -26,8 +26,7 @@ from user_metrics.utils import unpack_fields
 from user_metrics.api.engine.data import build_key_tree, get_cohort_id, \
     get_cohort_refresh_datetime, get_data, get_url_from_keys
 from user_metrics.api.engine import MW_UNAME_REGEX, HASH_KEY_DELIMETER
-from user_metrics.api import MetricsAPIError
-from user_metrics.api import api_data
+from user_metrics.api import MetricsAPIError, api_data
 from user_metrics.api.engine.request_meta import request_queue, \
     filter_request_input, format_request_params, RequestMetaFactory, \
     REQUEST_META_QUERY_STR

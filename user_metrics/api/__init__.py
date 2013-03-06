@@ -5,7 +5,7 @@
     are defined at https://meta.wikimedia.org/wiki/Research:Metrics.
 """
 
-from collections import  OrderedDict
+from collections import OrderedDict
 
 
 class MetricsAPIError(Exception):
