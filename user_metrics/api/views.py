@@ -26,7 +26,8 @@ from user_metrics.utils import unpack_fields
 from user_metrics.api.engine.data import build_key_tree, get_cohort_id, \
     get_cohort_refresh_datetime, get_data, get_url_from_keys
 from user_metrics.api.engine import MW_UNAME_REGEX, HASH_KEY_DELIMETER
-from user_metrics.api import MetricsAPIError, pkl_data
+from user_metrics.api import MetricsAPIError
+from user_metrics.api import api_data
 from user_metrics.api.engine.request_meta import request_queue, \
     filter_request_input, format_request_params, RequestMetaFactory, \
     REQUEST_META_QUERY_STR
@@ -199,7 +200,7 @@ def output(cohort, metric):
     # Determine if the request maps to an existing response.  If so return it.
     # Otherwise compute.
 
-    data = get_data(rm, pkl_data)
+    data = get_data(rm, api_data)
 
     if data and not refresh:
         return data
@@ -243,7 +244,7 @@ def all_urls():
     """ View for listing all requests """
 
     # Build a tree containing nested key values
-    tree = build_key_tree(pkl_data)
+    tree = build_key_tree(api_data)
     key_sigs = list()
 
     # Depth first traversal - get the key signatures
@@ -273,7 +274,7 @@ def all_urls():
 @app.route('/stored/<string:cohort>/<string:metric>')
 def stored_requests(cohort, metric):
     """ View for processing stored requests """
-    hash_ref = pkl_data
+    hash_ref = api_data
 
     # Parse the cohort and metric IDs
     try:

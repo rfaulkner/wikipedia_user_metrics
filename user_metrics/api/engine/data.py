@@ -17,19 +17,19 @@
 
     The other portion of data storage and retrieval is concerned with providing
     functionality that enables responses to be cached.  Request responses are
-    currently cached in the ``pkl_data`` OrderedDict_ defined in the run
+    currently cached in the ``api_data`` OrderedDict_ defined in the run
     module.  This object stores responses in a nested fashion using URL request
     variables and their corresponding values.  For example, the url
     ``http://metrics-api.wikimedia.org/cohorts/e3_ob2b/revert_rate?t=10000``
     maps to::
 
-        pkl_data['cohort_expr <==> e3_ob2b']['metric <==> revert_rate']
+        api_data['cohort_expr <==> e3_ob2b']['metric <==> revert_rate']
         ['date_start <==> xx']['date_start <==> yy']['t <==> 10000']
 
     The list of key values for a given request is referred to as it's "key
     signature".  The order of parameters is perserved.
 
-    The ``get_data`` method requires a reference to ``pkl_data``. Given this
+    The ``get_data`` method requires a reference to ``api_data``. Given this
     reference and a RequestMeta object the method attempts to find an entry
     for the request if one exists.  The ``set_data`` method does much the
     same operation but performs storage into the hash reference passed.

@@ -43,19 +43,16 @@ __date__ = "2012-12-21"
 __license__ = "GPL (version 2 or later)"
 
 
-
 import cPickle
-from user_metrics.config import logging
-import os
-
-import user_metrics.config.settings as settings
 import multiprocessing as mp
-from collections import OrderedDict
-from shutil import copyfile
+from datetime import datetime
 
+from user_metrics.api import api_data
+from user_metrics.config import logging, settings
 from engine.request_manager import job_control
 from user_metrics.api.views import app
 from user_metrics.api.engine.request_meta import request_queue
+from user_metrics.api.engine import DATETIME_STR_FORMAT
 
 
 ######
@@ -84,43 +81,19 @@ class APIMethods(object):
         if not self.__job_controller_proc:
             self._setup_controller(request_queue)
 
-        # Open the pickled data for reading.
-        try:
-            pkl_file = open(settings.__data_file_dir__ + 'api_data.pkl', 'rb')
-        except IOError:
-            pkl_file = None
-
-        # test whether the open was successful
-        if pkl_file:
-            try:
-                pkl_data = cPickle.load(pkl_file)
-            except ValueError:
-                # Generally due to a "insecure string pickle"
-                logging.error(__name__ + ':: Could not access pickle data.')
-                pkl_data = OrderedDict()
-
-                # Move the bad pickle data into a new file and recreate the
-                # original as an empty file
-                src = settings.__data_file_dir__ + 'api_data.pkl'
-                dest = settings.__data_file_dir__ + 'api_data.pkl.bad'
-
-                copyfile(src, dest)
-                os.remove(src)
-                with open(src, 'wb'):
-                    pass
-
-            pkl_file.close()
 
     def close(self):
         """ When the instance is deleted store the pickled data and shutdown
             the job controller """
-        global pkl_data
 
         # Handle persisting data to file
         pkl_file = None
         try:
-            pkl_file = open(settings.__data_file_dir__ + 'api_data.pkl', 'wb')
-            cPickle.dump(pkl_data, pkl_file)
+            timestamp = datetime.now().strftime(DATETIME_STR_FORMAT)
+            pkl_file = open(settings.__data_file_dir__ +
+                            'api_data_{0}.pkl'.
+                            format(timestamp), 'wb')
+            cPickle.dump(api_data, pkl_file)
         except Exception:
             logging.error(__name__ + '::Could not pickle data.')
         finally:

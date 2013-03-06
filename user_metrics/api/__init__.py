@@ -16,4 +16,4 @@ class MetricsAPIError(Exception):
 
 # Stores cached requests (this should eventually be replaced with
 # a proper cache)
-pkl_data = OrderedDict()
+api_data = OrderedDict()

@@ -47,7 +47,7 @@
         data := list(tuple), set of data points
 
     Request data is mapped to a query via metric objects and hashed in the
-    dictionary `pkl_data`.
+    dictionary `api_data`.
 
 """
 
@@ -58,7 +58,7 @@ __date__ = "2013-03-05"
 __license__ = "GPL (version 2 or later)"
 
 from user_metrics.config import logging
-from user_metrics.api import pkl_data
+from user_metrics.api import api_data
 from user_metrics.api.engine import MAX_CONCURRENT_JOBS, \
     QUEUE_WAIT, MW_UID_REGEX
 from user_metrics.api.engine.data import get_users, set_data
@@ -109,7 +109,8 @@ def job_control(request_queue):
             # Pull an item off of the queue
             req_item = request_queue.get(timeout=QUEUE_WAIT)
 
-            logging.debug('{0} :: {1}  Pull item from request queue -> {2}'
+            logging.debug('{0} :: {1}' \
+                          '\n\tPull item from request queue -> \n\t{2}'
             .format(__name__, job_control.__name__, str(req_item)))
 
         except Exception:
@@ -127,14 +128,14 @@ def job_control(request_queue):
 
                 # Pull data off of the queue and add it to the queue data
                 data = job_item.queue.get()
-                set_data(job_item.request, data, pkl_data)
+                set_data(job_item.request, data, api_data)
 
                 del job_queue[job_queue.index(job_item)]
 
                 concurrent_jobs -= 1
 
-                logging.debug('{0} :: {1}  - RUN -> RESPONSE {2}, ' \
-                              'Concurrent jobs = {3}'\
+                logging.debug('{0} :: {1}\n\tRUN -> RESPONSE {2}\n' \
+                              '\tConcurrent jobs = {3}'
                 .format(__name__, job_control.__name__, str(job_item),
                         concurrent_jobs))
 
@@ -153,11 +154,13 @@ def job_control(request_queue):
                 job_item = job_item_type(job_id, proc, wait_req, req_q)
                 job_queue.append(job_item)
 
+                del wait_queue[wait_queue.index(wait_req)]
+
                 concurrent_jobs += 1
                 job_id += 1
 
-                logging.debug('{0} :: {1}  - WAIT -> RUN {2}, ' \
-                              'Concurrent jobs = {3}'\
+                logging.debug('{0} :: {1}\n\tWAIT -> RUN {2}\n' \
+                              '\tConcurrent jobs = {3}'\
                 .format(__name__, job_control.__name__, str(wait_req),
                         concurrent_jobs))
 
@@ -166,11 +169,11 @@ def job_control(request_queue):
         # ---------------------------
 
         if req_item and concurrent_jobs <= MAX_CONCURRENT_JOBS:
-            rm = RequestMetaFactory(req_item['cohort'],
-                                    req_item['cohort_refresh_ts'],
+            rm = RequestMetaFactory(req_item['cohort_expr'],
+                                    req_item['cohort_gen_timestamp'],
                                     req_item['metric'])
-            logging.debug('{0} :: {1}  - REQUEST -> WAIT {2}'
-            .format(__name__, job_control.__name__, str(rm)))
+            logging.debug('{0} :: {1}\n\tREQUEST -> WAIT {2}'
+            .format(__name__, job_control.__name__, str(req_item)))
             wait_queue.append(rm)
 
 
