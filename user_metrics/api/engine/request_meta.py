@@ -57,6 +57,7 @@ RequestMeta = recordtype('RequestMeta',
 request_queue = Queue()
 response_queue = Queue()
 
+
 def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
     """
         Dynamically builds a record type given a metric handle

@@ -78,7 +78,7 @@ from os import getpid
 job_item_type = namedtuple('JobItem', 'id process request queue')
 
 
-def job_control(request_queue, response_queue):
+def job_control(request_queue):
     """
         Controls the execution of user metrics requests
 
@@ -88,8 +88,6 @@ def job_control(request_queue, response_queue):
         request_queue : multiprocessing.Queue
            Queues incoming API requests.
 
-        response_queue : multiprocessing.Queue
-           Queues processed responses.
     """
 
     # Store executed and pending jobs respectively
@@ -135,7 +133,7 @@ def job_control(request_queue, response_queue):
                 response = make_response(jsonify(queue_data))
 
                 set_data(job_item.request, response, pkl_data)
-                response_queue.put(response)
+                # response_queue.put(response)
                 del job_queue[job_queue.index(job_item)]
 
                 concurrent_jobs -= 1

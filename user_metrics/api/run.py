@@ -55,7 +55,7 @@ from shutil import copyfile
 
 from engine.request_manager import job_control
 from user_metrics.api.views import app
-
+from user_metrics.api.engine.request_meta import request_queue
 
 
 ######
@@ -79,12 +79,10 @@ class APIMethods(object):
 
     def __init__(self):
         """ Load cached data from pickle file. """
-        global request_queue
-        global response_queue
 
         # Setup the job controller
         if not self.__job_controller_proc:
-            self._setup_controller(request_queue, response_queue)
+            self._setup_controller(request_queue)
 
         # Open the pickled data for reading.
         try:
@@ -138,12 +136,12 @@ class APIMethods(object):
         except Exception:
             logging.error(__name__ + ' :: Could not shut down controller.')
 
-    def _setup_controller(self, req_queue, res_queue):
+    def _setup_controller(self, req_queue):
         """
             Sets up the process that handles API jobs
         """
         self.__job_controller_proc = mp.Process(target=job_control,
-                                                args=(req_queue,res_queue))
+                                                args=(req_queue,))
         if not self.__job_controller_proc.is_alive():
             self.__job_controller_proc.start()
 
