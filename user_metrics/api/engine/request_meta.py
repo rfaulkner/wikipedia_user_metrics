@@ -50,7 +50,8 @@ from multiprocessing import Queue
 RequestMeta = recordtype('RequestMeta',
     'cohort_expr cohort_gen_timestamp metric '
     'time_series aggregator restrict project '
-    'namespace date_start date_end interval t n')
+    'namespace date_start date_end interval t n '
+    'period_type')
 
 
 # API queues for API service requests and responses
@@ -89,6 +90,7 @@ REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace',
                           'date_start', 'date_end', 'interval', 't', 'n',
                           'time_unit', 'time_unit_count', 'look_ahead',
                           'look_back', 'threshold_type', 'restrict',
+                          'period_type',
                           ]
 REQUEST_META_BASE = ['cohort_expr', 'metric']
 
@@ -110,7 +112,8 @@ common_params = [varMapping('date_start', 'datetime_start'),
                  varMapping('interval', 'interval'),
                  varMapping('time_series', 'time_series'),
                  varMapping('aggregator', 'aggregator'),
-                 varMapping('t', 't')]
+                 varMapping('t', 't'),
+                 varMapping('period_type', 'period_type')]
 
 QUERY_PARAMS_BY_METRIC = {
     'blocks': common_params,
