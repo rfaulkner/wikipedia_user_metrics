@@ -56,6 +56,7 @@ __data_file_dir__ = ''.join([__project_home__, 'data/'])
 __query_module__ = 'query_calls_noop'
 __user_thread_max__ = 100
 __rev_thread_max__ = 50
+__time_series_thread_max__ = 6
 
 __cohort_data_instance__    = 'cohorts'
 __cohort_db__               = 'usertags'
