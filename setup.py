@@ -18,7 +18,7 @@ setup(
     author_email="e3-team@lists.wikimedia.org",
     packages=['user_metrics',
               'user_metrics.api',
-              'user_metrics.engine',
+              'user_metrics.api.engine',
               'user_metrics.etl',
               'user_metrics.metrics',
               'user_metrics.query',
