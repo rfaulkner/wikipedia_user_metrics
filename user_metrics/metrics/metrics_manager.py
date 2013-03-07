@@ -33,6 +33,7 @@ __license__ = "GPL (version 2 or later)"
 from collections import OrderedDict
 from dateutil.parser import parse as date_parse
 
+from copy import deepcopy
 from re import search
 import user_metric as um
 import threshold as th
@@ -166,6 +167,7 @@ def process_data_request(metric_handle, users, **kwargs):
 
     if aggregator_func:
         if time_series:
+
             # interval length in hours
             if kwargs['interval']:
                 interval = int(kwargs['interval'])
@@ -177,21 +179,25 @@ def process_data_request(metric_handle, users, **kwargs):
             time_threads = max(1, int(total_intervals / INTERVALS_PER_THREAD))
             time_threads = min(MAX_THREADS, time_threads)
 
-            logging.info('Metrics Manager: Initiating time series for '
-                         '%(metric)s with %(agg)s from '
-                         '%(start)s to %(end)s.' %
-                         {
-                         'metric': metric_class.__name__,
-                         'agg': aggregator_func.__name__,
-                         'start': str(start),
-                         'end': str(end),
-                         })
+            logging.info(__name__ + ' :: Initiating time series for '
+                                    '%(metric)s with %(agg)s from '
+                                    '%(start)s to %(end)s.' %
+                                    {
+                                        'metric': metric_class.__name__,
+                                        'agg': aggregator_func.__name__,
+                                        'start': str(start),
+                                        'end': str(end),
+                                    })
             metric_threads = '{"num_threads" : %(user_threads)s, ' + \
                              '"rev_threads" : %(rev_threads)s}'
             metric_threads %= {
                 'user_threads': USER_THREADS,
                 'rev_threads': REVISION_THREADS
             }
+
+            new_kwargs = deepcopy(kwargs)
+            del new_kwargs['interval']
+            del new_kwargs['aggregator']
 
             out = tspm.build_time_series(start,
                                          end,
@@ -201,14 +207,15 @@ def process_data_request(metric_handle, users, **kwargs):
                                          users,
                                          num_threads=time_threads,
                                          metric_threads=metric_threads,
-                                         log=True)
+                                         log=True,
+                                         **new_kwargs)
 
             for row in out:
                 timestamp = date_parse(row[0][:19]).strftime(TIMESTAMP_FORMAT)
                 results['metric'][timestamp] = row[3:]
         else:
 
-            logging.info(__name__ + ':: Initiating aggregator for '
+            logging.info(__name__ + ' :: Initiating aggregator for '
                                     '%(metric)s with %(agg)s from '
                                     '%(start)s to %(end)s.' %
                                     {
@@ -217,9 +224,11 @@ def process_data_request(metric_handle, users, **kwargs):
                                         'start': str(start),
                                         'end': str(end),
                                     })
-            metric_obj.process(users, num_threads=USER_THREADS,
-                               rev_threads=REVISION_THREADS,
-                               log_progress=True, **kwargs)
+            metric_obj.process(users,
+                               k_=USER_THREADS,
+                               kr_=REVISION_THREADS,
+                               log_=True,
+                               **kwargs)
             r = um.aggregator(aggregator_func, metric_obj, metric_obj.header())
             results['metric'][r.data[0]] = " ".join(to_string(r.data[1:]))
             results['header'] = " ".join(to_string(r.header))
@@ -232,9 +241,11 @@ def process_data_request(metric_handle, users, **kwargs):
                                 'start': str(start),
                                 'end': str(end),
                                 })
-        metric_obj.process(users, num_threads=USER_THREADS,
-                           rev_threads=REVISION_THREADS,
-                           log_progress=True, **kwargs)
+        metric_obj.process(users,
+                           k_=USER_THREADS,
+                           kr_=REVISION_THREADS,
+                           log_=True,
+                           **kwargs)
         for m in metric_obj.__iter__():
             results['metric'][m[0]] = m[1:]
 
