@@ -68,7 +68,7 @@ from user_metrics.metrics.metrics_manager import process_data_request
 from user_metrics.utils import unpack_fields
 
 from multiprocessing import Process, Queue
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from re import search
 from os import getpid
 
@@ -187,7 +187,7 @@ def process_metrics(p, rm):
     """ Worker process for requests -
         this will typically operate in a forked process """
 
-    logging.info(__name__ + ' :: START JOB %s (PID = %s)' % (str(rm),
+    logging.info(__name__ + ' :: START JOB\n\t%s (PID = %s)\n' % (str(rm),
                                                              getpid()))
 
     # obtain user list - handle the case where a lone user ID is passed
@@ -200,15 +200,23 @@ def process_metrics(p, rm):
     else:
         users = get_users(rm.cohort_expr)
 
-    # unpack RequestMeta into dict using MEDIATOR
-    args = {attr.metric_var: getattr(rm, attr.query_var)
-            for attr in QUERY_PARAMS_BY_METRIC[rm.metric]}
-    logging.info(__name__ + ' :: Calling %s with args = %s.' % (rm.metric,
-                                                                str(args)))
+    # Unpack RequestMeta into dict using MEDIATOR
+    # Map parameters from API request to metrics call
 
+    args = unpack_fields(rm)
+    new_args = OrderedDict()
+
+    for mapping in QUERY_PARAMS_BY_METRIC[rm.metric]:
+        new_args[mapping.metric_var] = args[mapping.query_var]
+
+    del args
+
+    logging.info(__name__ + ' :: Calling %s\n\tArgs = %s.\n' % (rm.metric,
+                                                                str(new_args)))
     # process request
-    results = process_data_request(rm.metric, users, **args)
+    results = process_data_request(rm.metric, users, **new_args)
     p.put(results)
 
-    logging.info(__name__ + ' :: END JOB %s (PID = %s)' % (str(rm), getpid()))
+    logging.info(__name__ + ' :: END JOB\n\t%s (PID = %s)\n' % (str(rm),
+                                                                getpid()))
 
