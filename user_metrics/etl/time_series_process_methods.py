@@ -15,7 +15,6 @@ from dateutil.parser import parse as date_parse
 import operator
 import json
 
-import user_metrics.metrics.revert_rate as rr
 import user_metrics.metrics.user_metric as um
 from user_metrics.utils import format_mediawiki_timestamp
 from multiprocessing import Process, Queue
@@ -24,7 +23,8 @@ from user_metrics.config import logging
 
 # Determines the amount of time to wait before picking completed threads off
 # of the queue
-PROCESS_SLEEP_TIME      = 5
+PROCESS_SLEEP_TIME = 1
+
 
 def _get_timeseries(date_start, date_end, interval):
     """
@@ -38,8 +38,8 @@ def _get_timeseries(date_start, date_end, interval):
 
     # ensure that at least two intervals are included in the time series
     if (date_parse(date_end) - date_parse(date_start)).\
-       total_seconds() / 3600 < interval:
-        raise TimeSeriesException(message="Time series must contain at " \
+            total_seconds() / 3600 < interval:
+        raise TimeSeriesException(message="Time series must contain at "
                                           "least one interval.")
 
     c = date_parse(date_start) + datetime.timedelta(hours=-int(interval))
@@ -47,6 +47,7 @@ def _get_timeseries(date_start, date_end, interval):
     while c < e:
         c += datetime.timedelta(hours=int(interval))
         yield c
+
 
 def build_time_series(start, end, interval, metric, aggregator, cohort,
                       **kwargs):
@@ -90,24 +91,26 @@ def build_time_series(start, end, interval, metric, aggregator, cohort,
     intervals_per_thread = num_intervals / k
 
     # Compose the sets of time series lists
-    f = lambda t,i:  t + datetime.timedelta(
-        hours = int(intervals_per_thread * interval * i))
+    f = lambda t, i:  t + datetime.timedelta(
+        hours=int(intervals_per_thread * interval * i))
     time_series = [_get_timeseries(f(start, i),
-        f(start, i+1), interval) for i in xrange(k)]
-    if f(start, k) <  end: time_series.append(
-        _get_timeseries(f(start, k), end, interval))
+                   f(start, i+1), interval) for i in xrange(k)]
+    if f(start, k) < end:
+        time_series.append(_get_timeseries(f(start, k), end, interval))
 
     data = list()
     q = Queue()
     processes = list()
 
-    if log: logging.info(
-        'Spawning procs, %s - %s, interval = %s, threads = %s ... ' % (
-        str(start), str(end), interval, k))
+    if log:
+        logging.info(__name__ + ' :: Spawning procs, '
+                                '%s - %s, interval = %s, '
+                                'threads = %s ... ' % (str(start), str(end),
+                                                       interval, k))
     for i in xrange(len(time_series)):
-        p = Process(
-            target=time_series_worker, args=(
-                time_series[i], metric, aggregator, cohort, kwargs, q))
+        p = Process(target=time_series_worker,
+                    args=(time_series[i], metric, aggregator,
+                          cohort, kwargs, q))
         p.start()
         processes.append(p)
 
@@ -116,7 +119,8 @@ def build_time_series(start, end, interval, metric, aggregator, cohort,
         time.sleep(PROCESS_SLEEP_TIME)
 
         if log:
-            logging.info('Process queue, %s threads.' % str(len(processes)))
+            logging.info(__name__ + ' :: Time series process queue, '
+                                    '%s threads.' % str(len(processes)))
 
         while not q.empty():
             data.extend(q.get())
@@ -132,6 +136,7 @@ def build_time_series(start, end, interval, metric, aggregator, cohort,
     # sort
     return sorted(data, key=operator.itemgetter(0), reverse=False)
 
+
 def time_series_worker(time_series, metric, aggregator, cohort, kwargs, q):
     """ worker thread which computes time series data for a set of points """
     log = bool(kwargs['log']) if 'log' in kwargs else False
@@ -143,42 +148,40 @@ def time_series_worker(time_series, metric, aggregator, cohort, kwargs, q):
     # re-map some keyword args relating to thread counts
     if 'metric_threads' in new_kwargs:
         d = json.loads(new_kwargs['metric_threads'])
-        for key in d: new_kwargs[key] = d[key]
+        for key in d:
+            new_kwargs[key] = d[key]
         del new_kwargs['metric_threads']
 
     while 1:
-        try: ts_e = time_series.next()
-        except StopIteration: break
+        try:
+            ts_e = time_series.next()
+        except StopIteration:
+            break
 
-        if log: logging.info(__name__ +
-                             ' :: Processing thread %s, %s - %s ...' % (
-            os.getpid(), str(ts_s), str(ts_e)))
+        if log:
+            logging.info(__name__ + ' :: Processing thread '
+                                    '%s, %s - %s ...' % (os.getpid(),
+                                                         str(ts_s),
+                                                         str(ts_e)))
 
-        metric_obj = metric(date_start=ts_s,date_end=ts_e,**new_kwargs).\
+        metric_obj = metric(date_start=ts_s, date_end=ts_e, **new_kwargs).\
             process(cohort, **new_kwargs)
 
         r = um.aggregator(aggregator, metric_obj, metric.header())
 
-        if log: logging.info(__name__ +
-                             ' :: Processing complete %s, %s - %s ...' % (
-                                 os.getpid(), str(ts_s), str(ts_e)))
-
+        if log:
+            logging.info(__name__ + ' :: Processing complete '
+                                    '%s, %s - %s ...' % (os.getpid(),
+                                                         str(ts_s),
+                                                         str(ts_e)))
         data.append([str(ts_s), str(ts_e)] + r.data)
         ts_s = ts_e
-    q.put(data) # add the data to the queue
+
+    # add the data to the queue
+    q.put(data)
+
 
 class TimeSeriesException(Exception):
     """ Basic exception class for UserMetric types """
     def __init__(self, message="Could not generate time series."):
         Exception.__init__(self, message)
-
-if __name__ == '__main__':
-
-    cohort = ['156171','13234584']
-    metric = rr.RevertRate
-    aggregator = rr.reverted_revs_agg
-
-    print build_time_series('20120101000000', '20120201000000', 24, metric,
-        aggregator, cohort,
-        num_threads=4,
-        metric_threads='{"num_threads" : 20, "rev_threads" : 50}', log=True)
