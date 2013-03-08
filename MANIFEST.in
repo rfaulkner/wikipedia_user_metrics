@@ -1,0 +1,2 @@
+recursive-include user_metrics/api/template *.html
+recursive-include user_metrics/api/static *.js *.png *.css
