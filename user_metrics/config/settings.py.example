@@ -42,14 +42,14 @@
     and consumed by scripts/run_ssh_tunnels.
 """
 
-from os.path import realpath, exists
+from os.path import exists
 from urllib2 import urlopen
 import json
 
 # Project settings
 # ================
 
-__project_home__ = 'project_home'
+__project_home__ = '%project_home%'
 __web_home__ = ''.join([__project_home__, 'web_interface/'])
 __data_file_dir__ = ''.join([__project_home__, 'data/'])
 
@@ -91,7 +91,8 @@ connections = {
 def get_project_host_map(usecache=True):
     cache_name = 'project_host_map.json'
     if not exists(cache_name) or not usecache:
-        cluster_url_fmt = 'https://gerrit.wikimedia.org/r/gitweb?p=operations/mediawiki-config.git;a=blob_plain;f=s%d.dblist;hb=HEAD'
+        cluster_url_fmt = 'https://gerrit.wikimedia.org/r/gitweb?p=operations/
+            mediawiki-config.git;a=blob_plain;f=s%d.dblist;hb=HEAD'
         #host_fmt = 's%d-analytics-slave.eqiad.wmnet'
         host_fmt = 's%d'
         project_host_map = {}
