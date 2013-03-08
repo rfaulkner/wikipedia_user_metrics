@@ -88,6 +88,22 @@ def unpack_fields(obj):
     return d
 
 
+def nested_import(name):
+    """
+        Using ``__import__`` retrieve nested object/namespace.  Solution_
+        couresty of stack overflow user dwestbook_.
+
+        .. _Solution: http://stackoverflow.com/questions/
+        211100/pythons-import-doesnt-work-as-expected
+        .. _dwestbrook: http://stackoverflow.com/users/3119/dwestbrook
+    """
+    mod = __import__(name)
+    components = name.split('.')
+    for comp in components[1:]:
+        mod = getattr(mod, comp)
+    return mod
+
+
 # Rudimentary Testing
 if __name__ == '__main__':
     t = build_namedtuple(['a', 'b'], [int, str], [1, 's'])
