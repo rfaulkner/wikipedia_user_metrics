@@ -193,8 +193,11 @@ def process_data_request(metric_handle, users, **kwargs):
             metric_threads = '{' + metric_threads + '}'
 
             new_kwargs = deepcopy(kwargs)
+
             del new_kwargs['interval']
             del new_kwargs['aggregator']
+            del new_kwargs['datetime_start']
+            del new_kwargs['datetime_end']
 
             out = tspm.build_time_series(start,
                                          end,

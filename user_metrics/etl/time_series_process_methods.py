@@ -56,18 +56,28 @@ def build_time_series(start, end, interval, metric, aggregator, cohort,
     """
         Builds a timeseries dataset for a given metric.
 
-            Parameters:
-                - **start**: str or datetime. date + time indicating start of
-                    time series
-                - **end**: str or datetime. date + time indicating end of
-                    time series
-                - **interval**: int. integer value in hours that defines the
-                    amount of time between data-points
-                - **metric**: class object. Metrics class (derived from
-                    UserMetric)
-                - **aggregator**: method. Aggregator method used to
-                    aggregate data for time series data points
-                - **cohort**: list(str). list of user IDs
+        Parameters:
+
+            start: str or datetime.
+                date + time indicating start of time series
+
+            end : str or datetime.
+                date + time indicating end of time series
+
+            interval : int.
+                integer value in hours that defines the amount of
+                time between data-points
+
+            metric : class object.
+                Metrics class (derived from UserMetric)
+
+            aggregator : method.
+                Aggregator method used to aggregate data for time
+                series data points
+
+            cohort : list(str).
+                list of user IDs
+
         e.g.
 
         >>> cohort = ['156171','13234584']
@@ -111,7 +121,7 @@ def build_time_series(start, end, interval, metric, aggregator, cohort,
     for i in xrange(len(time_series)):
         p = Process(target=time_series_worker,
                     args=(time_series[i], metric, aggregator,
-                          cohort, kwargs, event_queue))
+                          cohort, event_queue, kwargs))
         p.start()
         process_queue.append(p)
 
@@ -211,7 +221,7 @@ def time_series_worker(time_series,
                                                                   str(ts_s),
                                                                   str(ts_e)))
 
-        metric_obj = metric(date_start=ts_s, date_end=ts_e, **new_kwargs).\
+        metric_obj = metric(datetime_start=ts_s, datetime_end=ts_e, **new_kwargs).\
             process(cohort, **new_kwargs)
 
         r = um.aggregator(aggregator, metric_obj, metric.header())
