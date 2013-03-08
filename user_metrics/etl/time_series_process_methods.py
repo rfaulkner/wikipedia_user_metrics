@@ -15,6 +15,7 @@ from dateutil.parser import parse as date_parse
 import operator
 import json
 
+from user_metrics.config import settings
 import user_metrics.metrics.user_metric as um
 from user_metrics.utils import format_mediawiki_timestamp
 from multiprocessing import Process, Queue
@@ -23,7 +24,8 @@ from user_metrics.config import logging
 
 # Determines the amount of time to wait before picking completed threads off
 # of the queue
-PROCESS_SLEEP_TIME = 1
+MAX_THREADS = settings.__time_series_thread_max__
+PROCESS_SLEEP_TIME = 4
 
 
 def _get_timeseries(date_start, date_end, interval):
@@ -83,7 +85,7 @@ def build_time_series(start, end, interval, metric, aggregator, cohort,
     # Get datetime types, and the number of threads
     start = date_parse(format_mediawiki_timestamp(start))
     end = date_parse(format_mediawiki_timestamp(end))
-    k = kwargs['num_threads'] if 'num_threads' in kwargs else 1
+    k = kwargs['kt_'] if 'kt_' in kwargs else MAX_THREADS
 
     # Compute window size and ensure that all the conditions
     # necessary to generate a proper time series are met
@@ -98,47 +100,92 @@ def build_time_series(start, end, interval, metric, aggregator, cohort,
     if f(start, k) < end:
         time_series.append(_get_timeseries(f(start, k), end, interval))
 
-    data = list()
-    q = Queue()
-    processes = list()
+    event_queue = Queue()
+    process_queue = list()
 
     if log:
-        logging.info(__name__ + ' :: Spawning procs, '
-                                '%s - %s, interval = %s, '
-                                'threads = %s ... ' % (str(start), str(end),
+        logging.info(__name__ + ' :: Spawning procs\n'
+                                '\t%s - %s, interval = %s\n'
+                                '\tthreads = %s ... ' % (str(start), str(end),
                                                        interval, k))
     for i in xrange(len(time_series)):
         p = Process(target=time_series_worker,
                     args=(time_series[i], metric, aggregator,
-                          cohort, kwargs, q))
+                          cohort, kwargs, event_queue))
         p.start()
-        processes.append(p)
+        process_queue.append(p)
+
+    # Call the listener
+    return time_series_listener(process_queue, event_queue)
+
+
+def time_series_listener(process_queue, event_queue):
+    """
+        Listener for ``time_series_worker``.  Blocks and logs until all
+        processes computing time series data are complete.  Returns time
+        dependent data from metrics.
+
+        Parameters
+        ~~~~~~~~~~
+
+            process_queue : list
+                List of active processes computing metrics data.
+
+            event_queue : multiprocessing.Queue
+                Asynchronous data coming in from worker processes.
+    """
+    data = list()
 
     while 1:
         # sleep before checking worker threads
         time.sleep(PROCESS_SLEEP_TIME)
 
-        if log:
-            logging.info(__name__ + ' :: Time series process queue, '
-                                    '%s threads.' % str(len(processes)))
+        logging.info(__name__ + ' :: Time series process queue\n'
+                                '\t{0} threads.'.
+            format(str(len(process_queue))))
 
-        while not q.empty():
-            data.extend(q.get())
-        for p in processes:
+        while not event_queue.empty():
+            data.extend(event_queue.get())
+        for p in process_queue:
             if not p.is_alive():
                 p.terminate()
-                processes.remove(p)
+                process_queue.remove(p)
 
         # exit if all process have finished
-        if not len(processes):
+        if not len(process_queue):
             break
 
     # sort
     return sorted(data, key=operator.itemgetter(0), reverse=False)
 
 
-def time_series_worker(time_series, metric, aggregator, cohort, kwargs, q):
-    """ worker thread which computes time series data for a set of points """
+def time_series_worker(time_series,
+                       metric,
+                       aggregator,
+                       cohort,
+                       event_queue,
+                       kwargs):
+    """
+        Worker thread which computes time series data for a set of points
+
+        Parameter
+        ~~~~~~~~~
+
+            time_series : list(datetime)
+                Datetimes defining series.
+
+            metric : string
+                Metric name.
+
+            aggregator : method
+                aggregator method reference.
+
+            cohort : string
+                Cohort name.
+
+            event_queue : multiporcessing.Queue
+                Asynchronous data-structure to communicate with parent proc.
+    """
     log = bool(kwargs['log']) if 'log' in kwargs else False
 
     data = list()
@@ -159,10 +206,10 @@ def time_series_worker(time_series, metric, aggregator, cohort, kwargs, q):
             break
 
         if log:
-            logging.info(__name__ + ' :: Processing thread '
-                                    '%s, %s - %s ...' % (os.getpid(),
-                                                         str(ts_s),
-                                                         str(ts_e)))
+            logging.info(__name__ + ' :: Processing thread:\n'
+                                    '\t{0}, {1} - {2} ...'.format(os.getpid(),
+                                                                  str(ts_s),
+                                                                  str(ts_e)))
 
         metric_obj = metric(date_start=ts_s, date_end=ts_e, **new_kwargs).\
             process(cohort, **new_kwargs)
@@ -170,15 +217,14 @@ def time_series_worker(time_series, metric, aggregator, cohort, kwargs, q):
         r = um.aggregator(aggregator, metric_obj, metric.header())
 
         if log:
-            logging.info(__name__ + ' :: Processing complete '
-                                    '%s, %s - %s ...' % (os.getpid(),
-                                                         str(ts_s),
-                                                         str(ts_e)))
+            logging.info(__name__ + ' :: Processing complete:\n'
+                                    '\t{0}, {1} - {2} ...'.format(os.getpid(),
+                                                                  str(ts_s),
+                                                                  str(ts_e)))
         data.append([str(ts_s), str(ts_e)] + r.data)
         ts_s = ts_e
 
-    # add the data to the queue
-    q.put(data)
+    event_queue.put(data)
 
 
 class TimeSeriesException(Exception):

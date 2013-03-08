@@ -188,12 +188,9 @@ def process_data_request(metric_handle, users, **kwargs):
                                         'start': str(start),
                                         'end': str(end),
                                     })
-            metric_threads = '{"num_threads" : %(user_threads)s, ' + \
-                             '"rev_threads" : %(rev_threads)s}'
-            metric_threads %= {
-                'user_threads': USER_THREADS,
-                'rev_threads': REVISION_THREADS
-            }
+            metric_threads = '"k_" : {0}, "kr_" : {1}'.format(USER_THREADS,
+                                                              REVISION_THREADS)
+            metric_threads = '{' + metric_threads + '}'
 
             new_kwargs = deepcopy(kwargs)
             del new_kwargs['interval']
@@ -205,7 +202,7 @@ def process_data_request(metric_handle, users, **kwargs):
                                          metric_class,
                                          aggregator_func,
                                          users,
-                                         num_threads=time_threads,
+                                         kt_=time_threads,
                                          metric_threads=metric_threads,
                                          log=True,
                                          **new_kwargs)
