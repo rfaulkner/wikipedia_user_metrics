@@ -149,8 +149,8 @@ def generate_test_cohort(project,
     # Determine the time bounds that define the cohort acceptance criteria
 
     ts_start_o = datetime.now() + timedelta(days=-60)
-    ts_end_user_o = ts_start_o + timedelta(days=user_interval_size)
-    ts_end_revs_o = ts_start_o + timedelta(days=rev_interval_size)
+    ts_end_user_o = ts_start_o + timedelta(days=int(user_interval_size))
+    ts_end_revs_o = ts_start_o + timedelta(days=int(rev_interval_size))
 
     ts_start = format_mediawiki_timestamp(ts_start_o)
     ts_end_user = format_mediawiki_timestamp(ts_end_user_o)

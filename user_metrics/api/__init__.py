@@ -6,3 +6,7 @@
 """
 
 
+class MetricsAPIError(Exception):
+    """ Basic exception class for UserMetric types """
+    def __init__(self, message="Error processing API request."):
+        Exception.__init__(self, message)
