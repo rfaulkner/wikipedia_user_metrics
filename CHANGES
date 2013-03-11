@@ -31,17 +31,34 @@ Released on February 26th 2013.
 Version 0.1.3-dev
 -----------------
 
-To be released on March 13th 2013.
+To be released on March 11th 2013.
 
-- More robust testing.
 - Expanded multi-project support
 - pure JSON responses
 - expose all parameters in JSON responses
+- Deal with undefined metric values in a standard way
+- Make all metrics relative to a user event (e.g. registration) as metrics
+    like survival and threshold.  This can be bettet
+- Refactor API source - break up functionality for easier maintenance and
+    extensibility.
+- Manage requests via a separate job manager.
+    user_metrics.api.engine.request_manager module.
+- Generate unique hashes from Request objects.
+    build_key_signature method in user_metrics.api.engine.data
+
+
+Version 0.1.4-dev
+
+-----------------
+
+To be released on March 25th 2013.
+
+- User Authentication
+- memcached for
+- Client for programmatically accessing API - https://github.com/rfaulkner/umapi_client
+- More robust testing.
 - Redefine API request entry points:
     * run/cohort/..
     * run/set/..
     * run/user/..
-- Deal with undefined metric values in a standard way
 - Build filters that allow new cohorts to be generated from requests
-- Make all metrics relative to a user event (e.g. registration) as metrics
-    like survival and threshold
