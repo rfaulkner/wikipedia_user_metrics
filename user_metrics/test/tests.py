@@ -11,7 +11,12 @@ __email__ = "rfaulkner@wikimedia.org"
 __date__ = "02/14/2012"
 __license__ = "GPL (version 2 or later)"
 
+from datetime import datetime, timedelta
+from dateutil.parser import parse as date_parse
+from collections import namedtuple
+
 from user_metrics.metrics import edit_count
+from user_metrics.metrics.users import UMP_MAP, USER_METRIC_PERIOD_TYPE
 
 
 # User Metric tests
@@ -74,6 +79,75 @@ def test_revert_rate():
 
 def test_user():
     assert False  # TODO: implement your test here
+
+
+def test_user_UMPRegistration():
+    """
+        Test for UMPRegistration in user_metrics.metrics.users module.
+
+        1) ``rec.user`` was in the original list
+        2) That ``rec.start`` and ``rec.end`` reflect ``rec.users``'s
+            registration date and reg date + ``o.t`` hours respectively
+    """
+    o = namedtuple('nothing', 't project datetime_start, datetime_end')
+
+    o.t = 1000
+    o.project = 'enwiki'
+
+    users = ['13234590', '13234584']
+    for rec in UMP_MAP[USER_METRIC_PERIOD_TYPE.REGISTRATION](users, o):
+        assert str(rec.user) in users
+        # @TODO check if user's reg date and reg date + t is start and end
+
+
+def test_user_UMPInput():
+    """
+        Test for UMPInput in user_metrics.metrics.users module.
+
+        1) ``rec.user`` was in the original list
+        2) That ``rec.start`` and ``rec.end`` reflect the
+            ``o.datetime_start`` and ``o.datetime_start`` respectively
+    """
+    o = namedtuple('nothing', 't project datetime_start, datetime_end')
+
+    o.project = 'enwiki'
+    o.datetime_start = datetime.now()
+    o.datetime_end = datetime.now() + timedelta(days=30)
+
+    users = ['13234590', '13234584']
+    # If datetimes are less than a second apart the test passes
+    for rec in UMP_MAP[USER_METRIC_PERIOD_TYPE.INPUT](users, o):
+        assert str(rec.user) in users
+        assert abs((date_parse(rec.start) - o.datetime_start).
+            total_seconds()) < 1
+        assert abs((date_parse(rec.end) - o.datetime_end).
+            total_seconds()) < 1
+
+
+def test_user_UMPRegInput():
+    """
+        Test for UMPRegInput in user_metrics.metrics.users module.
+
+        This method tests that:
+
+            1) ``rec.user`` was in the original list
+            2) Users whose reg date falls within ``o.datetime_start`` and
+                ``o.datetime_end`` are included while others are excluded
+            3) That ``rec.start`` and ``rec.end`` reflect the
+                ``o.datetime_start`` and ``o.datetime_start`` respectively
+    """
+    o = namedtuple('nothing', 't project datetime_start, datetime_end')
+
+    o.project = 'enwiki'
+    o.datetime_start = datetime(year=2010, month=10, day=1)
+    o.datetime_end = o.datetime_start + timedelta(days=30)
+
+    users = ['13234590', '13234584']
+    for rec in UMP_MAP[USER_METRIC_PERIOD_TYPE.REGINPUT](users, o):
+        assert str(rec.user) in users
+        assert date_parse(rec.start) == o.datetime_start
+        assert date_parse(rec.end) == o.datetime_end
+        # @TODO check whether user's reg date is within input dates
 
 
 # Query call tests

@@ -399,30 +399,3 @@ UMP_MAP = {
 }
 
 
-# Rudimentary Testing
-# ===================
-
-# for more detailed testing see user_metrics/tests/test.py
-if __name__ == '__main__':
-    # generate_test_cohort('itwiki', write=True)
-    o = namedtuple('nothing', 't project datetime_start, datetime_end')
-
-    o.t = 1000
-    o.project = 'enwiki'
-    # o.datetime_start = datetime.now()
-    # o.datetime_end = datetime.now() + timedelta(days=30)
-    o.datetime_start = datetime(year=2010, month=10, day=1)
-    o.datetime_end = o.datetime_start + timedelta(days=30)
-
-    users = ['13234590', '13234584']
-    for i in UMP_MAP[USER_METRIC_PERIOD_TYPE.REGISTRATION](users, o):
-        # print i
-        pass
-
-    for i in UMP_MAP[USER_METRIC_PERIOD_TYPE.INPUT](users, o):
-        # print i
-        pass
-
-    for i in UMP_MAP[USER_METRIC_PERIOD_TYPE.REGINPUT](users, o):
-        print i
-        # pass
