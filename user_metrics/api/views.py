@@ -35,6 +35,8 @@ from user_metrics.api.engine.request_meta import request_queue, \
     response_queue, rebuild_unpacked_request
 from user_metrics.metrics import query_mod
 
+# Instantiate flask app
+app = Flask(__name__)
 
 # REGEX to identify refresh flags in the URL
 REFRESH_REGEX = r'refresh[^&]*&|\?refresh[^&]*$|&refresh[^&]*$'
@@ -49,6 +51,8 @@ api_data = OrderedDict()
 
 
 # Error codes for web requests
+# ############################
+
 global error_codes
 error_codes = {
     0: 'Job already running.',
@@ -69,7 +73,98 @@ def get_errors(request_args):
     return error
 
 
-app = Flask(__name__)
+# API User Authentication
+# #######################
+
+from flask.ext.login import (LoginManager, current_user, login_required,
+                             login_user, logout_user, UserMixin, AnonymousUser,
+                             confirm_login, fresh_login_required)
+
+
+class APIUser(UserMixin):
+    """
+        Extends USerMixin.  User class for flask-login.
+    """
+    def __init__(self, name, id, active=True):
+        self.name = name
+        self.id = id
+        self.active = active
+
+    def is_active(self):
+        return self.active
+
+    @staticmethod
+    def get(uid):
+        """
+            Used by ``load_user`` to retrieve user session info.
+        """
+        usr_ref = query_mod.get_api_user(uid)
+        if usr_ref:
+            try:
+                return APIUser(unicode(str(usr_ref[0])),
+                    int(usr_ref[1]))
+            except (KeyError, ValueError):
+                logging.error(__name__ + ' :: Could not get API user info.')
+                return None
+        else:
+            return None
+
+
+class Anonymous(AnonymousUser):
+    name = u'Anonymous'
+
+login_manager = LoginManager()
+
+login_manager.anonymous_user = Anonymous
+login_manager.login_view = 'login'
+login_manager.login_message = u'Please log in to access this page.'
+login_manager.refresh_view = 'reauth'
+
+
+@login_manager.user_loader
+def load_user(uid):
+    return APIUser.get(int(uid))
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST' and 'username' in request.form:
+        username = request.form['username']
+        result = query_mod.get_api_user(username, by_id=False)
+        if result:
+            uid = result[1]
+            remember = request.form.get('remember', 'no') == 'yes'
+            if login_user(APIUser.get(int(uid)), remember=remember):
+                flash('Logged in!')
+                return redirect(request.args.get('next')
+                or url_for('api_root'))
+            else:
+                flash('Sorry, but you could not log in.')
+        else:
+            flash(u"Invalid username.")
+    return render_template('login.html')
+
+
+@app.route('/reauth', methods=['GET', 'POST'])
+@login_required
+def reauth():
+    if request.method == 'POST':
+        confirm_login()
+        flash(u'Reauthenticated.')
+        return redirect(request.args.get('next') or url_for('api_root'))
+    return render_template('reauth.html')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Logged out.')
+    return redirect(url_for('api_root'))
+
+
+# Views
+# #####
 
 
 @app.route('/')
@@ -297,83 +392,3 @@ def process_responses():
 
         data = make_response(jsonify(res[1]))
         set_data(request_meta, data, api_data)
-
-
-# API User Authentication
-# #######################
-
-from flask.ext.login import (LoginManager, current_user, login_required,
-                             login_user, logout_user, UserMixin, AnonymousUser,
-                             confirm_login, fresh_login_required)
-
-
-class APIUser(UserMixin):
-    """
-        Extends USerMixin.  User class for flask-login.
-    """
-    def __init__(self, name, id, active=True):
-        self.name = name
-        self.id = id
-        self.active = active
-
-    def is_active(self):
-        return self.active
-
-    @staticmethod
-    def get(uid):
-        """
-            Used by ``load_user`` to retrieve user session info.
-        """
-        usr_ref = query_mod.get_api_user(uid)
-        if usr_ref:
-            try:
-                return APIUser(unicode(str(usr_ref[0])),
-                               int(usr_ref[1]))
-            except (KeyError, ValueError):
-                logging.error(__name__ + ' :: Could not get API user info.')
-                return None
-        else:
-            return None
-
-
-class Anonymous(AnonymousUser):
-    name = u'Anonymous'
-
-login_manager = LoginManager()
-
-login_manager.anonymous_user = Anonymous
-login_manager.login_view = 'login'
-login_manager.login_message = u'Please log in to access this page.'
-login_manager.refresh_view = 'reauth'
-
-
-@login_manager.user_loader
-def load_user(uid):
-    return APIUser.get(int(uid))
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST' and 'username' in request.form:
-        username = request.form['username']
-        result = query_mod.get_api_user(username, by_id=False)
-        if result:
-            uid = result[1]
-            remember = request.form.get('remember', 'no') == 'yes'
-            if login_user(APIUser.get(int(uid)), remember=remember):
-                flash('Logged in!')
-                return redirect(request.args.get('next')
-                                or url_for('api_root'))
-            else:
-                flash('Sorry, but you could not log in.')
-        else:
-            flash(u"Invalid username.")
-    return render_template('login.html')
-
-
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    flash('Logged out.')
-    return redirect(url_for('api_root'))
