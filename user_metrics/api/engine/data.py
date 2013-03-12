@@ -217,7 +217,7 @@ def build_key_signature(request_meta, hash_result=False):
         if hasattr(request_meta, key_name):
             key = getattr(request_meta, key_name)
             if key:
-                key_sig.append(key_name + HASH_KEY_DELIMETER + key)
+                key_sig.append(key_name + HASH_KEY_DELIMETER + str(key))
 
     if hash_result:
         return sha1(str(key_sig).encode('utf-8')).hexdigest()
