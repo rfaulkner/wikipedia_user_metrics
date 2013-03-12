@@ -396,17 +396,30 @@ def delete_usertags_meta(ut_tag):
 delete_usertags_meta.__query_name__ = 'delete_usertags_meta'
 
 
-def get_api_user(uid):
+def get_api_user(user, by_id=True):
     """
         Retrieve an API user from the ``PROD`` database.
+
+        Parameters
+        ~~~~~~~~~~
+
+            user : int|str
+                Reference to an API user.
+
+            by_id : Bool(=True)
+                Flag to determine whether filtering by id or name.
     """
-    conn = Connector(instance=conf.PROJECT_DB_MAP[
-                              conf.__cohort_data_instance__])
-    select_query = query_store[get_api_user.__query_name__] % {
-        'cohort_meta_db': conf.__cohort_meta_db__,
-        'user_id': str(uid)
+    conn = Connector(instance=conf.__cohort_data_instance__)
+
+    if by_id:
+        query = get_api_user.__query_name__ + '_by_id'
+    else:
+        query = get_api_user.__query_name__ + '_by_name'
+    query = query_store[query] % {
+        'cohort_meta_instance': conf.__cohort_meta_instance__,
+        'user': str(user)
     }
-    conn._cur_.execute(select_query)
+    conn._cur_.execute(query)
     api_user_tuple = conn._cur_.fetchone()
     del conn
     return api_user_tuple
@@ -557,10 +570,16 @@ query_store = {
             %(cohort_meta_instance)s.%(cohort_meta_db)s
         WHERE ut_tag = %(ut_tag)s
     """,
-    get_api_user.__query_name__:
+    get_api_user.__query_name__ + '_by_id':
     """
         SELECT user_name, user_id
-        FROM %(cohort_meta_db)s.api_user
-        WHERE user_id = %(uid)s
+        FROM %(cohort_meta_instance)s.api_user
+        WHERE user_id = %(user)s
+    """,
+    get_api_user.__query_name__ + '_by_name':
+    """
+        SELECT user_name, user_id
+        FROM %(cohort_meta_instance)s.api_user
+        WHERE user_name = '%(user)s'
     """,
 }
