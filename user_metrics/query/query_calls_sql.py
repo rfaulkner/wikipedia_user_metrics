@@ -396,6 +396,26 @@ def delete_usertags_meta(ut_tag):
 delete_usertags_meta.__query_name__ = 'delete_usertags_meta'
 
 
+def get_api_user(uid):
+    """
+        Retrieve an API user from the ``PROD`` database.
+    """
+    conn = Connector(instance=conf.PROJECT_DB_MAP[
+                              conf.__cohort_data_instance__])
+    select_query = query_store[get_api_user.__query_name__] % {
+        'cohort_meta_db': conf.__cohort_meta_db__,
+        'user_id': str(uid)
+    }
+    conn._cur_.execute(select_query)
+    api_user_tuple = conn._cur_.fetchone()
+    del conn
+    return api_user_tuple
+get_api_user.__query_name__ = 'get_api_user'
+
+
+# QUERY DEFINITIONS
+# #################
+
 query_store = {
     rev_count_query.__query_name__:
     """
@@ -536,5 +556,11 @@ query_store = {
         DELETE FROM
             %(cohort_meta_instance)s.%(cohort_meta_db)s
         WHERE ut_tag = %(ut_tag)s
+    """,
+    get_api_user.__query_name__:
+    """
+        SELECT user_name, user_id
+        FROM %(cohort_meta_db)s.api_user
+        WHERE user_id = %(uid)s
     """,
 }
