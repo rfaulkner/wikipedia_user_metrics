@@ -168,6 +168,7 @@ def logout():
 
 
 @app.route('/')
+@login_required
 def api_root():
     """ View for root url - API instructions """
     #@@@ TODO make tag list generation a dedicated method
@@ -180,16 +181,19 @@ def api_root():
 
 
 @app.route('/about/')
+@login_required
 def about():
     return render_template('about.html')
 
 
 @app.route('/contact/')
+@login_required
 def contact():
     return render_template('contact.html')
 
 
 @app.route('/metrics/', methods=['POST', 'GET'])
+@login_required
 def all_metrics():
     """ Display a list of available metrics """
     if request.method == 'POST':
@@ -200,6 +204,7 @@ def all_metrics():
 
 
 @app.route('/metrics/<string:metric>')
+@login_required
 def metric(metric=''):
     """ Display single metric documentation """
     #@@@ TODO make tag list generation a dedicated method
@@ -212,6 +217,7 @@ def metric(metric=''):
 
 
 @app.route('/user/<string:user>/<string:metric>')
+@login_required
 def user_request(user, metric):
     """ View for requesting metrics for a single user """
     url = request.url.split(request.url_root)[1]
@@ -240,6 +246,7 @@ def user_request(user, metric):
 
 
 @app.route('/cohorts/', methods=['POST', 'GET'])
+@login_required
 def all_cohorts():
     """ View for listing and selecting cohorts """
     error = get_errors(request.args)
@@ -258,6 +265,7 @@ def all_cohorts():
 
 
 @app.route('/cohorts/<string:cohort>')
+@login_required
 def cohort(cohort=''):
     """ View single cohort page """
     error = get_errors(request.args)
@@ -269,6 +277,7 @@ def cohort(cohort=''):
 
 
 @app.route('/cohorts/<string:cohort>/<string:metric>')
+@login_required
 def output(cohort, metric):
     """ View corresponding to a data request -
         All of the setup and execution for a request happens here. """
@@ -327,6 +336,7 @@ def output(cohort, metric):
 
 
 @app.route('/job_queue/')
+@login_required
 def job_queue():
     """ View for listing current jobs working """
 
@@ -359,6 +369,7 @@ def job_queue():
 
 
 @app.route('/all_requests')
+@login_required
 def all_urls():
     """ View for listing all requests.  Retireves from cache """
 
