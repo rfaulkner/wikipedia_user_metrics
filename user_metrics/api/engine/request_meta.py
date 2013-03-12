@@ -60,8 +60,7 @@ REQUEST_VALUE_MAPPING = {
 RequestMeta = recordtype('RequestMeta',
                          'cohort_expr cohort_gen_timestamp metric '
                          'time_series aggregator restrict project '
-                         'namespace date_start date_end interval t n '
-                         'period_type')
+                         'namespace start end interval t n  period_type')
 
 
 # API queues for API service requests and responses
@@ -97,7 +96,7 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
 
 
 REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace',
-                          'date_start', 'date_end', 'interval', 't', 'n',
+                          'start', 'end', 'interval', 't', 'n',
                           'time_unit', 'time_unit_count', 'look_ahead',
                           'look_back', 'threshold_type', 'restrict',
                           'period_type',
@@ -115,8 +114,8 @@ REQUEST_META_BASE = ['cohort_expr', 'metric']
 # defines a tuple for mapped variable names
 varMapping = namedtuple("VarMapping", "query_var metric_var")
 
-common_params = [varMapping('date_start', 'datetime_start'),
-                 varMapping('date_end', 'datetime_end'),
+common_params = [varMapping('start', 'datetime_start'),
+                 varMapping('end', 'datetime_end'),
                  varMapping('project', 'project'),
                  varMapping('namespace', 'namespace'),
                  varMapping('interval', 'interval'),
@@ -160,19 +159,19 @@ def format_request_params(request_meta):
 
     # Handle any datetime fields passed - raise an exception if the
     # formatting is incorrect
-    if request_meta.date_start:
+    if request_meta.start:
         try:
-            request_meta.date_start = date_parse(
-                escape(request_meta.date_start)).strftime(
+            request_meta.start = date_parse(
+                escape(request_meta.start)).strftime(
                     DATETIME_STR_FORMAT)[:8] + TIME_STR
         except ValueError:
             # Pass the value of the error code in `error_codes`
             raise MetricsAPIError('1')
 
-    if request_meta.date_end:
+    if request_meta.end:
         try:
-            request_meta.date_end = date_parse(
-                escape(request_meta.date_end)).strftime(
+            request_meta.end = date_parse(
+                escape(request_meta.end)).strftime(
                     DATETIME_STR_FORMAT)[:8] + TIME_STR
         except ValueError:
             # Pass the value of the error code in `error_codes`

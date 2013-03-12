@@ -29,7 +29,7 @@
 
         {   header : header_list,
             cohort_expr : cohort_gen_timestamp : metric : timeseries :
-            aggregator : date_start : date_end : [ metric_param : ]* : data
+            aggregator : start : end : [ metric_param : ]* : data
         }
 
     Where each component is defined: ::
@@ -41,8 +41,8 @@
         metric := str, user metric handle
         timeseries := boolean, indicates if this is a timeseries
         aggregator := str, aggregator used
-        date_start := str, start datetime of request
-        date_end := str, end datetime of request
+        start := str, start datetime of request
+        end := str, end datetime of request
         metric_param := -, optional metric parameters
         data := list(tuple), set of data points
 

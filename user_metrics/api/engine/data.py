@@ -24,7 +24,7 @@
     maps to::
 
         api_data['cohort_expr <==> e3_ob2b']['metric <==> revert_rate']
-        ['date_start <==> xx']['date_start <==> yy']['t <==> 10000']
+        ['start <==> xx']['start <==> yy']['t <==> 10000']
 
     The list of key values for a given request is referred to as it's "key
     signature".  The order of parameters is perserved.
