@@ -120,7 +120,7 @@ def _get_revisions(args):
     query_args_type = namedtuple('QueryArgs', 'date_start date_end namespace')
 
     revs = list()
-    umpd_obj = UMP_MAP[metric_params.period_type](users, metric_params)
+    umpd_obj = UMP_MAP[metric_params.group](users, metric_params)
     try:
         for t in umpd_obj:
             revs += \

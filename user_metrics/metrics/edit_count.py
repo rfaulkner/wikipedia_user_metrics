@@ -113,7 +113,7 @@ def _process_help(args):
                              '%s users (PID = %s)' % (len(users), getpid()))
 
     # Call user period method
-    umpd_obj = UMP_MAP[metric_params.period_type](users, metric_params)
+    umpd_obj = UMP_MAP[metric_params.group](users, metric_params)
     results = list()
     for t in umpd_obj:
         args = query_args_type(t.start, t.end)

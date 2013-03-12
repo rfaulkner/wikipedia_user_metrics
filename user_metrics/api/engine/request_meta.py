@@ -49,7 +49,7 @@ from user_metrics.config import logging
 
 # Structure that maps values in the query string to new ones
 REQUEST_VALUE_MAPPING = {
-    'period_type': {
+    'group': {
         'reg': 0,
         'input': 1,
         'reginput': 2,
@@ -60,7 +60,7 @@ REQUEST_VALUE_MAPPING = {
 RequestMeta = recordtype('RequestMeta',
                          'cohort_expr cohort_gen_timestamp metric '
                          'time_series aggregator restrict project '
-                         'namespace start end interval t n  period_type')
+                         'namespace start end interval t n  group')
 
 
 # API queues for API service requests and responses
@@ -99,7 +99,7 @@ REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace',
                           'start', 'end', 'interval', 't', 'n',
                           'time_unit', 'time_unit_count', 'look_ahead',
                           'look_back', 'threshold_type', 'restrict',
-                          'period_type',
+                          'group',
                           ]
 REQUEST_META_BASE = ['cohort_expr', 'metric']
 
@@ -122,7 +122,7 @@ common_params = [varMapping('start', 'datetime_start'),
                  varMapping('time_series', 'time_series'),
                  varMapping('aggregator', 'aggregator'),
                  varMapping('t', 't'),
-                 varMapping('period_type', 'period_type')]
+                 varMapping('group', 'period_type')]
 
 QUERY_PARAMS_BY_METRIC = {
     'blocks': common_params,

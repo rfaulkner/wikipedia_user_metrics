@@ -162,7 +162,7 @@ class UserMetric(object):
             'datetime_end': [str, 'Latest date metric is measured.',
                              DEFAULT_DATE_END],
             't': [int, 'Hours over which to measure metric.', 24],
-            'period_type': [int, 'Defines the type of period over which '
+            'group': [int, 'Defines the type of period over which '
                                  'user metrics are measured.',
                             USER_METRIC_PERIOD_TYPE.REGISTRATION],
             'project': [str, 'The project (language) being inspected.',
