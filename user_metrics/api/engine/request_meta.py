@@ -59,7 +59,7 @@ REQUEST_VALUE_MAPPING = {
 # Define standard variable names in the query string - store in named tuple
 RequestMeta = recordtype('RequestMeta',
                          'cohort_expr cohort_gen_timestamp metric '
-                         'time_series aggregator restrict project '
+                         'time_series aggregator project '
                          'namespace start end interval t n  group')
 
 
@@ -98,9 +98,7 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
 REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace',
                           'start', 'end', 'interval', 't', 'n',
                           'time_unit', 'time_unit_count', 'look_ahead',
-                          'look_back', 'threshold_type', 'restrict',
-                          'group',
-                          ]
+                          'look_back', 'threshold_type', 'group']
 REQUEST_META_BASE = ['cohort_expr', 'metric']
 
 
@@ -135,9 +133,8 @@ QUERY_PARAMS_BY_METRIC = {
     'namespace_edits': common_params,
     'revert_rate': common_params + [varMapping('look_back', 'look_back'),
                                     varMapping('look_ahead', 'look_ahead')],
-    'survival': common_params + [varMapping('restrict', 'restrict')],
-    'threshold': common_params + [varMapping('restrict', 'restrict'),
-                                  varMapping('n', 'n')],
+    'survival': common_params,
+    'threshold': common_params + [varMapping('n', 'n')],
     'time_to_threshold': common_params + [varMapping('threshold_type',
                                                      'threshold_type_class')],
     }
