@@ -152,7 +152,7 @@ def get_data(hash_table_ref, request_meta, hash_result=True):
 
     # Ensure that an interface that does not rely on keyed values is returned
     # all data must be in interfaces resembling lists
-    if data and not hasattr(hash_table_ref, '__iter__'):
+    if data and not hasattr(data, 'keys'):
         if hash_result:
             return data[0]
         else:
