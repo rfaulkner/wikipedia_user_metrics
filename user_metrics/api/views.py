@@ -102,7 +102,7 @@ class APIUser(UserMixin):
         if usr_ref:
             try:
                 return APIUser(unicode(str(usr_ref[0])),
-                    int(usr_ref[1]))
+                               int(usr_ref[1]))
             except (KeyError, ValueError):
                 logging.error(__name__ + ' :: Could not get API user info.')
                 return None
@@ -137,7 +137,7 @@ def login():
             if login_user(APIUser.get(int(uid)), remember=remember):
                 flash('Logged in!')
                 return redirect(request.args.get('next')
-                or url_for('api_root'))
+                                or url_for('api_root'))
             else:
                 flash('Sorry, but you could not log in.')
         else:
@@ -313,7 +313,7 @@ def output(cohort, metric):
     # Determine if the request maps to an existing response.
     # 1. The response already exists in the hash, return.
     # 2. Otherwise, add the request tot the queue.
-    data = get_data(rm, api_data)
+    data = get_data(api_data, rm)
     key_sig = build_key_signature(rm, hash_result=True)
 
     # Determine if request is already hashed
@@ -402,4 +402,4 @@ def process_responses():
             requests_made[key_sig][0] = False
 
         data = make_response(jsonify(res[1]))
-        set_data(request_meta, data, api_data)
+        set_data(api_data, data, request_meta)
