@@ -41,7 +41,7 @@ from dateutil.parser import parse as date_parse
 import user_metrics.metrics.metrics_manager as mm
 from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine import DEFAULT_QUERY_VAL, DATETIME_STR_FORMAT
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from flask import escape
 from multiprocessing import Queue
 from user_metrics.config import logging
@@ -82,62 +82,27 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
     """
     default_params = 'cohort_expr cohort_gen_timestamp metric '
     additional_params = ''
-    for val in QUERY_PARAMS_BY_METRIC[metric_expr]:
+    for val in ParameterMapping.QUERY_PARAMS_BY_METRIC[metric_expr]:
         additional_params += val.query_var + ' '
     additional_params = additional_params[:-1]
     params = default_params + additional_params
 
     arg_list = ['cohort_expr', 'cohort_gen_timestamp', 'metric_expr'] +\
-               ['None'] * len(QUERY_PARAMS_BY_METRIC[metric_expr])
+               ['None'] * \
+               len(ParameterMapping.QUERY_PARAMS_BY_METRIC[metric_expr])
     arg_str = "(" + ",".join(arg_list) + ")"
 
     rt = recordtype("RequestMeta", params)
     return eval('rt' + arg_str)
 
-
+# Defines what variables may be extracted from the query string
 REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace',
                           'start', 'end', 'interval', 't', 'n',
                           'time_unit', 'time_unit_count', 'look_ahead',
                           'look_back', 'threshold_type', 'group']
+
+# Defines which variables may be taken from the URL path
 REQUEST_META_BASE = ['cohort_expr', 'metric']
-
-
-# Using the MEDIATOR model :: Defines the query parameters accepted by each
-# metric request.  This is a dict keyed on
-# metric that stores a list of tuples.  Each tuple defines:
-#
-#       (<name of allowable query string var>, <name of corresponding
-#       metric param>)
-
-# defines a tuple for mapped variable names
-varMapping = namedtuple("VarMapping", "query_var metric_var")
-
-common_params = [varMapping('start', 'datetime_start'),
-                 varMapping('end', 'datetime_end'),
-                 varMapping('project', 'project'),
-                 varMapping('namespace', 'namespace'),
-                 varMapping('interval', 'interval'),
-                 varMapping('time_series', 'time_series'),
-                 varMapping('aggregator', 'aggregator'),
-                 varMapping('t', 't'),
-                 varMapping('group', 'group')]
-
-QUERY_PARAMS_BY_METRIC = {
-    'blocks': common_params,
-    'bytes_added': common_params,
-    'edit_count': common_params,
-    'edit_rate': common_params + [varMapping('time_unit', 'time_unit'),
-                                  varMapping('time_unit_count',
-                                             'time_unit_count')],
-    'live_account': common_params,
-    'namespace_edits': common_params,
-    'revert_rate': common_params + [varMapping('look_back', 'look_back'),
-                                    varMapping('look_ahead', 'look_ahead')],
-    'survival': common_params,
-    'threshold': common_params + [varMapping('n', 'n')],
-    'time_to_threshold': common_params + [varMapping('threshold_type',
-                                                     'threshold_type_class')],
-}
 
 
 def format_request_params(request_meta):
@@ -257,3 +222,79 @@ def rebuild_unpacked_request(unpacked_req):
     except KeyError:
         raise MetricsAPIError(__name__ + ' :: rebuild_unpacked_request - '
                                          'Invalid fields.')
+
+
+# DEFINE MAPPING AMONG API REQUESTS AND METRICS
+# #############################################
+
+from user_metrics.utils import unpack_fields
+
+
+class ParameterMapping(object):
+    """
+        Using the **Mediator** model :: Defines the query parameters accepted by
+        each metric request.  This is a dict keyed on metric that stores a list
+        of tuples.  Each tuple defines:
+
+           (<name of allowable query string var>, <name of corresponding
+           metric param>)
+
+    """
+
+    # Singleton instance
+    __instance = None
+
+    def __init__(self):
+        """ Initialize the Singleton instance """
+        self.__class__.__instance = self
+
+    def __new__(cls):
+        """ This class is Singleton, return only one instance """
+        if not cls.__instance:
+            cls.__instance = super(ParameterMapping, cls).__new__(cls)
+        return cls.__instance
+
+    # defines a tuple for mapped variable names
+    varMapping = namedtuple("VarMapping", "query_var metric_var")
+
+    common_params = [varMapping('start', 'datetime_start'),
+                     varMapping('end', 'datetime_end'),
+                     varMapping('project', 'project'),
+                     varMapping('namespace', 'namespace'),
+                     varMapping('interval', 'interval'),
+                     varMapping('time_series', 'time_series'),
+                     varMapping('aggregator', 'aggregator'),
+                     varMapping('t', 't'),
+                     varMapping('group', 'group')]
+
+    QUERY_PARAMS_BY_METRIC = {
+        'blocks': common_params,
+        'bytes_added': common_params,
+        'edit_count': common_params,
+        'edit_rate': common_params + [varMapping('time_unit', 'time_unit'),
+                                      varMapping('time_unit_count',
+                                                 'time_unit_count')],
+        'live_account': common_params,
+        'namespace_edits': common_params,
+        'revert_rate': common_params + [varMapping('look_back', 'look_back'),
+                                        varMapping('look_ahead',
+                                                   'look_ahead')],
+        'survival': common_params,
+        'threshold': common_params + [varMapping('n', 'n')],
+        'time_to_threshold': common_params +
+        [varMapping('threshold_type', 'threshold_type_class')],
+    }
+
+    @staticmethod
+    def map(request_meta):
+        """
+            Unpack RequestMeta into dict using MEDIATOR Map parameters from
+            API request to metrics call.
+        """
+        args = unpack_fields(request_meta)
+        new_args = OrderedDict()
+
+        for mapping in ParameterMapping.\
+                QUERY_PARAMS_BY_METRIC[request_meta.metric]:
+            new_args[mapping.metric_var] = args[mapping.query_var]
+        return new_args
