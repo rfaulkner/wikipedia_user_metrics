@@ -572,13 +572,13 @@ query_store = {
     """,
     get_api_user.__query_name__ + '_by_id':
     """
-        SELECT user_name, user_id
+        SELECT user_name, user_id, user_pass
         FROM %(cohort_meta_instance)s.api_user
         WHERE user_id = %(user)s
     """,
     get_api_user.__query_name__ + '_by_name':
     """
-        SELECT user_name, user_id
+        SELECT user_name, user_id, user_pass
         FROM %(cohort_meta_instance)s.api_user
         WHERE user_name = '%(user)s'
     """,

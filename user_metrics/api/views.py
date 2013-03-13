@@ -130,8 +130,10 @@ def load_user(uid):
 def login():
     if request.method == 'POST' and 'username' in request.form:
         username = request.form['username']
+        passwd = request.form['password']
         result = query_mod.get_api_user(username, by_id=False)
-        if result:
+
+        if result and passwd == str(result[2]):
             uid = result[1]
             remember = request.form.get('remember', 'no') == 'yes'
             if login_user(APIUser.get(int(uid)), remember=remember):
@@ -140,8 +142,10 @@ def login():
                                 or url_for('api_root'))
             else:
                 flash('Sorry, but you could not log in.')
+        elif result:
+            flash(u'Invalid password.')
         else:
-            flash(u"Invalid username.")
+            flash(u'Invalid username.')
     return render_template('login.html')
 
 
