@@ -22,17 +22,16 @@ from re import search, sub
 from collections import OrderedDict
 
 from user_metrics.etl.data_loader import Connector
-from user_metrics.metrics.metrics_manager import get_metric_names
 from user_metrics.config import logging
 from user_metrics.utils import unpack_fields
-from user_metrics.api.engine.data import build_key_tree, get_cohort_id, \
+from user_metrics.api.engine.data import get_cohort_id, \
     get_cohort_refresh_datetime, get_data, get_url_from_keys, set_data, \
-    build_key_signature, get_keys_from_tree
+    build_key_signature
 from user_metrics.api.engine import MW_UNAME_REGEX
 from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine.request_meta import request_queue, \
     filter_request_input, format_request_params, RequestMetaFactory, \
-    response_queue, rebuild_unpacked_request
+    response_queue, rebuild_unpacked_request, get_metric_names
 from user_metrics.metrics import query_mod
 
 # Instantiate flask app
