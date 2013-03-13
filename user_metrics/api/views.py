@@ -372,10 +372,7 @@ def job_queue():
 @login_required
 def all_urls():
     """ View for listing all requests.  Retireves from cache """
-
-    # Build a tree containing nested key values
-    tree = build_key_tree(api_data)
-    key_sigs = get_keys_from_tree(tree)
+    key_sigs = [api_data[key][1] for key in api_data]
 
     # Compose urls from key sigs
     url_list = list()

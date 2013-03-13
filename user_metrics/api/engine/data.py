@@ -135,7 +135,10 @@ def get_cohort_refresh_datetime(utm_id):
 
 
 def get_data(hash_table_ref, request_meta, hash_result=True):
-    """ Extract data from the global hash given a request object """
+    """
+        Extract data from the global hash given a request object.  If an item
+        is successfully recovered data is returned
+    """
 
     # Traverse the hash key structure to find data
     # @TODO rather than iterate through REQUEST_META_BASE &
@@ -150,7 +153,10 @@ def get_data(hash_table_ref, request_meta, hash_result=True):
     # Ensure that an interface that does not rely on keyed values is returned
     # all data must be in interfaces resembling lists
     if data and not hasattr(hash_table_ref, '__iter__'):
-        return data
+        if hash_result:
+            return data[0]
+        else:
+            return data
     else:
         logging.error(__name__ + ' :: Can\'t return an iterator.')
         return None
@@ -165,7 +171,8 @@ def set_data(hash_table_ref, data, request_meta, hash_result=True):
     logging.debug(__name__ + " :: Adding data to hash @ key signature = {0}".
                   format(str(key_sig)))
     if hash_result:
-        hash_table_ref[key_sig] = data
+        key_sig_full = build_key_signature(request_meta, hash_result=False)
+        hash_table_ref[key_sig] = (data, key_sig_full)
     else:
         last_item = key_sig[-1]
         for item in key_sig:
