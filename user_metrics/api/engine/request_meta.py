@@ -44,14 +44,23 @@ from user_metrics.api.engine import DEFAULT_QUERY_VAL, DATETIME_STR_FORMAT
 from collections import namedtuple
 from flask import escape
 from multiprocessing import Queue
+from user_metrics.config import logging
 
+
+# Structure that maps values in the query string to new ones
+REQUEST_VALUE_MAPPING = {
+    'group': {
+        'reg': 0,
+        'input': 1,
+        'reginput': 2,
+    }
+}
 
 # Define standard variable names in the query string - store in named tuple
 RequestMeta = recordtype('RequestMeta',
-    'cohort_expr cohort_gen_timestamp metric '
-    'time_series aggregator restrict project '
-    'namespace date_start date_end interval t n '
-    'period_type')
+                         'cohort_expr cohort_gen_timestamp metric '
+                         'time_series aggregator project '
+                         'namespace start end interval t n  group')
 
 
 # API queues for API service requests and responses
@@ -87,11 +96,9 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
 
 
 REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace',
-                          'date_start', 'date_end', 'interval', 't', 'n',
+                          'start', 'end', 'interval', 't', 'n',
                           'time_unit', 'time_unit_count', 'look_ahead',
-                          'look_back', 'threshold_type', 'restrict',
-                          'period_type',
-                          ]
+                          'look_back', 'threshold_type', 'group']
 REQUEST_META_BASE = ['cohort_expr', 'metric']
 
 
@@ -105,15 +112,15 @@ REQUEST_META_BASE = ['cohort_expr', 'metric']
 # defines a tuple for mapped variable names
 varMapping = namedtuple("VarMapping", "query_var metric_var")
 
-common_params = [varMapping('date_start', 'datetime_start'),
-                 varMapping('date_end', 'datetime_end'),
+common_params = [varMapping('start', 'datetime_start'),
+                 varMapping('end', 'datetime_end'),
                  varMapping('project', 'project'),
                  varMapping('namespace', 'namespace'),
                  varMapping('interval', 'interval'),
                  varMapping('time_series', 'time_series'),
                  varMapping('aggregator', 'aggregator'),
                  varMapping('t', 't'),
-                 varMapping('period_type', 'period_type')]
+                 varMapping('group', 'group')]
 
 QUERY_PARAMS_BY_METRIC = {
     'blocks': common_params,
@@ -121,17 +128,17 @@ QUERY_PARAMS_BY_METRIC = {
     'edit_count': common_params,
     'edit_rate': common_params + [varMapping('time_unit', 'time_unit'),
                                   varMapping('time_unit_count',
-                                      'time_unit_count')],
+                                             'time_unit_count')],
     'live_account': common_params,
     'namespace_edits': common_params,
     'revert_rate': common_params + [varMapping('look_back', 'look_back'),
-                                    varMapping('look_ahead', 'look_ahead'),],
-    'survival': common_params + [varMapping('restrict', 'restrict'),],
-    'threshold': common_params + [varMapping('restrict', 'restrict'),
-                                  varMapping('n', 'n')],
+                                    varMapping('look_ahead', 'look_ahead')],
+    'survival': common_params,
+    'threshold': common_params + [varMapping('n', 'n')],
     'time_to_threshold': common_params + [varMapping('threshold_type',
-        'threshold_type_class')],
-    }
+                                                     'threshold_type_class')],
+}
+
 
 def format_request_params(request_meta):
     """
@@ -149,20 +156,20 @@ def format_request_params(request_meta):
 
     # Handle any datetime fields passed - raise an exception if the
     # formatting is incorrect
-    if request_meta.date_start:
+    if request_meta.start:
         try:
-            request_meta.date_start = date_parse(
-                escape(request_meta.date_start)).strftime(
-                DATETIME_STR_FORMAT)[:8] + TIME_STR
+            request_meta.start = date_parse(
+                escape(request_meta.start)).strftime(
+                    DATETIME_STR_FORMAT)[:8] + TIME_STR
         except ValueError:
             # Pass the value of the error code in `error_codes`
             raise MetricsAPIError('1')
 
-    if request_meta.date_end:
+    if request_meta.end:
         try:
-            request_meta.date_end = date_parse(
-                escape(request_meta.date_end)).strftime(
-                DATETIME_STR_FORMAT)[:8] + TIME_STR
+            request_meta.end = date_parse(
+                escape(request_meta.end)).strftime(
+                    DATETIME_STR_FORMAT)[:8] + TIME_STR
         except ValueError:
             # Pass the value of the error code in `error_codes`
             raise MetricsAPIError('1')
@@ -170,8 +177,35 @@ def format_request_params(request_meta):
     # set the aggregator if there is one
     agg_key = mm.get_agg_key(request_meta.aggregator, request_meta.metric)
     request_meta.aggregator = escape(request_meta.aggregator)\
-    if agg_key else None
+        if agg_key else None
     # @TODO Escape remaining input
+
+    # MAP request values.
+    _map_request_values(request_meta)
+
+
+def _map_request_values(request_meta):
+    """
+        Map values from the request.  Use ``REQUEST_VALUE_MAPPING`` convert
+        coded values from the request if a familiar encoding is present.
+
+            Parameters
+            ~~~~~~~~~~
+
+            request_meta : recordtype:
+                Stores the request data.
+    """
+    for attr in REQUEST_VALUE_MAPPING:
+        if hasattr(request_meta, attr):
+            request_value = None
+            try:
+                request_value = getattr(request_meta, attr)
+                map_val = REQUEST_VALUE_MAPPING[attr][request_value]
+                setattr(request_meta, attr, map_val)
+            except KeyError:
+                logging.error(__name__ + ' :: Could not map request value '
+                                         '{0} for variable {1}.'.
+                              format(str(request_value), attr))
 
 
 def filter_request_input(request, request_meta_obj):
@@ -198,14 +232,22 @@ def filter_request_input(request, request_meta_obj):
 
 
 def rebuild_unpacked_request(unpacked_req):
-    """ Takes an unpacked (user_metrics.utils.unpack_fields) RequestMeta object
+    """
+        Takes an unpacked (user_metrics.utils.unpack_fields) RequestMeta object
         and composes a RequestMeta object
+
+        Parameters
+        ~~~~~~~~~~
+
+            unpacked_req : dict
+                This dictionary contains keys that map to the attributes of the
+                ``RequestMeta`` type.
     """
     try:
         # Build the request item
         rm = RequestMetaFactory(unpacked_req['cohort_expr'],
-            unpacked_req['cohort_gen_timestamp'],
-            unpacked_req['metric'])
+                                unpacked_req['cohort_gen_timestamp'],
+                                unpacked_req['metric'])
 
         # Populate the request data
         for key in unpacked_req:

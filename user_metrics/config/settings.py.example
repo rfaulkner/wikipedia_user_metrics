@@ -25,6 +25,8 @@
     - **__cohort_meta_db__**        : Database storing users with cohort tags.
     - **__cohort_meta_instance__**  : Database containing meta data for
     cohorts.
+    - **__secret_key__**            : User session secret key for use with
+    flask-login
 
     MediaWiki DB Settings
     ~~~~~~~~~~~~~~~~~~~~~
@@ -62,6 +64,8 @@ __cohort_data_instance__    = 'cohorts'
 __cohort_db__               = 'usertags'
 __cohort_meta_db__          = 'usertags_meta'
 __cohort_meta_instance__    = 'staging'
+
+__secret_key__ = 'your secret key - CHANGE THIS'
 
 
 # Database connection settings

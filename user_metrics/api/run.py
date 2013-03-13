@@ -49,7 +49,7 @@ from datetime import datetime
 
 from user_metrics.config import logging, settings
 from engine.request_manager import job_control
-from user_metrics.api.views import app
+from user_metrics.api.views import app, login_manager
 from user_metrics.api.engine.request_meta import request_queue, \
     response_queue
 from user_metrics.api.engine import DATETIME_STR_FORMAT
@@ -117,6 +117,8 @@ if __name__ == '__main__':
 
     setup_controller(request_queue, response_queue)
     try:
+        app.config['SECRET_KEY'] = 'blahblahblah'
+        login_manager.setup_app(app)
         app.run(debug=True, use_reloader=False)
     finally:
         teardown(api_data)

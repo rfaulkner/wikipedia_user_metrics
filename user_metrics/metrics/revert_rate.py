@@ -21,7 +21,7 @@ RevertRateArgsClass = collections.namedtuple('RevertRateArgs',
                                              'project log_progress '
                                              'look_ahead look_back t '
                                              'rev_threads namespace '
-                                             'period_type')
+                                             'group')
 
 
 class RevertRate(um.UserMetric):
@@ -103,7 +103,7 @@ class RevertRate(um.UserMetric):
 
         args = [self.project, self.log_, self.look_ahead,
                 self.look_back, self.t, self.datetime_end, self.kr_,
-                self.namespace, self.period_type]
+                self.namespace, self.group]
         self._results = mpw.build_thread_pool(user_handle, _process_help,
                                               self.k_, args)
 
@@ -157,7 +157,7 @@ def _process_help(args):
                     % (len(users), str(os.getpid())))
     results_agg = list()
 
-    umpd_obj = UMP_MAP[thread_args.period_type](users, thread_args)
+    umpd_obj = UMP_MAP[thread_args.group](users, thread_args)
     for user_data in umpd_obj:
 
         total_revisions = 0.0

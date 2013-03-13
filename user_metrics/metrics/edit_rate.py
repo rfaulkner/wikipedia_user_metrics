@@ -107,9 +107,9 @@ class EditRate(um.UserMetric):
         # Compute time difference between datetime objects and get the
         # integer number of seconds
 
-        if self.period_type == umpt.REGISTRATION:
+        if self.group == umpt.REGISTRATION:
             time_diff_sec = self.t * 3600.0
-        elif self.period_type == umpt.INPUT:
+        elif self.group == umpt.INPUT:
             try:
                 start_ts_obj = date_parse(self.datetime_start)
                 end_ts_obj = date_parse(self.datetime_end)
@@ -118,7 +118,7 @@ class EditRate(um.UserMetric):
 
             time_diff_sec = (end_ts_obj - start_ts_obj).total_seconds()
         else:
-            raise um.UserMetricError('period_type parameter not specified.')
+            raise um.UserMetricError('group parameter not specified.')
 
         # Normalize the time interval based on the measure
         if self.time_unit == self.TIME_UNIT_TYPE.DAY:

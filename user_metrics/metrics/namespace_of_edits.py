@@ -115,7 +115,7 @@ def _process_help(args):
 
     # Tally counts of namespace edits
     results = dict()
-    ump_res = UMP_MAP[metric_params.period_type](users, metric_params)
+    ump_res = UMP_MAP[metric_params.group](users, metric_params)
     for ump_rec in ump_res:
 
         results[str(ump_rec.user)] = OrderedDict()

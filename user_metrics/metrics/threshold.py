@@ -5,15 +5,12 @@ __license__ = "GPL (version 2 or later)"
 
 from user_metrics.config import logging
 
-from datetime import timedelta
-import collections
 import os
 import user_metrics.utils.multiprocessing_wrapper as mpw
 import user_metric as um
 from user_metrics.etl.aggregator import decorator_builder, boolean_rate
 from user_metrics.metrics import query_mod
-from user_metrics.utils import format_mediawiki_timestamp
-from dateutil.parser import parse as date_parse
+from user_metrics.metrics.users import UMP_MAP
 
 
 class Threshold(um.UserMetric):
@@ -49,7 +46,7 @@ class Threshold(um.UserMetric):
         'process': {
             'survival_': [bool, 'Indicates whether this is '
                                 'to be processed as the survival metric.',
-                         False],
+                          False],
         }
     }
 
@@ -93,12 +90,8 @@ class Threshold(um.UserMetric):
                 determine survival rather than a threshold metric
         """
 
-        # Get registration dates for users
-        users = query_mod.user_registration_date(users,
-                                                 self.project, None)
         # Process results
-        args = [self.project, self.namespace, self.n,
-                self.t, self.log_, self.survival_]
+        args = self._pack_params()
         self._results = mpw.build_thread_pool(users, _process_help,
                                               self.k_, args)
         return self
@@ -108,47 +101,43 @@ def _process_help(args):
     """ Used by Threshold::process() for forking.
         Should not be called externally. """
 
-    ThresholdArgsClass = collections.namedtuple('ThresholdArgs',
-                                                'project namespace n t '
-                                                'log_progress survival ')
-    user_data = args[0]
+    # Unpack args
+    users = args[0]
     state = args[1]
-    thread_args = ThresholdArgsClass(state[0], state[1], state[2], state[3],
-                                     state[4], state[5])
 
-    if thread_args.log_progress:
+    metric_params = um.UserMetric._unpack_params(state)
+
+    if metric_params.log_:
         logging.info(__name__ + ' :: Processing revision data ' +
                                 '(%s users) by user... (PID = %s)' % (
-                                    len(user_data), os.getpid()))
-        logging.info(__name__ + ' :: ' + str(thread_args))
+                                    len(users), os.getpid()))
+        logging.info(__name__ + ' :: ' + str(metric_params))
 
     # only proceed if there is user data
-    if not len(user_data):
+    if not len(users):
         return []
 
     results = list()
     dropped_users = 0
-    for r in user_data:
+    umpd_obj = UMP_MAP[metric_params.group](users, metric_params)
+    for t in umpd_obj:
+        uid = long(t.user)
         try:
-            threshold_ts = format_mediawiki_timestamp(date_parse(r[1]) +
-                                                      timedelta(hours=
-                                                      int(thread_args.t)))
-            uid = long(r[0])
             count = query_mod.rev_count_query(uid,
-                                              thread_args.survival,
-                                              thread_args.namespace,
-                                              thread_args.project,
-                                              threshold_ts)
+                                              metric_params.survival,
+                                              metric_params.namespace,
+                                              metric_params.project,
+                                              t.end)
         except query_mod.UMQueryCallError:
             dropped_users += 1
             continue
 
-        if count < thread_args.n:
-            results.append((r[0], 0))
+        if count < metric_params.n:
+            results.append((uid, 0))
         else:
-            results.append((r[0], 1))
+            results.append((uid, 1))
 
-    if thread_args.log_progress:
+    if metric_params.log_:
         logging.info(__name__ + '::Processed PID = %s.  '
                                 'Dropped users = %s.' % (
                                     os.getpid(), str(dropped_users)))
@@ -177,5 +166,5 @@ setattr(threshold_editors_agg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx': 1})
 if __name__ == "__main__":
     for r in Threshold(namespace=[0, 4]).process([13234584, 156171],
                                                  num_threads=0,
-                                                 log_progress=True).__iter__():
+                                                 log_=True).__iter__():
         print r

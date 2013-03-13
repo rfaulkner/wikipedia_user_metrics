@@ -24,7 +24,7 @@
     maps to::
 
         api_data['cohort_expr <==> e3_ob2b']['metric <==> revert_rate']
-        ['date_start <==> xx']['date_start <==> yy']['t <==> 10000']
+        ['start <==> xx']['start <==> yy']['t <==> 10000']
 
     The list of key values for a given request is referred to as it's "key
     signature".  The order of parameters is perserved.
@@ -43,7 +43,7 @@
 
 __author__ = {
     "ryan faulkner": "rfaulkner@wikimedia.org"
-    }
+}
 __date__ = "2012-01-11"
 __license__ = "GPL (version 2 or later)"
 
@@ -55,11 +55,14 @@ from hashlib import sha1
 
 import user_metrics.etl.data_loader as dl
 from user_metrics.config import logging
-from user_metrics.api.engine import COHORT_REGEX, parse_cohorts, \
-    HASH_KEY_DELIMETER
+from user_metrics.api.engine import COHORT_REGEX, parse_cohorts
 from user_metrics.api.engine.request_meta import REQUEST_META_QUERY_STR,\
     REQUEST_META_BASE, DATETIME_STR_FORMAT
 from user_metrics.api import MetricsAPIError
+
+# This is used to separate key meta and key strings for hash table data
+# e.g. "metric <==> blocks"
+HASH_KEY_DELIMETER = "--"
 
 
 def get_users(cohort_expr):
@@ -131,63 +134,79 @@ def get_cohort_refresh_datetime(utm_id):
     return utm_touched.strftime(DATETIME_STR_FORMAT)
 
 
-def get_data(request_meta, hash_table_ref):
-    """ Extract data from the global hash given a request object """
+def get_data(hash_table_ref, request_meta, hash_result=True):
+    """
+        Extract data from the global hash given a request object.  If an item
+        is successfully recovered data is returned
+    """
 
     # Traverse the hash key structure to find data
     # @TODO rather than iterate through REQUEST_META_BASE &
     #   REQUEST_META_QUERY_STR look only at existing attributes
 
     logging.debug(__name__ + " :: Attempting to pull data for request {0}".
-    format(str(request_meta)))
+                  format(str(request_meta)))
 
-    for key_name in REQUEST_META_BASE + REQUEST_META_QUERY_STR:
-        if hasattr(request_meta, key_name) and getattr(request_meta, key_name):
-            key = getattr(request_meta, key_name)
-        else:
-            continue
-
-        full_key = key_name + HASH_KEY_DELIMETER + key
-        if hasattr(hash_table_ref, 'has_key') and full_key in hash_table_ref:
-            hash_table_ref = hash_table_ref[full_key]
-        else:
-            return None
+    key_sig = build_key_signature(request_meta, hash_result=hash_result)
+    data = find_item(hash_table_ref, key_sig)
 
     # Ensure that an interface that does not rely on keyed values is returned
     # all data must be in interfaces resembling lists
-    if not hasattr(hash_table_ref, '__iter__'):
-        return hash_table_ref
+    if data and not hasattr(data, 'keys'):
+        if hash_result:
+            return data[0]
+        else:
+            return data
     else:
+        logging.error(__name__ + ' :: Can\'t return an iterator.')
         return None
 
 
-def set_data(request_meta, data, hash_table_ref):
+def set_data(hash_table_ref, data, request_meta, hash_result=True):
     """
         Given request meta-data and a dataset create a key path in the global
         hash to store the data
     """
-    key_sig = build_key_signature(request_meta)
-
-    if not key_sig:
-        logging.error(__name__ + ' :: Could not consruct a key '
-                                 'signature from request.')
-        return
-
+    key_sig = build_key_signature(request_meta, hash_result=hash_result)
     logging.debug(__name__ + " :: Adding data to hash @ key signature = {0}".
-    format(str(key_sig)))
+                  format(str(key_sig)))
+    if hash_result:
+        key_sig_full = build_key_signature(request_meta, hash_result=False)
+        hash_table_ref[key_sig] = (data, key_sig_full)
+    else:
+        last_item = key_sig[-1]
+        for item in key_sig:
+            if item == last_item:
+                hash_table_ref[last_item] = data
+            else:
+                hash_table_ref[item] = OrderedDict()
+            hash_table_ref = hash_table_ref[item]
 
-    # For each key in the key signature add a nested key to the hash
+
+def find_item(hash_table_ref, key_sig):
+    """
+        For each key in the key signature add a nested key to the hash.
+
+        Parameters
+        ~~~~~~~~~~
+    """
+    if not hasattr(key_sig, '__iter___'):
+        key_sig = [key_sig]
+
     last_item = key_sig[len(key_sig) - 1]
     for key in key_sig:
         if key != last_item:
-            if not (hasattr(hash_table_ref, 'has_key') and
-                    key in hash_table_ref and
-                    hasattr(hash_table_ref[key], 'has_key')):
-                hash_table_ref[key] = OrderedDict()
-
-            hash_table_ref = hash_table_ref[key]
+            if hasattr(hash_table_ref, 'keys') and key in hash_table_ref:
+                hash_table_ref = hash_table_ref[key]
+            else:
+                # Item not found
+                return None
         else:
-            hash_table_ref[key] = data
+            if hasattr(hash_table_ref, 'keys') and \
+                key in hash_table_ref:
+                    return hash_table_ref[key]
+            # Item not found
+            return None
 
 
 def build_key_signature(request_meta, hash_result=False):
@@ -217,7 +236,7 @@ def build_key_signature(request_meta, hash_result=False):
         if hasattr(request_meta, key_name):
             key = getattr(request_meta, key_name)
             if key:
-                key_sig.append(key_name + HASH_KEY_DELIMETER + key)
+                key_sig.append(key_name + HASH_KEY_DELIMETER + str(key))
 
     if hash_result:
         return sha1(str(key_sig).encode('utf-8')).hexdigest()

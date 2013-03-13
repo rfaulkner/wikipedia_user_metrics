@@ -39,6 +39,7 @@ import user_metrics.etl.data_loader as dl
 from user_metrics.api import MetricsAPIError
 from user_metrics.utils import enum
 
+
 #
 # Define constants for request_manager module
 # ===========================================
@@ -56,7 +57,6 @@ MAX_CONCURRENT_JOBS = 1
 QUEUE_WAIT = 5
 
 
-
 #
 # Define remaining constants
 # ==========================
@@ -65,11 +65,6 @@ QUEUE_WAIT = 5
 # Regex that matches a MediaWiki user ID
 MW_UID_REGEX = r'^[0-9]{5}[0-9]*$'
 MW_UNAME_REGEX = r'[a-zA-Z_\.\+ ]'
-
-
-# This is used to separate key meta and key strings for hash table data
-# e.g. "metric <==> blocks"
-HASH_KEY_DELIMETER = " <==> "
 
 # Datetime string format to be used throughout the API
 DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"

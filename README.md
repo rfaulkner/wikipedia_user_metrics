@@ -91,6 +91,16 @@ Once the installation is complete and the configuration has been set the
 modules can be imported into the Python environment.  The available
 operational modules are the following:
 
+    user_metrics.api
+    user_metrics.api.run
+    user_metrics.api.views
+
+    user_metrics.api.engine
+    user_metrics.api.engine.data
+    user_metrics.api.engine.request_manager
+    user_metrics.api.engine.request_meta
+
+    user_metrics.etl
     user_metrics.etl.data_loader
     user_metrics.etl.aggregator
     user_metrics.etl.table_loader
@@ -98,6 +108,7 @@ operational modules are the following:
     user_metrics.etl.time_series_process_methods
     user_metrics.etl.wpapi
 
+    user_metrics.metrics
     user_metrics.metrics.blocks
     user_metrics.metrics.bytes_added
     user_metrics.metrics.live_account.pyc
@@ -113,9 +124,11 @@ operational modules are the following:
     user_metrics.metrics.user_metric
     user_metrics.metrics.users
 
-    user_metrics.metrics.query_calls_noop
-    user_metrics.metrics.query_calls_sql
+    user_metrics.query
+    user_metrics.query.query_calls_noop
+    user_metrics.query.query_calls_sql
 
+    user_metrics.utils
     user_metrics.utils.autovivification
     user_metrics.utils.multiprocessing_wrapper
     user_metrics.utils.record_type
