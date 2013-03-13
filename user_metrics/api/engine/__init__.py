@@ -48,7 +48,7 @@ from user_metrics.utils import enum
 JOB_STATUS_TYPES = ['pending', 'running', 'success', 'failure']
 JOB_STATUS = eval('enum("' + '","'.join(JOB_STATUS_TYPES) +
                   '", **' + str({t[0]: t[1] for t in zip(JOB_STATUS_TYPES,
-    JOB_STATUS_TYPES)}) + ')')
+                  JOB_STATUS_TYPES)}) + ')')
 
 # Number of maximum concurrently running jobs
 MAX_CONCURRENT_JOBS = 1
@@ -67,11 +67,10 @@ MW_UID_REGEX = r'^[0-9]{5}[0-9]*$'
 MW_UNAME_REGEX = r'[a-zA-Z_\.\+ ]'
 
 # Datetime string format to be used throughout the API
-DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
+DATETIME_STR_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # The default value for non-assigned and valid values in the query string
 DEFAULT_QUERY_VAL = 'present'
-
 
 
 #
@@ -151,8 +150,8 @@ def intersect_ids(cohort_id_list):
                     user_ids[id] += 1
                 else:
                     user_ids[id] = 1
-                    # Executes only in the case that there was more than one cohort
-                    # id in the expression
+                    # Executes only in the case that there was more than one
+                    # cohort id in the expression
         for key in user_ids:
             if user_ids[key] > 1:
                 yield key
