@@ -382,11 +382,12 @@ class UMPRegInput(UserMetricPeriod):
                 end = format_mediawiki_timestamp(metric.datetime_end)
 
                 if date_parse(start) <= reg <= date_parse(end):
+                    reg_plus_t = reg + timedelta(hours=int(metric.t))
                     yield USER_METRIC_PERIOD_DATA(user,
                                                   format_mediawiki_timestamp
-                                                  (metric.datetime_start),
+                                                  (reg),
                                                   format_mediawiki_timestamp
-                                                  (metric.datetime_end))
+                                                  (reg_plus_t))
                 else:
                     continue
 
