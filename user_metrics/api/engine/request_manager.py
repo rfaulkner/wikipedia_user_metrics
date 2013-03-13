@@ -61,14 +61,13 @@ from user_metrics.config import logging
 from user_metrics.api.engine import MAX_CONCURRENT_JOBS, \
     QUEUE_WAIT, MW_UID_REGEX
 from user_metrics.api.engine.data import get_users
-from user_metrics.api.engine.request_meta import QUERY_PARAMS_BY_METRIC, \
-    rebuild_unpacked_request
+from user_metrics.api.engine.request_meta import rebuild_unpacked_request
 from user_metrics.metrics.users import MediaWikiUser
 from user_metrics.metrics.metrics_manager import process_data_request
 from user_metrics.utils import unpack_fields
 
 from multiprocessing import Process, Queue
-from collections import namedtuple, OrderedDict
+from collections import namedtuple
 from re import search
 from os import getpid
 
@@ -183,40 +182,27 @@ def job_control(request_queue, response_queue):
     .format(__name__, job_control.__name__))
 
 
-def process_metrics(p, rm):
+def process_metrics(p, request_meta):
     """ Worker process for requests -
         this will typically operate in a forked process """
 
-    logging.info(__name__ + ' :: START JOB\n\t%s (PID = %s)\n' % (str(rm),
+    logging.info(__name__ + ' :: START JOB\n\t%s (PID = %s)\n' % (str(request_meta),
                                                              getpid()))
 
     # obtain user list - handle the case where a lone user ID is passed
-    if search(MW_UID_REGEX, str(rm.cohort_expr)):
-        users = [rm.cohort_expr]
+    if search(MW_UID_REGEX, str(request_meta.cohort_expr)):
+        users = [request_meta.cohort_expr]
     # Special case where user lists are to be generated based on registered
     # user reg dates from the logging table -- see src/metrics/users.py
-    elif rm.cohort_expr == 'all':
+    elif request_meta.cohort_expr == 'all':
         users = MediaWikiUser(query_type=1)
     else:
-        users = get_users(rm.cohort_expr)
+        users = get_users(request_meta.cohort_expr)
 
-    # Unpack RequestMeta into dict using MEDIATOR
-    # Map parameters from API request to metrics call
-
-    args = unpack_fields(rm)
-    new_args = OrderedDict()
-
-    for mapping in QUERY_PARAMS_BY_METRIC[rm.metric]:
-        new_args[mapping.metric_var] = args[mapping.query_var]
-
-    del args
-
-    logging.info(__name__ + ' :: Calling %s\n\tArgs = %s.\n' % (rm.metric,
-                                                                str(new_args)))
     # process request
-    results = process_data_request(rm.metric, users, **new_args)
+    results = process_data_request(request_meta, users)
     p.put(results)
 
-    logging.info(__name__ + ' :: END JOB\n\t%s (PID = %s)\n' % (str(rm),
+    logging.info(__name__ + ' :: END JOB\n\t%s (PID = %s)\n' % (str(request_meta),
                                                                 getpid()))
 
