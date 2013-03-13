@@ -120,7 +120,7 @@ common_params = [varMapping('start', 'datetime_start'),
                  varMapping('time_series', 'time_series'),
                  varMapping('aggregator', 'aggregator'),
                  varMapping('t', 't'),
-                 varMapping('group', 'period_type')]
+                 varMapping('group', 'group')]
 
 QUERY_PARAMS_BY_METRIC = {
     'blocks': common_params,
@@ -137,7 +137,7 @@ QUERY_PARAMS_BY_METRIC = {
     'threshold': common_params + [varMapping('n', 'n')],
     'time_to_threshold': common_params + [varMapping('threshold_type',
                                                      'threshold_type_class')],
-    }
+}
 
 
 def format_request_params(request_meta):
@@ -177,7 +177,7 @@ def format_request_params(request_meta):
     # set the aggregator if there is one
     agg_key = mm.get_agg_key(request_meta.aggregator, request_meta.metric)
     request_meta.aggregator = escape(request_meta.aggregator)\
-    if agg_key else None
+        if agg_key else None
     # @TODO Escape remaining input
 
     # MAP request values.
@@ -186,8 +186,8 @@ def format_request_params(request_meta):
 
 def _map_request_values(request_meta):
     """
-        Map values from the request.  Use ``REQUEST_VALUE_MAPPING`` convert coded
-        values from the request if a familiar encoding is present.
+        Map values from the request.  Use ``REQUEST_VALUE_MAPPING`` convert
+        coded values from the request if a familiar encoding is present.
 
             Parameters
             ~~~~~~~~~~
@@ -205,7 +205,7 @@ def _map_request_values(request_meta):
             except KeyError:
                 logging.error(__name__ + ' :: Could not map request value '
                                          '{0} for variable {1}.'.
-                format(str(request_value), attr))
+                              format(str(request_value), attr))
 
 
 def filter_request_input(request, request_meta_obj):
@@ -246,8 +246,8 @@ def rebuild_unpacked_request(unpacked_req):
     try:
         # Build the request item
         rm = RequestMetaFactory(unpacked_req['cohort_expr'],
-            unpacked_req['cohort_gen_timestamp'],
-            unpacked_req['metric'])
+                                unpacked_req['cohort_gen_timestamp'],
+                                unpacked_req['metric'])
 
         # Populate the request data
         for key in unpacked_req:
@@ -257,5 +257,3 @@ def rebuild_unpacked_request(unpacked_req):
     except KeyError:
         raise MetricsAPIError(__name__ + ' :: rebuild_unpacked_request - '
                                          'Invalid fields.')
-
-
