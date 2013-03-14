@@ -117,8 +117,11 @@ if __name__ == '__main__':
 
     setup_controller(request_queue, response_queue)
     try:
-        app.config['SECRET_KEY'] = 'blahblahblah'
+        app.config['SECRET_KEY'] = settings.__secret_key__
         login_manager.setup_app(app)
-        app.run(debug=True, use_reloader=False)
+        app.run(debug=True,
+                use_reloader=False,
+                host=settings.__instance_host__,
+                port=settings.__instance_port__,)
     finally:
         teardown(api_data)
