@@ -104,6 +104,11 @@ def nested_import(name):
     return mod
 
 
+def reverse_dict(d):
+    """ Simply reverse a dictionary mapping """
+    return dict((v,k) for k,v in d.iteritems())
+
+
 # Rudimentary Testing
 if __name__ == '__main__':
     t = build_namedtuple(['a', 'b'], [int, str], [1, 's'])

@@ -124,7 +124,7 @@ def _process_help(args):
         uid = long(t.user)
         try:
             count = query_mod.rev_count_query(uid,
-                                              metric_params.survival,
+                                              metric_params.survival_,
                                               metric_params.namespace,
                                               metric_params.project,
                                               t.end)

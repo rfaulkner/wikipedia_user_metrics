@@ -296,7 +296,7 @@ class UserMetric(object):
 
             # Echo input params for metric process call
             if hasattr(self, 'log_') and self.log_:
-                logging.info(__name__ + "::parameters = " + str(kwargs))
+                logging.info(__name__ + " :: parameters = " + str(kwargs))
 
             return proc_func(self, users, **kwargs)
         return wrapper

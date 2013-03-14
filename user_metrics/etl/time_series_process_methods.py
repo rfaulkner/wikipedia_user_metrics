@@ -38,12 +38,6 @@ def _get_timeseries(date_start, date_end, interval):
     date_start = format_mediawiki_timestamp(date_start)
     date_end = format_mediawiki_timestamp(date_end)
 
-    # ensure that at least two intervals are included in the time series
-    if (date_parse(date_end) - date_parse(date_start)).\
-            total_seconds() / 3600 < interval:
-        raise TimeSeriesException(message="Time series must contain at "
-                                          "least one interval.")
-
     c = date_parse(date_start) + datetime.timedelta(hours=-int(interval))
     e = date_parse(date_end)
     while c < e:

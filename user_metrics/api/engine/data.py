@@ -55,9 +55,10 @@ from hashlib import sha1
 
 import user_metrics.etl.data_loader as dl
 from user_metrics.config import logging
-from user_metrics.api.engine import COHORT_REGEX, parse_cohorts
+from user_metrics.api.engine import COHORT_REGEX, parse_cohorts, \
+    DATETIME_STR_FORMAT
 from user_metrics.api.engine.request_meta import REQUEST_META_QUERY_STR,\
-    REQUEST_META_BASE, DATETIME_STR_FORMAT
+    REQUEST_META_BASE
 from user_metrics.api import MetricsAPIError
 
 # This is used to separate key meta and key strings for hash table data

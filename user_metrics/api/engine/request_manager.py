@@ -49,6 +49,30 @@
     Request data is mapped to a query via metric objects and hashed in the
     dictionary `api_data`.
 
+    Request Flow Management
+    ^^^^^^^^^^^^^^^^^^^^^^^
+
+    This portion of the module defines a set of methods useful in handling
+    series of metrics objects to build more complex results.  This generally
+    involves creating one or more UserMetric derived objects with passed
+    parameters to service a request.  The primary entry point is the
+    ``process_data_request`` method. This method coordinates requests for
+    three different top-level request types:
+
+    - **Raw requests**.  Output is a set of datapoints that consist of the
+      user IDs accompanied by metric results.
+    - **Aggregate requests**.  Output is an aggregate of all user results based
+      on the type of aggregaion as defined in the aggregator module.
+    - **Time series requests**.  Outputs a time series list of data.  For this
+      type of request a start and end time must be defined along with an
+      interval length.  Further an aggregator must be provided which operates
+      on each time interval.
+
+    Also defined are metric types for which requests may be made with
+    ``metric_dict``, and the types of aggregators that may be called on metrics
+    ``aggregator_dict``, and also the meta data around how many threads may be
+    used to process metrics ``USER_THREADS`` and ``REVISION_THREADS``.
+
 """
 
 __author__ = {
@@ -57,20 +81,24 @@ __author__ = {
 __date__ = "2013-03-05"
 __license__ = "GPL (version 2 or later)"
 
-from user_metrics.config import logging
+from user_metrics.config import logging, settings
 from user_metrics.api.engine import MAX_CONCURRENT_JOBS, \
     QUEUE_WAIT, MW_UID_REGEX
+from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine.data import get_users
-from user_metrics.api.engine.request_meta import QUERY_PARAMS_BY_METRIC, \
-    rebuild_unpacked_request
+from user_metrics.api.engine.request_meta import rebuild_unpacked_request
 from user_metrics.metrics.users import MediaWikiUser
-from user_metrics.metrics.metrics_manager import process_data_request
 from user_metrics.utils import unpack_fields
 
 from multiprocessing import Process, Queue
-from collections import namedtuple, OrderedDict
+from collections import namedtuple
 from re import search
 from os import getpid
+
+
+# API JOB HANDLER
+# ###############
+
 
 # Defines the job item type used to temporarily store job progress
 job_item_type = namedtuple('JobItem', 'id process request queue')
@@ -183,40 +211,190 @@ def job_control(request_queue, response_queue):
     .format(__name__, job_control.__name__))
 
 
-def process_metrics(p, rm):
+def process_metrics(p, request_meta):
     """ Worker process for requests -
         this will typically operate in a forked process """
 
-    logging.info(__name__ + ' :: START JOB\n\t%s (PID = %s)\n' % (str(rm),
+    logging.info(__name__ + ' :: START JOB\n\t%s (PID = %s)\n' % (str(request_meta),
                                                              getpid()))
 
     # obtain user list - handle the case where a lone user ID is passed
-    if search(MW_UID_REGEX, str(rm.cohort_expr)):
-        users = [rm.cohort_expr]
+    if search(MW_UID_REGEX, str(request_meta.cohort_expr)):
+        users = [request_meta.cohort_expr]
     # Special case where user lists are to be generated based on registered
     # user reg dates from the logging table -- see src/metrics/users.py
-    elif rm.cohort_expr == 'all':
+    elif request_meta.cohort_expr == 'all':
         users = MediaWikiUser(query_type=1)
     else:
-        users = get_users(rm.cohort_expr)
+        users = get_users(request_meta.cohort_expr)
 
-    # Unpack RequestMeta into dict using MEDIATOR
-    # Map parameters from API request to metrics call
-
-    args = unpack_fields(rm)
-    new_args = OrderedDict()
-
-    for mapping in QUERY_PARAMS_BY_METRIC[rm.metric]:
-        new_args[mapping.metric_var] = args[mapping.query_var]
-
-    del args
-
-    logging.info(__name__ + ' :: Calling %s\n\tArgs = %s.\n' % (rm.metric,
-                                                                str(new_args)))
     # process request
-    results = process_data_request(rm.metric, users, **new_args)
+    results = process_data_request(request_meta, users)
     p.put(results)
 
-    logging.info(__name__ + ' :: END JOB\n\t%s (PID = %s)\n' % (str(rm),
+    logging.info(__name__ + ' :: END JOB\n\t%s (PID = %s)\n' % (str(request_meta),
                                                                 getpid()))
+
+
+
+# REQUEST FLOW HANDLER
+# ###################
+
+
+from dateutil.parser import parse as date_parse
+from copy import deepcopy
+
+from user_metrics.etl.data_loader import DataLoader
+import user_metrics.metrics.user_metric as um
+import user_metrics.etl.time_series_process_methods as tspm
+from user_metrics.api.engine.request_meta import ParameterMapping
+from user_metrics.api.engine.response_meta import format_response
+from user_metrics.api.engine import DATETIME_STR_FORMAT
+from user_metrics.api.engine.request_meta import get_agg_key, \
+    get_aggregator_type, request_types
+
+INTERVALS_PER_THREAD = 10
+MAX_THREADS = 5
+
+USER_THREADS = settings.__user_thread_max__
+REVISION_THREADS = settings.__rev_thread_max__
+DEFAULT_INERVAL_LENGTH = 24
+
+# create shorthand method refs
+to_string = DataLoader().cast_elems_to_string
+
+def process_data_request(request_meta, users):
+    """
+        Main entry point of the module, prepares results for a given request.
+        Coordinates a request based on the following parameters::
+
+            metric_handle (string) - determines the type of metric object to
+            build.  Keys metric_dict.
+
+            users (list) - list of user IDs.
+
+            **kwargs - Keyword arguments may contain a variety of variables.
+            Most notably, "aggregator" if the request requires aggregation,
+            "time_series" flag indicating a time series request.  The
+            remaining kwargs specify metric object parameters.
+    """
+
+    # Set interval length in hours if not present
+    if not request_meta.interval:
+        request_meta.interval = DEFAULT_INERVAL_LENGTH
+    else:
+        request_meta.interval = float(request_meta.interval)
+
+    # Get the aggregator key
+    agg_key = get_agg_key(request_meta.aggregator, request_meta.metric) if \
+        request_meta.aggregator else None
+
+    args = ParameterMapping.map(request_meta)
+
+    # Initialize the results
+    results, metric_class, metric_obj = format_response(request_meta)
+
+    start = metric_obj.datetime_start
+    end = metric_obj.datetime_end
+
+    if results['type'] == request_types.time_series:
+
+        # Get aggregator
+        try:
+            aggregator_func = get_aggregator_type(agg_key)
+        except MetricsAPIError as e:
+            results['data'] = 'Request failed. ' + e.message
+            return results
+
+        # Determine intervals and thread allocation
+        total_intervals = (date_parse(end) - date_parse(start)).\
+                          total_seconds() / (3600 * request_meta.interval)
+        time_threads = max(1, int(total_intervals / INTERVALS_PER_THREAD))
+        time_threads = min(MAX_THREADS, time_threads)
+
+        logging.info(__name__ + ' :: Initiating time series for %(metric)s\n'
+                                '\tAGGREGATOR = %(agg)s\n'
+                                '\tFROM: %(start)s,\tTO: %(end)s.' %
+                                {
+                                    'metric': metric_class.__name__,
+                                    'agg': request_meta.aggregator,
+                                    'start': str(start),
+                                    'end': str(end),
+                                    })
+        metric_threads = '"k_" : {0}, "kr_" : {1}'.format(USER_THREADS,
+            REVISION_THREADS)
+        metric_threads = '{' + metric_threads + '}'
+
+        new_kwargs = deepcopy(args)
+
+        del new_kwargs['interval']
+        del new_kwargs['aggregator']
+        del new_kwargs['datetime_start']
+        del new_kwargs['datetime_end']
+
+        out = tspm.build_time_series(start,
+            end,
+            request_meta.interval,
+            metric_class,
+            aggregator_func,
+            users,
+            kt_=time_threads,
+            metric_threads=metric_threads,
+            log=True,
+            **new_kwargs)
+
+        results['header'] = ['timestamp'] + \
+                            getattr(aggregator_func,
+                                    um.METRIC_AGG_METHOD_HEAD)
+        for row in out:
+            timestamp = date_parse(row[0][:19]).strftime(
+                DATETIME_STR_FORMAT)
+            results['data'][timestamp] = row[3:]
+
+    elif results['type'] == request_types.aggregator:
+
+        # Get aggregator
+        try:
+            aggregator_func = get_aggregator_type(agg_key)
+        except MetricsAPIError as e:
+            results['data'] = 'Request failed. ' + e.message
+            return results
+
+        logging.info(__name__ + ' :: Initiating aggregator for %(metric)s\n'
+                                '\AGGREGATOR = %(agg)s\n'
+                                '\tFROM: %(start)s,\tTO: %(end)s.' %
+                                {
+                                    'metric': metric_class.__name__,
+                                    'agg': request_meta.aggregator,
+                                    'start': str(start),
+                                    'end': str(end),
+                                    })
+        metric_obj.process(users,
+                           k_=USER_THREADS,
+                           kr_=REVISION_THREADS,
+                           log_=True,
+                           **args)
+        r = um.aggregator(aggregator_func, metric_obj, metric_obj.header())
+        results['header'] = to_string(r.header)
+        results['data'] = r.data[1:]
+
+    elif results['type'] == request_types.raw:
+
+        logging.info(__name__ + ':: Initiating raw request for %(metric)s\n'
+                                '\tFROM: %(start)s,\tTO: %(end)s.' %
+                                {
+                                    'metric': metric_class.__name__,
+                                    'start': str(start),
+                                    'end': str(end),
+                                    })
+        metric_obj.process(users,
+                           k_=USER_THREADS,
+                           kr_=REVISION_THREADS,
+                           log_=True,
+                           **args)
+        for m in metric_obj.__iter__():
+            results['data'][m[0]] = m[1:]
+
+    return results
+
 
