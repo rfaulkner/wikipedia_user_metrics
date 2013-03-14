@@ -3,6 +3,7 @@ __author__ = "Ryan Faulkner"
 __date__ = "July 27th, 2012"
 __license__ = "GPL (version 2 or later)"
 
+from copy import deepcopy
 from dateutil.parser import parse as date_parse
 import user_metric as um
 import edit_count as ec
@@ -102,7 +103,8 @@ class EditRate(um.UserMetric):
 
         # Extract edit count for given parameters
         edit_rate = list()
-        e = ec.EditCount(**kwargs).process(user_handle)
+        ec_kwargs = deepcopy(self.__dict__)
+        e = ec.EditCount(**ec_kwargs).process(user_handle, **kwargs)
 
         # Compute time difference between datetime objects and get the
         # integer number of seconds

@@ -303,7 +303,7 @@ def process_data_request(request_meta, users):
         try:
             aggregator_func = get_aggregator_type(agg_key)
         except MetricsAPIError as e:
-            results['data'] = 'Request failed.\n' + e.message
+            results['data'] = 'Request failed. ' + e.message
             return results
 
         # Determine intervals and thread allocation
@@ -357,7 +357,7 @@ def process_data_request(request_meta, users):
         try:
             aggregator_func = get_aggregator_type(agg_key)
         except MetricsAPIError as e:
-            results['data'] = 'Request failed.\n' + e.message
+            results['data'] = 'Request failed. ' + e.message
             return results
 
         logging.info(__name__ + ' :: Initiating aggregator for %(metric)s\n'
