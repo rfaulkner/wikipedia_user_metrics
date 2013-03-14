@@ -84,6 +84,7 @@ __license__ = "GPL (version 2 or later)"
 from user_metrics.config import logging, settings
 from user_metrics.api.engine import MAX_CONCURRENT_JOBS, \
     QUEUE_WAIT, MW_UID_REGEX
+from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine.data import get_users
 from user_metrics.api.engine.request_meta import rebuild_unpacked_request
 from user_metrics.metrics.users import MediaWikiUser
@@ -240,19 +241,17 @@ def process_metrics(p, request_meta):
 # ###################
 
 
-from collections import OrderedDict
 from dateutil.parser import parse as date_parse
 from copy import deepcopy
 
-import user_metrics.etl.data_loader as dl
+from user_metrics.etl.data_loader import DataLoader
 import user_metrics.metrics.user_metric as um
 import user_metrics.etl.time_series_process_methods as tspm
 from user_metrics.api.engine.request_meta import ParameterMapping
 from user_metrics.api.engine.response_meta import format_response
-from user_metrics.utils import enum
 from user_metrics.api.engine import DATETIME_STR_FORMAT
-from user_metrics.api.engine.request_meta import get_metric_type, \
-    get_agg_key, get_aggregator_type, get_aggregator_names
+from user_metrics.api.engine.request_meta import get_agg_key, \
+    get_aggregator_type, request_types
 
 INTERVALS_PER_THREAD = 10
 MAX_THREADS = 5
@@ -261,6 +260,8 @@ USER_THREADS = settings.__user_thread_max__
 REVISION_THREADS = settings.__rev_thread_max__
 DEFAULT_INERVAL_LENGTH = 24
 
+# create shorthand method refs
+to_string = DataLoader().cast_elems_to_string
 
 def process_data_request(request_meta, users):
     """
@@ -278,144 +279,120 @@ def process_data_request(request_meta, users):
             remaining kwargs specify metric object parameters.
     """
 
+    # Set interval length in hours if not present
+    if not request_meta.interval:
+        request_meta.interval = DEFAULT_INERVAL_LENGTH
+
+    # Get the aggregator key
+    agg_key = get_agg_key(request_meta.aggregator, request_meta.metric) if \
+        request_meta.aggregator else None
+
     args = ParameterMapping.map(request_meta)
 
-    # create shorthand method refs
-    to_string = dl.DataLoader().cast_elems_to_string
-
-    aggregator = args['aggregator'] if 'aggregator' in args else None
-    agg_key = get_agg_key(aggregator, request_meta.metric) if aggregator\
-    else None
-
     # Initialize the results
-    results = format_response(request_meta)
-
-    metric_class = get_metric_type(request_meta.metric)
-    metric_obj = metric_class(**args)
+    results, metric_class, metric_obj = format_response(request_meta)
 
     start = metric_obj.datetime_start
     end = metric_obj.datetime_end
 
-    # Prepare metrics output for json response
-    results['type'] = get_request_type(request_meta)
-    results['header'] = metric_obj.header()
-    for key in metric_obj.__dict__:
-        if not search(r'^_.*', key):
-            results[str(key)] = metric_obj.__dict__[key]
-    results['metric'] = OrderedDict()
+    if results['type'] == request_types.time_series:
 
-    # Parse the aggregator
-    aggregator_func = None
-    if agg_key in get_aggregator_names():
-        aggregator_func = get_aggregator_type(agg_key)
+        # Get aggregator
+        try:
+            aggregator_func = get_aggregator_type(agg_key)
+        except MetricsAPIError as e:
+            results['data'] = 'Request failed.\n' + e.message
+            return results
 
-    # Parse the time series flag
-    time_series = True if 'time_series' in args and args['time_series']\
-    else False
+        # Determine intervals and thread allocation
+        total_intervals = (date_parse(end) - date_parse(start)).\
+                          total_seconds() / (3600 * request_meta.interval)
+        time_threads = max(1, int(total_intervals / INTERVALS_PER_THREAD))
+        time_threads = min(MAX_THREADS, time_threads)
 
-    if aggregator_func:
-        if time_series:
+        logging.info(__name__ + ' :: Initiating time series for %(metric)s\n'
+                                '\tAGGREGATOR = %(agg)s\n'
+                                '\tFROM: %(start)s,\tTO: %(end)s.' %
+                                {
+                                    'metric': metric_class.__name__,
+                                    'agg': request_meta.aggregator,
+                                    'start': str(start),
+                                    'end': str(end),
+                                    })
+        metric_threads = '"k_" : {0}, "kr_" : {1}'.format(USER_THREADS,
+            REVISION_THREADS)
+        metric_threads = '{' + metric_threads + '}'
 
-            # interval length in hours
-            if args['interval']:
-                interval = int(args['interval'])
-            else:
-                interval = DEFAULT_INERVAL_LENGTH
+        new_kwargs = deepcopy(args)
 
-            total_intervals = (date_parse(end) - date_parse(start)).\
-                              total_seconds() / (3600 * interval)
-            time_threads = max(1, int(total_intervals / INTERVALS_PER_THREAD))
-            time_threads = min(MAX_THREADS, time_threads)
+        del new_kwargs['interval']
+        del new_kwargs['aggregator']
+        del new_kwargs['datetime_start']
+        del new_kwargs['datetime_end']
 
-            logging.info(__name__ + ' :: Initiating time series for '
-                                    '%(metric)s with %(agg)s from '
-                                    '%(start)s to %(end)s.' %
-                                    {
-                                        'metric': metric_class.__name__,
-                                        'agg': aggregator_func.__name__,
-                                        'start': str(start),
-                                        'end': str(end),
-                                        })
-            metric_threads = '"k_" : {0}, "kr_" : {1}'.format(USER_THREADS,
-                REVISION_THREADS)
-            metric_threads = '{' + metric_threads + '}'
+        out = tspm.build_time_series(start,
+            end,
+            request_meta.interval,
+            metric_class,
+            aggregator_func,
+            users,
+            kt_=time_threads,
+            metric_threads=metric_threads,
+            log=True,
+            **new_kwargs)
 
-            new_kwargs = deepcopy(args)
+        results['header'] = ['timestamp'] + \
+                            getattr(aggregator_func,
+                                    um.METRIC_AGG_METHOD_HEAD)
+        for row in out:
+            timestamp = date_parse(row[0][:19]).strftime(
+                DATETIME_STR_FORMAT)
+            results['data'][timestamp] = row[3:]
 
-            del new_kwargs['interval']
-            del new_kwargs['aggregator']
-            del new_kwargs['datetime_start']
-            del new_kwargs['datetime_end']
+    elif results['type'] == request_types.aggregator:
 
-            out = tspm.build_time_series(start,
-                end,
-                interval,
-                metric_class,
-                aggregator_func,
-                users,
-                kt_=time_threads,
-                metric_threads=metric_threads,
-                log=True,
-                **new_kwargs)
+        # Get aggregator
+        try:
+            aggregator_func = get_aggregator_type(agg_key)
+        except MetricsAPIError as e:
+            results['data'] = 'Request failed.\n' + e.message
+            return results
 
-            # results['header'] = " ".join(to_string(aggregator_func.header))
-            for row in out:
-                timestamp = date_parse(row[0][:19]).strftime(
-                    DATETIME_STR_FORMAT)
-                results['data'][timestamp] = row[3:]
-        else:
+        logging.info(__name__ + ' :: Initiating aggregator for %(metric)s\n'
+                                '\AGGREGATOR = %(agg)s\n'
+                                '\tFROM: %(start)s,\tTO: %(end)s.' %
+                                {
+                                    'metric': metric_class.__name__,
+                                    'agg': request_meta.aggregator,
+                                    'start': str(start),
+                                    'end': str(end),
+                                    })
+        metric_obj.process(users,
+                           k_=USER_THREADS,
+                           kr_=REVISION_THREADS,
+                           log_=True,
+                           **args)
+        r = um.aggregator(aggregator_func, metric_obj, metric_obj.header())
+        results['header'] = to_string(r.header)
+        results['data'] = r.data[1:]
 
-            logging.info(__name__ + ' :: Initiating aggregator for '
-                                    '%(metric)s with %(agg)s from '
-                                    '%(start)s to %(end)s.' %
-                                    {
-                                        'metric': metric_class.__name__,
-                                        'agg': aggregator_func.__name__,
-                                        'start': str(start),
-                                        'end': str(end),
-                                        })
-            metric_obj.process(users,
-                k_=USER_THREADS,
-                kr_=REVISION_THREADS,
-                log_=True,
-                **args)
-            r = um.aggregator(aggregator_func, metric_obj, metric_obj.header())
-            results['header'] = " ".join(to_string(r.header))
-            results['data'][r.data[0]] = " ".join(to_string(r.data[1:]))
-    else:
+    elif results['type'] == request_types.raw:
 
-        logging.info(__name__ + ':: Initiating user data for '
-                                '%(metric)s from %(start)s to %(end)s.' %
+        logging.info(__name__ + ':: Initiating raw request for %(metric)s\n'
+                                '\tFROM: %(start)s,\tTO: %(end)s.' %
                                 {
                                     'metric': metric_class.__name__,
                                     'start': str(start),
                                     'end': str(end),
                                     })
         metric_obj.process(users,
-            k_=USER_THREADS,
-            kr_=REVISION_THREADS,
-            log_=True,
-            **args)
+                           k_=USER_THREADS,
+                           kr_=REVISION_THREADS,
+                           log_=True,
+                           **args)
         for m in metric_obj.__iter__():
             results['data'][m[0]] = m[1:]
 
     return results
 
 
-# Define Types of requests handled by the manager
-# ###############################################
-
-# Enumeration to store request types
-request_types = enum(time_series='time_series',
-    aggregator='aggregator',
-    raw='raw')
-
-
-def get_request_type(request_meta):
-    """ Determines request type. """
-    if request_meta.aggregator and request_meta.time_series:
-        return request_types.time_series
-    elif request_meta.aggregator:
-        return request_types.aggregator
-    else:
-        return request_types.aggregator
