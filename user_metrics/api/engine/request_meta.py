@@ -36,7 +36,7 @@ __date__ = "2013-03-05"
 __license__ = "GPL (version 2 or later)"
 
 
-from user_metrics.utils import format_mediawiki_timestamp
+from user_metrics.utils import format_mediawiki_timestamp, enum
 from user_metrics.utils.record_type import recordtype
 from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine import DEFAULT_QUERY_VAL
@@ -388,3 +388,22 @@ def get_agg_key(agg_handle, metric_handle):
             return ''
     except TypeError:
         return ''
+
+
+# Define Types of requests handled by the manager
+# ###############################################
+
+# Enumeration to store request types
+request_types = enum(time_series='time_series',
+    aggregator='aggregator',
+    raw='raw')
+
+
+def get_request_type(request_meta):
+    """ Determines request type. """
+    if request_meta.aggregator and request_meta.time_series:
+        return request_types.time_series
+    elif request_meta.aggregator:
+        return request_types.aggregator
+    else:
+        return request_types.aggregator
