@@ -11,6 +11,10 @@ from datetime import datetime
 from collections import OrderedDict
 
 from user_metrics.api.engine import DATETIME_STR_FORMAT
+from user_metrics.api.engine.request_meta import REQUEST_VALUE_MAPPING
+from user_metrics.utils import reverse_dict
+
+REVERSE_GROUP_MAP = reverse_dict(REQUEST_VALUE_MAPPING['group'])
 
 
 def format_response(request):
@@ -28,4 +32,13 @@ def format_response(request):
     response['cohort'] = str(request.cohort_expr)
     response['cohort_last_generated'] = str(request.cohort_gen_timestamp)
     response['aggregator'] = str(request.aggregator)
+    response['metric'] = str(request.metric)
+    response['interval_hours'] = str(request.interval)
+
+    if request.group:
+        response['group'] = REVERSE_GROUP_MAP[int(request.group)]
+    else:
+        # @TODO get access to the metric default for this attribute
+        response['group'] = 'default'
+
     return response
