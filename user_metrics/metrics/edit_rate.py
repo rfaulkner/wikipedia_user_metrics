@@ -10,7 +10,8 @@ from user_metrics.etl.aggregator import weighted_rate, decorator_builder, \
     build_numpy_op_agg, build_agg_meta
 from numpy import median, min, max, mean, std
 from user_metrics.metrics.users import USER_METRIC_PERIOD_TYPE as umpt
-from user_metrics.utils import enum
+from user_metrics.utils import enum, format_mediawiki_timestamp
+from user_metrics.metrics.user_metric import METRIC_AGG_METHOD_KWARGS
 
 
 class EditRate(um.UserMetric):
@@ -50,7 +51,7 @@ class EditRate(um.UserMetric):
     _param_types = {
         'init': {
             'time_unit': [int, 'Type of time unit to normalize by '
-                                 '(HOUR=0, DAY=1).', TIME_UNIT_TYPE.HOUR],
+                               '(HOUR=0, DAY=1).', TIME_UNIT_TYPE.HOUR],
             'time_unit_count': [int,
                                 'Number of time units to normalize '
                                 'by (e.g. per two days).', 1],
@@ -78,8 +79,7 @@ class EditRate(um.UserMetric):
 
     @staticmethod
     def header():
-        return ['user_id', 'edit_count', 'edit_rate',
-                'start_time', 'period_len']
+        return ['user_id', 'edit_count', 'edit_rate', 'period_len']
 
     @um.UserMetric.pre_process_metric_call
     def process(self, user_handle, **kwargs):
@@ -111,8 +111,10 @@ class EditRate(um.UserMetric):
             time_diff_sec = self.t * 3600.0
         elif self.group == umpt.INPUT:
             try:
-                start_ts_obj = date_parse(self.datetime_start)
-                end_ts_obj = date_parse(self.datetime_end)
+                start_ts_obj = date_parse(
+                    format_mediawiki_timestamp(self.datetime_start))
+                end_ts_obj = date_parse(
+                    format_mediawiki_timestamp(self.datetime_end))
             except (AttributeError, ValueError):
                 raise um.UserMetricError()
 
@@ -132,7 +134,6 @@ class EditRate(um.UserMetric):
         for i in e.__iter__():
             new_i = i[:]  # Make a copy of the edit count element
             new_i.append(new_i[1] / (time_diff * self.time_unit_count))
-            new_i.append(self.datetime_start)
             new_i.append(time_diff)
             edit_rate.append(new_i)
         self._results = edit_rate
@@ -164,8 +165,13 @@ field_prefixes = \
         'rate_': 2,
     }
 
+
 # Build "dist" decorator
 op_list = [sum, mean, std, median, min, max]
 er_stats_agg = build_numpy_op_agg(build_agg_meta(op_list, field_prefixes),
                                   metric_header,
                                   'er_stats_agg')
+
+agg_kwargs = getattr(er_stats_agg, METRIC_AGG_METHOD_KWARGS)
+agg_kwargs['data_type'] = 'float'
+setattr(er_stats_agg, METRIC_AGG_METHOD_KWARGS, agg_kwargs)
