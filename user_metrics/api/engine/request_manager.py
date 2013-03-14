@@ -251,8 +251,8 @@ from user_metrics.api.engine.request_meta import ParameterMapping
 from user_metrics.api.engine.response_meta import format_response
 from user_metrics.utils import enum
 from user_metrics.api.engine import DATETIME_STR_FORMAT
-from user_metrics.api.engine.request_meta import metric_dict, get_agg_key, \
-    aggregator_dict
+from user_metrics.api.engine.request_meta import get_metric_type, \
+    get_agg_key, get_aggregator_type, get_aggregator_names
 
 INTERVALS_PER_THREAD = 10
 MAX_THREADS = 5
@@ -290,7 +290,7 @@ def process_data_request(request_meta, users):
     # Initialize the results
     results = format_response(request_meta)
 
-    metric_class = metric_dict[request_meta.metric]
+    metric_class = get_metric_type(request_meta.metric)
     metric_obj = metric_class(**args)
 
     start = metric_obj.datetime_start
@@ -306,8 +306,8 @@ def process_data_request(request_meta, users):
 
     # Parse the aggregator
     aggregator_func = None
-    if agg_key in aggregator_dict.keys():
-        aggregator_func = aggregator_dict[agg_key]
+    if agg_key in get_aggregator_names():
+        aggregator_func = get_aggregator_type(agg_key)
 
     # Parse the time series flag
     time_series = True if 'time_series' in args and args['time_series']\
@@ -362,7 +362,7 @@ def process_data_request(request_meta, users):
             for row in out:
                 timestamp = date_parse(row[0][:19]).strftime(
                     DATETIME_STR_FORMAT)
-                results['metric'][timestamp] = row[3:]
+                results['data'][timestamp] = row[3:]
         else:
 
             logging.info(__name__ + ' :: Initiating aggregator for '
@@ -381,7 +381,7 @@ def process_data_request(request_meta, users):
                 **args)
             r = um.aggregator(aggregator_func, metric_obj, metric_obj.header())
             results['header'] = " ".join(to_string(r.header))
-            results['metric'][r.data[0]] = " ".join(to_string(r.data[1:]))
+            results['data'][r.data[0]] = " ".join(to_string(r.data[1:]))
     else:
 
         logging.info(__name__ + ':: Initiating user data for '
@@ -397,7 +397,7 @@ def process_data_request(request_meta, users):
             log_=True,
             **args)
         for m in metric_obj.__iter__():
-            results['metric'][m[0]] = m[1:]
+            results['data'][m[0]] = m[1:]
 
     return results
 

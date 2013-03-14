@@ -44,7 +44,7 @@ from collections import namedtuple, OrderedDict
 from flask import escape
 from multiprocessing import Queue
 from user_metrics.config import logging
-# from user_metrics.utils import enum
+from user_metrics.utils import unpack_fields
 
 
 # DEFINE REQUEST META OBJECT, CREATION, AND PROCESSING
@@ -227,8 +227,6 @@ def rebuild_unpacked_request(unpacked_req):
 # DEFINE MAPPING AMONG API REQUESTS AND METRICS
 # #############################################
 
-from user_metrics.utils import unpack_fields
-
 
 class ParameterMapping(object):
     """
@@ -303,7 +301,7 @@ class ParameterMapping(object):
 # DEFINE METRIC AND AGGREGATOR ENUMS ALLOWABLE IN REQUESTS
 # ########################################################
 
-import user_metrics.metrics.threshold as th
+from user_metrics.metrics.threshold import Threshold, threshold_editors_agg
 from user_metrics.metrics.blocks import Blocks, block_rate_agg
 from user_metrics.metrics.bytes_added import BytesAdded, ba_median_agg, \
     ba_min_agg, ba_max_agg
@@ -321,7 +319,7 @@ import user_metrics.etl.aggregator as agg
 # Registered metrics types
 metric_dict =\
     {
-    'threshold': th.Threshold,
+    'threshold': Threshold,
     'survival': Survival,
     'revert_rate': RevertRate,
     'bytes_added': BytesAdded,
@@ -339,7 +337,7 @@ aggregator_dict =\
     'sum+bytes_added': agg.list_sum_indices,
     'sum+edit_rate': agg.list_sum_indices,
     'sum+namespace_edits': namespace_edits_sum,
-    'average+threshold': th.threshold_editors_agg,
+    'average+threshold': threshold_editors_agg,
     'average+survival': survival_editors_agg,
     'average+live_account': live_accounts_agg,
     'average+revert_rate': revert_rate_avg,
@@ -354,9 +352,22 @@ aggregator_dict =\
     }
 
 
+def get_metric_type(metric):
+    return metric_dict[metric]
+
+
+def get_aggregator_type(agg):
+    return aggregator_dict[agg]
+
+
 def get_metric_names():
     """ Returns the names of metric handles as defined by this module """
     return metric_dict.keys()
+
+
+def get_aggregator_names():
+    """ Returns the names of metric handles as defined by this module """
+    return aggregator_dict.keys()
 
 
 def get_param_types(metric_handle):
