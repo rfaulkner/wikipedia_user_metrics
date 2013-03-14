@@ -407,4 +407,4 @@ def get_request_type(request_meta):
     elif request_meta.aggregator:
         return request_types.aggregator
     else:
-        return request_types.aggregator
+        return request_types.raw
