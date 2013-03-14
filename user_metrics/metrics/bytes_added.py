@@ -5,7 +5,7 @@ __license__ = "GPL (version 2 or later)"
 
 from user_metrics.config import logging
 
-from numpy import median, min, max
+from numpy import median, min, max, mean, std
 from collections import namedtuple
 import user_metric as um
 import os
@@ -254,14 +254,21 @@ field_prefixes = {
 }
 
 
+# Build "mean" decorator
+ba_mean_agg = build_numpy_op_agg(build_agg_meta([mean], field_prefixes),
+                                   metric_header, 'ba_mean_agg')
+# Build "standard deviation" decorator
+ba_std_agg = build_numpy_op_agg(build_agg_meta([std], field_prefixes),
+                                   metric_header, 'ba_std_agg')
+# Build "sum" decorator
+ba_sum_agg = build_numpy_op_agg(build_agg_meta([sum], field_prefixes),
+                                  metric_header, 'ba_sum_agg')
 # Build "median" decorator
 ba_median_agg = build_numpy_op_agg(build_agg_meta([median], field_prefixes),
                                    metric_header, 'ba_median_agg')
-
 # Build "min" decorator
 ba_min_agg = build_numpy_op_agg(build_agg_meta([min], field_prefixes),
                                 metric_header, 'ba_min_agg')
-
 # Build "max" decorator
 ba_max_agg = build_numpy_op_agg(build_agg_meta([max], field_prefixes),
                                 metric_header, 'ba_max_agg')

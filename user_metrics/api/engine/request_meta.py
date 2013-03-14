@@ -304,7 +304,7 @@ class ParameterMapping(object):
 from user_metrics.metrics.threshold import Threshold, threshold_editors_agg
 from user_metrics.metrics.blocks import Blocks, block_rate_agg
 from user_metrics.metrics.bytes_added import BytesAdded, ba_median_agg, \
-    ba_min_agg, ba_max_agg
+    ba_min_agg, ba_max_agg, ba_sum_agg, ba_mean_agg, ba_std_agg
 from user_metrics.metrics.survival import Survival, survival_editors_agg
 from user_metrics.metrics.revert_rate import RevertRate, revert_rate_avg
 from user_metrics.metrics.time_to_threshold import TimeToThreshold, \
@@ -314,7 +314,7 @@ from user_metrics.metrics.edit_rate import EditRate, edit_rate_agg, \
 from user_metrics.metrics.namespace_of_edits import NamespaceEdits, \
     namespace_edits_sum
 from user_metrics.metrics.live_account import LiveAccount, live_accounts_agg
-import user_metrics.etl.aggregator as agg
+
 
 # Registered metrics types
 metric_dict =\
@@ -334,8 +334,9 @@ metric_dict =\
 #            structure
 aggregator_dict =\
     {
-    'sum+bytes_added': agg.list_sum_indices,
-    'sum+edit_rate': agg.list_sum_indices,
+    'sum+bytes_added': ba_sum_agg,
+    'mean+bytes_added': ba_mean_agg,
+    'std+bytes_added': ba_std_agg,
     'sum+namespace_edits': namespace_edits_sum,
     'average+threshold': threshold_editors_agg,
     'average+survival': survival_editors_agg,

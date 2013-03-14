@@ -8,7 +8,7 @@ import user_metric as um
 import edit_count as ec
 from user_metrics.etl.aggregator import weighted_rate, decorator_builder, \
     build_numpy_op_agg, build_agg_meta
-from numpy import median, min, max
+from numpy import median, min, max, mean, std
 from user_metrics.metrics.users import USER_METRIC_PERIOD_TYPE as umpt
 from user_metrics.utils import enum
 
@@ -165,7 +165,7 @@ field_prefixes = \
     }
 
 # Build "dist" decorator
-op_list = [median, min, max]
+op_list = [sum, mean, std, median, min, max]
 er_stats_agg = build_numpy_op_agg(build_agg_meta(op_list, field_prefixes),
                                   metric_header,
                                   'er_stats_agg')
