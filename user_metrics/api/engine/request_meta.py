@@ -357,7 +357,10 @@ def get_metric_type(metric):
 
 
 def get_aggregator_type(agg):
-    return aggregator_dict[agg]
+    try:
+        return aggregator_dict[agg]
+    except KeyError:
+        raise MetricsAPIError(__name__ + ' :: Bad aggregator name.')
 
 
 def get_metric_names():
