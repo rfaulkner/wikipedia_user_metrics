@@ -31,7 +31,9 @@ from user_metrics.api.engine import MW_UNAME_REGEX
 from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine.request_meta import request_queue, \
     filter_request_input, format_request_params, RequestMetaFactory, \
-    get_metric_names, msg_queue_in, msg_queue_out
+    get_metric_names, req_cb_get_cache_keys, req_cb_get_url, \
+    req_cb_get_is_running, req_cb_add_req
+
 from user_metrics.metrics import query_mod
 
 # Instantiate flask app
@@ -305,12 +307,10 @@ def output(cohort, metric):
     # 1. The response already exists in the hash, return.
     # 2. Otherwise, add the request tot the queue.
     data = get_data(api_data, rm)
-    ref = api_data
     key_sig = build_key_signature(rm, hash_result=True)
 
     # Is the request already running?
-    msg_queue_in.put([2, key_sig], True)
-    is_running = msg_queue_out.get(block=True, timeout=0.1)[0]
+    is_running = req_cb_get_is_running(key_sig)
 
     # Determine if request is already hashed
     if data and not refresh:
@@ -323,9 +323,8 @@ def output(cohort, metric):
                                url_str=str(rm))
     # Add the request to the queue
     else:
-
         request_queue.put(unpack_fields(rm))
-        msg_queue_in.put([0, key_sig, url])
+        req_cb_add_req(key_sig, url)
 
     return render_template('processing.html', url_str=str(rm))
 
@@ -340,15 +339,11 @@ def job_queue():
     p_list.append(Markup('<thead><tr><th>is_alive</th><th>url'
                          '</th></tr></thead>\n<tbody>\n'))
 
-    msg_queue_in.put([3], block=True)
-    keys = msg_queue_out.get(block=True, timeout=0.1)
+    keys = req_cb_get_cache_keys()
     for key in keys:
         # Log the status of the job
-        msg_queue_in.put([4, key], block=True)
-        url = msg_queue_out.get(True)[0]
-
-        msg_queue_in.put([2, key], True)
-        is_alive = str(msg_queue_out.get(block=True)[0])
+        url = req_cb_get_url(key)
+        is_alive = str(req_cb_get_is_running(key))
 
         p_list.append('<tr><td>')
         response_url = "".join(['<a href="',

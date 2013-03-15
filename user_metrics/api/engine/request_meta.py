@@ -459,7 +459,6 @@ def requests_made_callback(msg_queue_in, msg_queue_out):
         elif type == 2:
             try:
                 if msg[1] in cache:
-                    print cache[msg[1]][0]
                     msg_queue_out.put([cache[msg[1]][0]], True)
                 else:
                     msg_queue_out.put([False], True)
@@ -486,3 +485,26 @@ def requests_made_callback(msg_queue_in, msg_queue_out):
 
     logging.debug('{0} :: {1}  - SHUTTING DOWN...'
         .format(__name__, requests_made_callback.__name__))
+
+
+# The methods below coordinate request cache communication
+# ########################
+
+
+def req_cb_get_url(key):
+    msg_queue_in.put([4, key], block=True)
+    return msg_queue_out.get(True)[0]
+
+
+def req_cb_get_cache_keys():
+    msg_queue_in.put([3], block=True)
+    return msg_queue_out.get(block=True, timeout=0.1)
+
+
+def req_cb_get_is_running(key):
+    msg_queue_in.put([2, key], True)
+    return msg_queue_out.get(block=True, timeout=0.1)[0]
+
+
+def req_cb_add_req(key, url):
+    msg_queue_in.put([0, key, url])
