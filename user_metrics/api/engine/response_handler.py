@@ -23,11 +23,11 @@ RESPONSE_TIMEOUT = 0.1
 # ####################
 
 
-def process_responses(response_queue, requests_made, cache_ref):
+def process_responses(response_queue, msg_in, cache_ref):
     """ Pulls responses off of the queue. """
 
     logging.debug('{0} :: {1}  - STARTING...'
-    .format(__name__, process_responses.__name__))
+        .format(__name__, process_responses.__name__))
 
     while 1:
         stream = ''
@@ -58,12 +58,11 @@ def process_responses(response_queue, requests_made, cache_ref):
         key_sig = build_key_signature(request_meta, hash_result=True)
 
         # Set request in list to "not alive"
-        if key_sig in requests_made:
-            requests_made[key_sig][0] = False
+        msg_in.put([1, key_sig], True)
 
         logging.debug(__name__ + ' :: Setting data for {0}'.
             format(str(request_meta)))
         set_data(cache_ref, stream, request_meta)
 
     logging.debug('{0} :: {1}  - SHUTTING DOWN...'
-    .format(__name__, process_responses.__name__))
+        .format(__name__, process_responses.__name__))

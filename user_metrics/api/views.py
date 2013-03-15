@@ -31,7 +31,7 @@ from user_metrics.api.engine import MW_UNAME_REGEX
 from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine.request_meta import request_queue, \
     filter_request_input, format_request_params, RequestMetaFactory, \
-    get_metric_names
+    get_metric_names, msg_queue_in, msg_queue_out
 from user_metrics.metrics import query_mod
 
 # Instantiate flask app
@@ -40,9 +40,6 @@ app = Flask(__name__)
 # REGEX to identify refresh flags in the URL
 REFRESH_REGEX = r'refresh[^&]*&|\?refresh[^&]*$|&refresh[^&]*$'
 
-# Queue for storing all active processes
-global requests_made
-requests_made = OrderedDict()
 
 # Stores cached requests (this should eventually be replaced with
 # a proper cache)
@@ -308,15 +305,19 @@ def output(cohort, metric):
     # 1. The response already exists in the hash, return.
     # 2. Otherwise, add the request tot the queue.
     data = get_data(api_data, rm)
+    ref = api_data
     key_sig = build_key_signature(rm, hash_result=True)
+
+    # Is the request already running?
+    msg_queue_in.put([2, key_sig], True)
+    is_running = msg_queue_out.get(block=True, timeout=0.1)[0]
 
     # Determine if request is already hashed
     if data and not refresh:
         return make_response(jsonify(data))
 
     # Determine if the job is already running
-    elif key_sig in requests_made and \
-            requests_made[key_sig][0]:
+    elif is_running:
         return render_template('processing.html',
                                error=error_codes[0],
                                url_str=str(rm))
@@ -324,7 +325,7 @@ def output(cohort, metric):
     else:
 
         request_queue.put(unpack_fields(rm))
-        requests_made[key_sig] = [True, url, rm]
+        msg_queue_in.put([0, key_sig, url])
 
     return render_template('processing.html', url_str=str(rm))
 
@@ -338,11 +339,16 @@ def job_queue():
     p_list = list()
     p_list.append(Markup('<thead><tr><th>is_alive</th><th>url'
                          '</th></tr></thead>\n<tbody>\n'))
-    for key in requests_made:
-        # Log the status of the job
 
-        url = requests_made[key][1]
-        is_alive = str(requests_made[key][0])
+    msg_queue_in.put([3], block=True)
+    keys = msg_queue_out.get(block=True, timeout=0.1)
+    for key in keys:
+        # Log the status of the job
+        msg_queue_in.put([4, key], block=True)
+        url = msg_queue_out.get(True)[0]
+
+        msg_queue_in.put([2, key], True)
+        is_alive = str(msg_queue_out.get(block=True)[0])
 
         p_list.append('<tr><td>')
         response_url = "".join(['<a href="',
