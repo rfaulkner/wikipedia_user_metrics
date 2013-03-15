@@ -106,7 +106,7 @@ api_response_queue = Queue()
 
 
 # Determines maximum block size of queue item
-MAX_BLOCK_SIZE = 10
+MAX_BLOCK_SIZE = 5000
 
 # Defines the job item type used to temporarily store job progress
 job_item_type = namedtuple('JobItem', 'id process request queue')
@@ -517,22 +517,32 @@ def requests_notification_callback(msg_queue_in, msg_queue_out):
 
 
 # Wrapper Methods for working with Request Notifications
+# Use locks to enforce atomicity
 
-
-def req_cb_get_url(key):
+def req_cb_get_url(key, lock):
+    lock.acquire()
     req_notification_queue_in.put([4, key], block=True)
-    return req_notification_queue_out.get(True)[0]
+    val =req_notification_queue_out.get(True)[0]
+    lock.release()
+    return val
 
 
-def req_cb_get_cache_keys():
+def req_cb_get_cache_keys(lock):
+    lock.acquire()
     req_notification_queue_in.put([3], block=True)
-    return req_notification_queue_out.get(block=True, timeout=0.1)
+    val =  req_notification_queue_out.get(block=True, timeout=0.1)
+    lock.release()
+    return val
 
 
-def req_cb_get_is_running(key):
+def req_cb_get_is_running(key, lock):
+    lock.acquire()
     req_notification_queue_in.put([2, key], True)
-    return req_notification_queue_out.get(block=True, timeout=0.1)[0]
+    val =  req_notification_queue_out.get(block=True, timeout=0.1)[0]
+    lock.release()
+    return val
 
-
-def req_cb_add_req(key, url):
+def req_cb_add_req(key, url, lock):
+    lock.acquire()
     req_notification_queue_in.put([0, key, url])
+    lock.release()

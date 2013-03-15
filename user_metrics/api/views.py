@@ -20,6 +20,7 @@ from flask import Flask, render_template, Markup, redirect, url_for, \
     request, escape, flash, jsonify, make_response
 from re import search, sub
 from collections import OrderedDict
+from multiprocessing import Lock
 
 from user_metrics.etl.data_loader import Connector
 from user_metrics.config import logging
@@ -37,6 +38,10 @@ from user_metrics.api.engine.request_manager import api_request_queue, \
     req_cb_add_req
 
 from user_metrics.metrics import query_mod
+
+
+# View Lock for atomic operations
+VIEW_LOCK = Lock()
 
 # Instantiate flask app
 app = Flask(__name__)
@@ -312,7 +317,7 @@ def output(cohort, metric):
     key_sig = build_key_signature(rm, hash_result=True)
 
     # Is the request already running?
-    is_running = req_cb_get_is_running(key_sig)
+    is_running = req_cb_get_is_running(key_sig, VIEW_LOCK)
 
     # Determine if request is already hashed
     if data and not refresh:
@@ -326,7 +331,7 @@ def output(cohort, metric):
     # Add the request to the queue
     else:
         api_request_queue.put(unpack_fields(rm), block=True)
-        req_cb_add_req(key_sig, url)
+        req_cb_add_req(key_sig, url, VIEW_LOCK)
 
     return render_template('processing.html', url_str=str(rm))
 
@@ -341,11 +346,11 @@ def job_queue():
     p_list.append(Markup('<thead><tr><th>is_alive</th><th>url'
                          '</th></tr></thead>\n<tbody>\n'))
 
-    keys = req_cb_get_cache_keys()
+    keys = req_cb_get_cache_keys(VIEW_LOCK)
     for key in keys:
         # Log the status of the job
-        url = req_cb_get_url(key)
-        is_alive = str(req_cb_get_is_running(key))
+        url = req_cb_get_url(key, VIEW_LOCK)
+        is_alive = str(req_cb_get_is_running(key, VIEW_LOCK))
 
         p_list.append('<tr><td>')
         response_url = "".join(['<a href="',
