@@ -101,7 +101,7 @@ from sys import getsizeof
 # ###############
 
 # Determines maximum block size of queue item
-MAX_BLOCK_SIZE = 5000
+MAX_BLOCK_SIZE = 10
 
 # Defines the job item type used to temporarily store job progress
 job_item_type = namedtuple('JobItem', 'id process request queue')
@@ -156,24 +156,19 @@ def job_control(request_queue, response_queue):
 
         for job_item in job_queue:
 
-            # Try to pull some data off of the queue without blocking
-            data = job_item.queue.get(False)
-
             # Look for completed jobs
-            if data:
+            if not job_item.queue.empty():
 
-                # Pull remaining data off of the queue
-                # and add it to the queue data
-                stream = ''
-                while data:
-                    stream += data
-                    if not job_item.queue.empty():
-                        data = job_item.queue.get(timeout=0.1)
-                    else:
-                        data = None
+                # Put request creds on res queue -- this goes to
+                # response_handler asynchronously
+                response_queue.put(unpack_fields(job_item.request),
+                                   block=True)
 
-                data = eval(stream)
-                response_queue.put([unpack_fields(job_item.request), data])
+                # Pull data off of the queue and add it to response queue
+                while not job_item.queue.empty():
+                    data = job_item.queue.get(True)
+                    if data:
+                        response_queue.put(data, block=True)
 
                 del job_queue[job_queue.index(job_item)]
 
@@ -231,8 +226,8 @@ def process_metrics(p, request_meta):
     """ Worker process for requests -
         this will typically operate in a forked process """
 
-    logging.info(__name__ + ' :: START JOB\n\t%s (PID = %s)\n' % (str(request_meta),
-                                                             getpid()))
+    logging.info(__name__ + ' :: START JOB\n\t%s (PID = %s)\n' % (
+        str(request_meta), getpid()))
 
     # obtain user list - handle the case where a lone user ID is passed
     if search(MW_UID_REGEX, str(request_meta.cohort_expr)):
@@ -246,7 +241,6 @@ def process_metrics(p, request_meta):
 
     # process request
     results = process_data_request(request_meta, users)
-
     results = str(results)
     response_size = getsizeof(results, None)
 

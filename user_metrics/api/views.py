@@ -17,7 +17,7 @@ __license__ = "GPL (version 2 or later)"
 
 
 from flask import Flask, render_template, Markup, redirect, url_for, \
-    request, escape, flash
+    request, escape, flash, jsonify, make_response
 from re import search, sub
 from collections import OrderedDict
 
@@ -312,7 +312,7 @@ def output(cohort, metric):
 
     # Determine if request is already hashed
     if data and not refresh:
-        return data
+        return make_response(jsonify(data))
 
     # Determine if the job is already running
     elif key_sig in requests_made and \
@@ -333,7 +333,6 @@ def output(cohort, metric):
 def job_queue():
     """ View for listing current jobs working """
 
-    process_responses()
     error = get_errors(request.args)
 
     p_list = list()
