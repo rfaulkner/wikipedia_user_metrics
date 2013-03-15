@@ -23,7 +23,7 @@ RESPONSE_TIMEOUT = 0.1
 # ####################
 
 
-def process_responses(response_queue, msg_in, cache_ref):
+def process_responses(response_queue, msg_in):
     """ Pulls responses off of the queue. """
 
     logging.debug('{0} :: {1}  - STARTING...'
@@ -62,7 +62,7 @@ def process_responses(response_queue, msg_in, cache_ref):
 
         logging.debug(__name__ + ' :: Setting data for {0}'.
             format(str(request_meta)))
-        set_data(cache_ref, stream, request_meta)
+        set_data(stream, request_meta)
 
     logging.debug('{0} :: {1}  - SHUTTING DOWN...'
         .format(__name__, process_responses.__name__))

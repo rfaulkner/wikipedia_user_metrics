@@ -95,7 +95,7 @@ def teardown(data):
         logging.error(__name__ + ' :: Could not shut down controller.')
 
 
-def setup_controller(req_queue, res_queue, msg_queue_in, msg_queue_out, cache):
+def setup_controller(req_queue, res_queue, msg_queue_in, msg_queue_out):
     """
         Sets up the process that handles API jobs
     """
@@ -103,8 +103,7 @@ def setup_controller(req_queue, res_queue, msg_queue_in, msg_queue_out, cache):
                                      args=(req_queue, res_queue))
     response_controller_proc = mp.Process(target=process_responses,
                                           args=(res_queue,
-                                                msg_queue_in,
-                                                cache))
+                                                msg_queue_in))
     rm_callback_proc = mp.Process(target=requests_made_callback,
                                   args=(msg_queue_in,
                                         msg_queue_out))
@@ -124,7 +123,7 @@ if __name__ == '__main__':
     # initialize API data - get the instance
 
     setup_controller(request_queue, response_queue, msg_queue_in,
-                     msg_queue_out, api_data)
+                     msg_queue_out)
     try:
         app.config['SECRET_KEY'] = settings.__secret_key__
         login_manager.setup_app(app)

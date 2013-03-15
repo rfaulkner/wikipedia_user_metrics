@@ -306,7 +306,7 @@ def output(cohort, metric):
     # Determine if the request maps to an existing response.
     # 1. The response already exists in the hash, return.
     # 2. Otherwise, add the request tot the queue.
-    data = get_data(api_data, rm)
+    data = get_data(rm)
     key_sig = build_key_signature(rm, hash_result=True)
 
     # Is the request already running?

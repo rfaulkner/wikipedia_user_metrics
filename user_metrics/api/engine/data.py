@@ -52,6 +52,7 @@ from datetime import datetime
 from re import search
 from collections import OrderedDict
 from hashlib import sha1
+import cPickle
 
 import user_metrics.etl.data_loader as dl
 from user_metrics.config import logging
@@ -60,6 +61,8 @@ from user_metrics.api.engine import COHORT_REGEX, parse_cohorts, \
 from user_metrics.api.engine.request_meta import REQUEST_META_QUERY_STR,\
     REQUEST_META_BASE
 from user_metrics.api import MetricsAPIError
+from user_metrics.config import settings
+
 
 # This is used to separate key meta and key strings for hash table data
 # e.g. "metric <==> blocks"
@@ -135,11 +138,13 @@ def get_cohort_refresh_datetime(utm_id):
     return utm_touched.strftime(DATETIME_STR_FORMAT)
 
 
-def get_data(hash_table_ref, request_meta, hash_result=True):
+def get_data(request_meta, hash_result=True):
     """
         Extract data from the global hash given a request object.  If an item
         is successfully recovered data is returned
     """
+
+    hash_table_ref = read_pickle_data()
 
     # Traverse the hash key structure to find data
     # @TODO rather than iterate through REQUEST_META_BASE &
@@ -149,25 +154,16 @@ def get_data(hash_table_ref, request_meta, hash_result=True):
                   format(str(request_meta)))
 
     key_sig = build_key_signature(request_meta, hash_result=hash_result)
-    data = find_item(hash_table_ref, key_sig)
-
-    # Ensure that an interface that does not rely on keyed values is returned
-    # all data must be in interfaces resembling lists
-    if data and not hasattr(data, 'keys'):
-        if hash_result:
-            return data[0]
-        else:
-            return data
-    else:
-        logging.error(__name__ + ' :: Can\'t return an iterator.')
-        return None
+    return eval(find_item(hash_table_ref, key_sig)[0])
 
 
-def set_data(hash_table_ref, data, request_meta, hash_result=True):
+def set_data(data, request_meta, hash_result=True):
     """
         Given request meta-data and a dataset create a key path in the global
         hash to store the data
     """
+    hash_table_ref = read_pickle_data()
+
     key_sig = build_key_signature(request_meta, hash_result=hash_result)
     logging.debug(__name__ + " :: Adding data to hash @ key signature = {0}".
                   format(str(key_sig)))
@@ -182,6 +178,7 @@ def set_data(hash_table_ref, data, request_meta, hash_result=True):
             else:
                 hash_table_ref[item] = OrderedDict()
             hash_table_ref = hash_table_ref[item]
+    write_pickle_data(hash_table_ref)
 
 
 def find_item(hash_table_ref, key_sig):
@@ -264,4 +261,19 @@ def get_url_from_keys(keys, path_root):
     return url
 
 
+def read_pickle_data():
+    try:
+        with open(settings.__data_file_dir__ +
+                  'api_data.pkl', 'rb') as pkl_file:
+            return cPickle.load(pkl_file)
+    except IOError:
+        with open(settings.__data_file_dir__ +
+                  'api_data.pkl', 'wb') as pkl_file:
+            data = OrderedDict()
+            cPickle.dump(data, pkl_file)
+            return data
 
+def write_pickle_data(obj):
+    with open(settings.__data_file_dir__ +
+              'api_data.pkl', 'wb') as pkl_file:
+        cPickle.dump(obj, pkl_file)
