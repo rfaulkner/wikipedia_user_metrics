@@ -94,11 +94,14 @@ from multiprocessing import Process, Queue
 from collections import namedtuple
 from re import search
 from os import getpid
+from sys import getsizeof
 
 
 # API JOB HANDLER
 # ###############
 
+# Determines maximum block size of queue item
+MAX_BLOCK_SIZE = 5000
 
 # Defines the job item type used to temporarily store job progress
 job_item_type = namedtuple('JobItem', 'id process request queue')
@@ -152,11 +155,24 @@ def job_control(request_queue, response_queue):
         # ---------------------
 
         for job_item in job_queue:
-            # Look for completed jobs
-            if not job_item.process.is_alive():
 
-                # Pull data off of the queue and add it to the queue data
-                data = job_item.queue.get()
+            # Try to pull some data off of the queue without blocking
+            data = job_item.queue.get(False)
+
+            # Look for completed jobs
+            if data:
+
+                # Pull remaining data off of the queue
+                # and add it to the queue data
+                stream = ''
+                while data:
+                    stream += data
+                    if not job_item.queue.empty():
+                        data = job_item.queue.get(timeout=0.1)
+                    else:
+                        data = None
+
+                data = eval(stream)
                 response_queue.put([unpack_fields(job_item.request), data])
 
                 del job_queue[job_queue.index(job_item)]
@@ -230,7 +246,17 @@ def process_metrics(p, request_meta):
 
     # process request
     results = process_data_request(request_meta, users)
-    p.put(results)
+
+    results = str(results)
+    response_size = getsizeof(results, None)
+
+    if response_size > MAX_BLOCK_SIZE:
+        index = 0
+
+        # Dump the data in pieces - block until it is picked up
+        while index < response_size:
+            p.put(results[index:index+MAX_BLOCK_SIZE], block=True)
+            index += MAX_BLOCK_SIZE
 
     logging.info(__name__ + ' :: END JOB\n\t%s (PID = %s)\n' % (str(request_meta),
                                                                 getpid()))
