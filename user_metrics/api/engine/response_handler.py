@@ -26,8 +26,8 @@ RESPONSE_TIMEOUT = 0.1
 def process_responses(response_queue, msg_in):
     """ Pulls responses off of the queue. """
 
-    logging.debug('{0} :: {1}  - STARTING...'
-        .format(__name__, process_responses.__name__))
+    log_name = '{0} :: {1}'.format(__name__, process_responses.__name__)
+    logging.debug(log_name  + ' - STARTING...')
 
     while 1:
         stream = ''
@@ -37,7 +37,7 @@ def process_responses(response_queue, msg_in):
             res = response_queue.get(True)
             request_meta = rebuild_unpacked_request(res)
         except Exception:
-            logging.error(__name__ + ' :: Could not get request meta')
+            logging.error(log_name + ' - Could not get request meta')
             continue
 
         data = response_queue.get(True)
@@ -51,8 +51,8 @@ def process_responses(response_queue, msg_in):
         try:
             data = eval(stream)
         except Exception:
-            logging.error(__name__ + ' :: Request {0} failed.'.
-                format(request_meta))
+            logging.error(log_name + ' :: Request {0} failed.'.format(
+                request_meta))
             continue
 
         key_sig = build_key_signature(request_meta, hash_result=True)
@@ -60,9 +60,8 @@ def process_responses(response_queue, msg_in):
         # Set request in list to "not alive"
         msg_in.put([1, key_sig], True)
 
-        logging.debug(__name__ + ' :: Setting data for {0}'.
-            format(str(request_meta)))
+        logging.debug(log_name + ' - Setting data for {0}'.format(
+            str(request_meta)))
         set_data(stream, request_meta)
 
-    logging.debug('{0} :: {1}  - SHUTTING DOWN...'
-        .format(__name__, process_responses.__name__))
+    logging.debug(log_name + ' - SHUTTING DOWN...')

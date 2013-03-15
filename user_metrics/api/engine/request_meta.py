@@ -42,7 +42,6 @@ from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine import DEFAULT_QUERY_VAL
 from collections import namedtuple, OrderedDict
 from flask import escape
-from multiprocessing import Queue
 from user_metrics.config import logging
 from user_metrics.utils import unpack_fields
 
@@ -65,11 +64,6 @@ RequestMeta = recordtype('RequestMeta',
                          'cohort_expr cohort_gen_timestamp metric '
                          'time_series aggregator project '
                          'namespace start end interval t n  group')
-
-
-# API queues for API service requests and responses
-request_queue = Queue()
-response_queue = Queue()
 
 
 def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
@@ -410,101 +404,3 @@ def get_request_type(request_meta):
         return request_types.raw
 
 
-# Define callback for handling pending request
-# ############################################
-
-
-msg_queue_in = Queue()
-msg_queue_out = Queue()
-
-request_msg_type = namedtuple('RequestMessage', 'type hash url is_alive')
-
-def requests_made_callback(msg_queue_in, msg_queue_out):
-    """
-        Handles tracking of requests made.
-
-        Set message = [type, hash, is_alive, url]
-        Get message = [type, hash]
-    """
-    logging.debug('{0} :: {1}  - STARTING...'
-        .format(__name__, requests_made_callback.__name__))
-
-    cache = OrderedDict()
-    while 1:
-        msg = msg_queue_in.get(True)
-
-        try:
-            type = msg[0]
-        except (KeyError, ValueError):
-            logging.error(__name__ + ' :: No valid type {0}'.format(str(msg)))
-            continue
-
-        # Init request
-        if type == 0:
-            try:
-                cache[msg[1]] = [True, msg[2]]
-                logging.debug(__name__ + ' :: Set: {0}.'.format(str(msg)))
-            except Exception:
-                logging.error(__name__ + ' :: Set failed: {0}'.format(str(msg)))
-
-        # Kill request - leave on cache
-        elif type == 1:
-            try:
-                cache[msg[1]][0] = False
-                logging.debug(__name__ + ' :: Set: {0}.'.format(str(msg)))
-            except Exception:
-                logging.error(__name__ + ' :: Set failed: {0}'.format(str(msg)))
-
-        # Is the key in the cache and running?
-        elif type == 2:
-            try:
-                if msg[1] in cache:
-                    msg_queue_out.put([cache[msg[1]][0]], True)
-                else:
-                    msg_queue_out.put([False], True)
-                logging.debug(__name__ + ' :: Get: {0}.'.format(str(msg)))
-            except (KeyError, ValueError):
-                logging.error(__name__ + ' :: Get failed: {0}'.format(str(msg)))
-
-        # Get keys
-        elif type == 3:
-            msg_queue_out.put(cache.keys(), True)
-
-        # Get url
-        elif type == 4:
-            try:
-                if msg[1] in cache:
-                    msg_queue_out.put([cache[msg[1]][1]], True)
-                else:
-                    logging.error(__name__ + ' :: Get failed: {0}'.
-                        format(str(msg)))
-            except (KeyError, ValueError):
-                logging.error(__name__ + ' :: Get failed: {0}'.format(str(msg)))
-        else:
-            logging.error(__name__ + ' :: Bad message: {0}'.format(str(msg)))
-
-    logging.debug('{0} :: {1}  - SHUTTING DOWN...'
-        .format(__name__, requests_made_callback.__name__))
-
-
-# The methods below coordinate request cache communication
-# ########################
-
-
-def req_cb_get_url(key):
-    msg_queue_in.put([4, key], block=True)
-    return msg_queue_out.get(True)[0]
-
-
-def req_cb_get_cache_keys():
-    msg_queue_in.put([3], block=True)
-    return msg_queue_out.get(block=True, timeout=0.1)
-
-
-def req_cb_get_is_running(key):
-    msg_queue_in.put([2, key], True)
-    return msg_queue_out.get(block=True, timeout=0.1)[0]
-
-
-def req_cb_add_req(key, url):
-    msg_queue_in.put([0, key, url])

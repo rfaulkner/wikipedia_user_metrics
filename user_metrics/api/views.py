@@ -29,10 +29,12 @@ from user_metrics.api.engine.data import get_cohort_id, \
     build_key_signature
 from user_metrics.api.engine import MW_UNAME_REGEX
 from user_metrics.api import MetricsAPIError
-from user_metrics.api.engine.request_meta import request_queue, \
-    filter_request_input, format_request_params, RequestMetaFactory, \
-    get_metric_names, req_cb_get_cache_keys, req_cb_get_url, \
-    req_cb_get_is_running, req_cb_add_req
+from user_metrics.api.engine.request_meta import filter_request_input, \
+    format_request_params, RequestMetaFactory, \
+    get_metric_names
+from user_metrics.api.engine.request_manager import api_request_queue, \
+    req_cb_get_cache_keys, req_cb_get_url, req_cb_get_is_running, \
+    req_cb_add_req
 
 from user_metrics.metrics import query_mod
 
@@ -289,7 +291,7 @@ def output(cohort, metric):
         cohort_refresh_ts = get_cohort_refresh_datetime(cid)
     except Exception:
         cohort_refresh_ts = None
-        logging.error(__name__ + '::Could not retrieve refresh '
+        logging.error(__name__ + ' :: Could not retrieve refresh '
                                  'time of cohort.')
 
     # Build a request.
@@ -323,7 +325,7 @@ def output(cohort, metric):
                                url_str=str(rm))
     # Add the request to the queue
     else:
-        request_queue.put(unpack_fields(rm))
+        api_request_queue.put(unpack_fields(rm), block=True)
         req_cb_add_req(key_sig, url)
 
     return render_template('processing.html', url_str=str(rm))

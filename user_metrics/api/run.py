@@ -48,13 +48,14 @@ import multiprocessing as mp
 from datetime import datetime
 
 from user_metrics.config import logging, settings
-from user_metrics.api.engine.request_manager import job_control
+from user_metrics.api.engine.request_manager import job_control, \
+    requests_notification_callback
 from user_metrics.api.engine.response_handler import process_responses
 from user_metrics.api.views import app, login_manager
-from user_metrics.api.engine.request_meta import request_queue, \
-    response_queue, msg_queue_in, msg_queue_out, requests_made_callback
 from user_metrics.api.engine import DATETIME_STR_FORMAT
 from user_metrics.api.views import api_data
+from user_metrics.api.engine.request_manager import req_notification_queue_in, \
+    req_notification_queue_out, api_request_queue, api_response_queue
 
 job_controller_proc = None
 response_controller_proc = None
@@ -104,7 +105,7 @@ def setup_controller(req_queue, res_queue, msg_queue_in, msg_queue_out):
     response_controller_proc = mp.Process(target=process_responses,
                                           args=(res_queue,
                                                 msg_queue_in))
-    rm_callback_proc = mp.Process(target=requests_made_callback,
+    rm_callback_proc = mp.Process(target=requests_notification_callback,
                                   args=(msg_queue_in,
                                         msg_queue_out))
     job_controller_proc.start()
@@ -122,8 +123,8 @@ if __name__ == '__main__':
 
     # initialize API data - get the instance
 
-    setup_controller(request_queue, response_queue, msg_queue_in,
-                     msg_queue_out)
+    setup_controller(api_request_queue, api_response_queue,
+                     req_notification_queue_in, req_notification_queue_out)
     try:
         app.config['SECRET_KEY'] = settings.__secret_key__
         login_manager.setup_app(app)
