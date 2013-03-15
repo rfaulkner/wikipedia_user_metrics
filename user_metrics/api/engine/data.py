@@ -150,11 +150,19 @@ def get_data(request_meta, hash_result=True):
     # @TODO rather than iterate through REQUEST_META_BASE &
     #   REQUEST_META_QUERY_STR look only at existing attributes
 
-    logging.debug(__name__ + " :: Attempting to pull data for request {0}".
-                  format(str(request_meta)))
+    logging.debug(__name__ + " - Attempting to pull data for request " \
+                             "COHORT {0}, METRIC {1}".
+                  format(request_meta.cohort_expr, request_meta.metric))
 
     key_sig = build_key_signature(request_meta, hash_result=hash_result)
-    return eval(find_item(hash_table_ref, key_sig)[0])
+    item = find_item(hash_table_ref, key_sig)
+
+    if item:
+        # item[0] will be a stringified structure that
+        # is initialized, see set_data.
+        return eval(item[0])
+    else:
+        return None
 
 
 def set_data(data, request_meta, hash_result=True):
