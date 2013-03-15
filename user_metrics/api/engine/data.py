@@ -264,32 +264,4 @@ def get_url_from_keys(keys, path_root):
     return url
 
 
-def build_key_tree(nested_dict):
-    """ Builds a tree of key values from a nested dict. """
-    if hasattr(nested_dict, 'keys'):
-        for key in nested_dict.keys():
-            yield (key, build_key_tree(nested_dict[key]))
-    else:
-        yield None
 
-
-def get_keys_from_tree(tree):
-    """
-        Depth first traversal - get the key signatures from structure
-         produced by ``build_key_tree``.
-    """
-    key_sigs = list()
-    for node in tree:
-        stack_trace = [node]
-        while stack_trace:
-            if stack_trace[-1]:
-                ptr = stack_trace[-1][1]
-                try:
-                    stack_trace.append(ptr.next())
-                except StopIteration:
-                    # no more children
-                    stack_trace.pop()
-            else:
-                key_sigs.append([elem[0] for elem in stack_trace[:-1]])
-                stack_trace.pop()
-    return key_sigs
