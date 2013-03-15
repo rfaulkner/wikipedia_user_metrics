@@ -48,14 +48,16 @@ import multiprocessing as mp
 from datetime import datetime
 
 from user_metrics.config import logging, settings
-from engine.request_manager import job_control
+from user_metrics.api.engine.request_manager import job_control
+from user_metrics.api.engine.response_handler import process_responses
 from user_metrics.api.views import app, login_manager
 from user_metrics.api.engine.request_meta import request_queue, \
     response_queue
 from user_metrics.api.engine import DATETIME_STR_FORMAT
-from user_metrics.api.views import api_data
+from user_metrics.api.views import api_data, requests_made
 
 job_controller_proc = None
+response_controller_proc = None
 
 
 ######
@@ -93,16 +95,19 @@ def teardown(data):
         logging.error(__name__ + ' :: Could not shut down controller.')
 
 
-def setup_controller(req_queue, res_queue):
+def setup_controller(req_queue, res_queue, requests_pending, cache):
     """
         Sets up the process that handles API jobs
     """
     job_controller_proc = mp.Process(target=job_control,
                                      args=(req_queue, res_queue))
+    response_controller_proc = mp.Process(target=process_responses,
+                                          args=(res_queue,
+                                                requests_pending,
+                                                cache))
 
-    if not job_controller_proc.is_alive():
-        job_controller_proc.start()
-
+    job_controller_proc.start()
+    response_controller_proc.start()
 
 ######
 #
@@ -115,7 +120,7 @@ if __name__ == '__main__':
 
     # initialize API data - get the instance
 
-    setup_controller(request_queue, response_queue)
+    setup_controller(request_queue, response_queue, requests_made, api_data)
     try:
         app.config['SECRET_KEY'] = settings.__secret_key__
         login_manager.setup_app(app)

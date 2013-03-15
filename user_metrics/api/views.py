@@ -17,7 +17,7 @@ __license__ = "GPL (version 2 or later)"
 
 
 from flask import Flask, render_template, Markup, redirect, url_for, \
-    request, escape, jsonify, make_response, flash
+    request, escape, flash
 from re import search, sub
 from collections import OrderedDict
 
@@ -25,13 +25,13 @@ from user_metrics.etl.data_loader import Connector
 from user_metrics.config import logging
 from user_metrics.utils import unpack_fields
 from user_metrics.api.engine.data import get_cohort_id, \
-    get_cohort_refresh_datetime, get_data, get_url_from_keys, set_data, \
+    get_cohort_refresh_datetime, get_data, get_url_from_keys, \
     build_key_signature
 from user_metrics.api.engine import MW_UNAME_REGEX
 from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine.request_meta import request_queue, \
     filter_request_input, format_request_params, RequestMetaFactory, \
-    response_queue, rebuild_unpacked_request, get_metric_names
+    get_metric_names
 from user_metrics.metrics import query_mod
 
 # Instantiate flask app
@@ -278,8 +278,6 @@ def output(cohort, metric):
     """ View corresponding to a data request -
         All of the setup and execution for a request happens here. """
 
-    process_responses()
-
     # Get URL.  Check for refresh flag - drop from url
     url = request.url.split(request.url_root)[1]
     refresh = True if 'refresh' in request.args else False
@@ -379,18 +377,3 @@ def all_urls():
                                  '</a>']))
     return render_template('all_urls.html', urls=url_list)
 
-
-def process_responses():
-    """ Pulls responses off of the queue. """
-    while not response_queue.empty():
-        res = response_queue.get()
-
-        request_meta = rebuild_unpacked_request(res[0])
-        key_sig = build_key_signature(request_meta, hash_result=True)
-
-        # Set request in list to "not alive"
-        if key_sig in requests_made:
-            requests_made[key_sig][0] = False
-
-        data = make_response(jsonify(res[1]))
-        set_data(api_data, data, request_meta)
