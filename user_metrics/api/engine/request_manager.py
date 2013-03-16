@@ -82,8 +82,7 @@ __date__ = "2013-03-05"
 __license__ = "GPL (version 2 or later)"
 
 from user_metrics.config import logging, settings
-from user_metrics.api.engine import MAX_CONCURRENT_JOBS, \
-    QUEUE_WAIT, MW_UID_REGEX
+from user_metrics.api.engine import MW_UID_REGEX
 from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine.data import get_users
 from user_metrics.api.engine.request_meta import rebuild_unpacked_request
@@ -105,8 +104,15 @@ api_request_queue = Queue()
 api_response_queue = Queue()
 
 
-# Determines maximum block size of queue item
+# MODULE CONSTANTS
+#
+# 1. Determines maximum block size of queue item
+# 2. Number of maximum concurrently running jobs
+# 3. Time to block on waiting for a new request to appear in the queue
 MAX_BLOCK_SIZE = 5000
+MAX_CONCURRENT_JOBS = 1
+QUEUE_WAIT = 5
+
 
 # Defines the job item type used to temporarily store job progress
 job_item_type = namedtuple('JobItem', 'id process request queue')
