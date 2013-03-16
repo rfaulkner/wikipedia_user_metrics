@@ -262,6 +262,8 @@ def process_metrics(p, request_meta):
         while index < response_size:
             p.put(results[index:index+MAX_BLOCK_SIZE], block=True)
             index += MAX_BLOCK_SIZE
+    else:
+        p.put(results, block=True)
 
     logging.info(log_name + ' - END JOB'
                             '\n\tCOHORT = {0} - METRIC = {1}'
