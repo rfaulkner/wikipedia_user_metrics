@@ -17,22 +17,31 @@ __license__ = "GPL (version 2 or later)"
 
 
 from flask import Flask, render_template, Markup, redirect, url_for, \
-    request, escape, jsonify, make_response, flash
+    request, escape, flash, jsonify, make_response
 from re import search, sub
 from collections import OrderedDict
+from multiprocessing import Lock
 
 from user_metrics.etl.data_loader import Connector
 from user_metrics.config import logging
 from user_metrics.utils import unpack_fields
 from user_metrics.api.engine.data import get_cohort_id, \
-    get_cohort_refresh_datetime, get_data, get_url_from_keys, set_data, \
+    get_cohort_refresh_datetime, get_data, get_url_from_keys, \
     build_key_signature
 from user_metrics.api.engine import MW_UNAME_REGEX
 from user_metrics.api import MetricsAPIError
-from user_metrics.api.engine.request_meta import request_queue, \
-    filter_request_input, format_request_params, RequestMetaFactory, \
-    response_queue, rebuild_unpacked_request, get_metric_names
+from user_metrics.api.engine.request_meta import filter_request_input, \
+    format_request_params, RequestMetaFactory, \
+    get_metric_names
+from user_metrics.api.engine.request_manager import api_request_queue, \
+    req_cb_get_cache_keys, req_cb_get_url, req_cb_get_is_running, \
+    req_cb_add_req
+
 from user_metrics.metrics import query_mod
+
+
+# View Lock for atomic operations
+VIEW_LOCK = Lock()
 
 # Instantiate flask app
 app = Flask(__name__)
@@ -40,9 +49,6 @@ app = Flask(__name__)
 # REGEX to identify refresh flags in the URL
 REFRESH_REGEX = r'refresh[^&]*&|\?refresh[^&]*$|&refresh[^&]*$'
 
-# Queue for storing all active processes
-global requests_made
-requests_made = OrderedDict()
 
 # Stores cached requests (this should eventually be replaced with
 # a proper cache)
@@ -278,8 +284,6 @@ def output(cohort, metric):
     """ View corresponding to a data request -
         All of the setup and execution for a request happens here. """
 
-    process_responses()
-
     # Get URL.  Check for refresh flag - drop from url
     url = request.url.split(request.url_root)[1]
     refresh = True if 'refresh' in request.args else False
@@ -292,7 +296,7 @@ def output(cohort, metric):
         cohort_refresh_ts = get_cohort_refresh_datetime(cid)
     except Exception:
         cohort_refresh_ts = None
-        logging.error(__name__ + '::Could not retrieve refresh '
+        logging.error(__name__ + ' :: Could not retrieve refresh '
                                  'time of cohort.')
 
     # Build a request.
@@ -309,24 +313,25 @@ def output(cohort, metric):
     # Determine if the request maps to an existing response.
     # 1. The response already exists in the hash, return.
     # 2. Otherwise, add the request tot the queue.
-    data = get_data(api_data, rm)
+    data = get_data(rm)
     key_sig = build_key_signature(rm, hash_result=True)
+
+    # Is the request already running?
+    is_running = req_cb_get_is_running(key_sig, VIEW_LOCK)
 
     # Determine if request is already hashed
     if data and not refresh:
-        return data
+        return make_response(jsonify(data))
 
     # Determine if the job is already running
-    elif key_sig in requests_made and \
-            requests_made[key_sig][0]:
+    elif is_running:
         return render_template('processing.html',
                                error=error_codes[0],
                                url_str=str(rm))
     # Add the request to the queue
     else:
-
-        request_queue.put(unpack_fields(rm))
-        requests_made[key_sig] = [True, url, rm]
+        api_request_queue.put(unpack_fields(rm), block=True)
+        req_cb_add_req(key_sig, url, VIEW_LOCK)
 
     return render_template('processing.html', url_str=str(rm))
 
@@ -335,17 +340,17 @@ def output(cohort, metric):
 def job_queue():
     """ View for listing current jobs working """
 
-    process_responses()
     error = get_errors(request.args)
 
     p_list = list()
     p_list.append(Markup('<thead><tr><th>is_alive</th><th>url'
                          '</th></tr></thead>\n<tbody>\n'))
-    for key in requests_made:
-        # Log the status of the job
 
-        url = requests_made[key][1]
-        is_alive = str(requests_made[key][0])
+    keys = req_cb_get_cache_keys(VIEW_LOCK)
+    for key in keys:
+        # Log the status of the job
+        url = req_cb_get_url(key, VIEW_LOCK)
+        is_alive = str(req_cb_get_is_running(key, VIEW_LOCK))
 
         p_list.append('<tr><td>')
         response_url = "".join(['<a href="',
@@ -379,18 +384,3 @@ def all_urls():
                                  '</a>']))
     return render_template('all_urls.html', urls=url_list)
 
-
-def process_responses():
-    """ Pulls responses off of the queue. """
-    while not response_queue.empty():
-        res = response_queue.get()
-
-        request_meta = rebuild_unpacked_request(res[0])
-        key_sig = build_key_signature(request_meta, hash_result=True)
-
-        # Set request in list to "not alive"
-        if key_sig in requests_made:
-            requests_made[key_sig][0] = False
-
-        data = make_response(jsonify(res[1]))
-        set_data(api_data, data, request_meta)

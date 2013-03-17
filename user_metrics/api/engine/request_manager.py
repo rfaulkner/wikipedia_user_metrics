@@ -82,8 +82,7 @@ __date__ = "2013-03-05"
 __license__ = "GPL (version 2 or later)"
 
 from user_metrics.config import logging, settings
-from user_metrics.api.engine import MAX_CONCURRENT_JOBS, \
-    QUEUE_WAIT, MW_UID_REGEX
+from user_metrics.api.engine import MW_UID_REGEX
 from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine.data import get_users
 from user_metrics.api.engine.request_meta import rebuild_unpacked_request
@@ -94,10 +93,25 @@ from multiprocessing import Process, Queue
 from collections import namedtuple
 from re import search
 from os import getpid
+from sys import getsizeof
 
 
 # API JOB HANDLER
 # ###############
+
+# API queues for API service requests and responses
+api_request_queue = Queue()
+api_response_queue = Queue()
+
+
+# MODULE CONSTANTS
+#
+# 1. Determines maximum block size of queue item
+# 2. Number of maximum concurrently running jobs
+# 3. Time to block on waiting for a new request to appear in the queue
+MAX_BLOCK_SIZE = 5000
+MAX_CONCURRENT_JOBS = 1
+QUEUE_WAIT = 5
 
 
 # Defines the job item type used to temporarily store job progress
@@ -126,8 +140,9 @@ def job_control(request_queue, response_queue):
     # Tallies the number of concurrently running jobs
     concurrent_jobs = 0
 
-    logging.debug('{0} :: {1}  - STARTING...'
-    .format(__name__, job_control.__name__))
+    log_name = '{0} :: {1}'.format(__name__, job_control.__name__)
+
+    logging.debug('{0} - STARTING...'.format(log_name))
 
     while 1:
 
@@ -136,13 +151,14 @@ def job_control(request_queue, response_queue):
 
         try:
             # Pull an item off of the queue
+
             req_item = request_queue.get(timeout=QUEUE_WAIT)
 
-            logging.debug('{0} :: {1}' \
-                          '\n\tPull item from request queue -> \n\t{2}'
-            .format(__name__, job_control.__name__, str(req_item)))
+            logging.debug(log_name + ' :: PULLING item from request queue -> ' \
+                                     '\n\tCOHORT = {0} - METRIC = {1}'
+                .format(req_item['cohort_expr'], req_item['metric']))
 
-        except Exception:
+        except Exception as e:
             req_item = None
             #logging.debug('{0} :: {1}  - Listening ...'
             #.format(__name__, job_control.__name__))
@@ -152,21 +168,28 @@ def job_control(request_queue, response_queue):
         # ---------------------
 
         for job_item in job_queue:
-            # Look for completed jobs
-            if not job_item.process.is_alive():
 
-                # Pull data off of the queue and add it to the queue data
-                data = job_item.queue.get()
-                response_queue.put([unpack_fields(job_item.request), data])
+            # Look for completed jobs
+            if not job_item.queue.empty():
+
+                # Put request creds on res queue -- this goes to
+                # response_handler asynchronously
+                response_queue.put(unpack_fields(job_item.request),
+                                   block=True)
+
+                # Pull data off of the queue and add it to response queue
+                while not job_item.queue.empty():
+                    data = job_item.queue.get(True)
+                    if data:
+                        response_queue.put(data, block=True)
 
                 del job_queue[job_queue.index(job_item)]
 
                 concurrent_jobs -= 1
 
-                logging.debug('{0} :: {1}\n\tRUN -> RESPONSE {2}\n' \
-                              '\tConcurrent jobs = {3}'
-                .format(__name__, job_control.__name__, str(job_item),
-                        concurrent_jobs))
+                logging.debug(log_name + ' :: RUN -> RESPONSE - Job ID {0}' \
+                                         '\n\tConcurrent jobs = {1}'
+                    .format(str(job_item.id), concurrent_jobs))
 
 
         # Process pending jobs
@@ -188,10 +211,11 @@ def job_control(request_queue, response_queue):
                 concurrent_jobs += 1
                 job_id += 1
 
-                logging.debug('{0} :: {1}\n\tWAIT -> RUN {2}\n' \
-                              '\tConcurrent jobs = {3}'\
-                .format(__name__, job_control.__name__, str(wait_req),
-                        concurrent_jobs))
+                logging.debug(log_name + ' :: WAIT -> RUN - Job ID {0}' \
+                                         '\n\tConcurrent jobs = {1}, ' \
+                                         'COHORT = {2} - METRIC = {3}'\
+                    .format(str(job_id), concurrent_jobs,
+                            wait_req.cohort_expr, wait_req.metric))
 
 
         # Add newest job to the queue
@@ -202,21 +226,25 @@ def job_control(request_queue, response_queue):
             # Build the request item
             rm = rebuild_unpacked_request(req_item)
 
-            logging.debug('{0} :: {1}\n\tREQUEST -> WAIT {2}'
-            .format(__name__, job_control.__name__, str(req_item)))
+            logging.debug(log_name + ' : REQUEST -> WAIT ' \
+                                     '\n\tCOHORT = {0} - METRIC = {1}'
+                .format(rm.cohort_expr, rm.metric))
             wait_queue.append(rm)
 
 
-    logging.debug('{0} :: {1}  - FINISHING.'
-    .format(__name__, job_control.__name__))
+    logging.debug('{0} - FINISHING.'.format(log_name))
 
 
 def process_metrics(p, request_meta):
     """ Worker process for requests -
         this will typically operate in a forked process """
 
-    logging.info(__name__ + ' :: START JOB\n\t%s (PID = %s)\n' % (str(request_meta),
-                                                             getpid()))
+    log_name = '{0} :: {1}'.format(__name__, process_metrics.__name__)
+
+    logging.info(log_name + ' - START JOB'
+                            '\n\tCOHORT = {0} - METRIC = {1}'
+                            ' -  PID = {2})'.
+        format(request_meta.cohort_expr, request_meta.metric, getpid()))
 
     # obtain user list - handle the case where a lone user ID is passed
     if search(MW_UID_REGEX, str(request_meta.cohort_expr)):
@@ -230,10 +258,23 @@ def process_metrics(p, request_meta):
 
     # process request
     results = process_data_request(request_meta, users)
-    p.put(results)
+    results = str(results)
+    response_size = getsizeof(results, None)
 
-    logging.info(__name__ + ' :: END JOB\n\t%s (PID = %s)\n' % (str(request_meta),
-                                                                getpid()))
+    if response_size > MAX_BLOCK_SIZE:
+        index = 0
+
+        # Dump the data in pieces - block until it is picked up
+        while index < response_size:
+            p.put(results[index:index+MAX_BLOCK_SIZE], block=True)
+            index += MAX_BLOCK_SIZE
+    else:
+        p.put(results, block=True)
+
+    logging.info(log_name + ' - END JOB'
+                            '\n\tCOHORT = {0} - METRIC = {1}'
+                            ' -  PID = {2})'.
+        format(request_meta.cohort_expr, request_meta.metric, getpid()))
 
 
 
@@ -398,3 +439,118 @@ def process_data_request(request_meta, users):
     return results
 
 
+# REQUEST NOTIFICATIONS
+# #####################
+
+from collections import OrderedDict
+
+req_notification_queue_in = Queue()
+req_notification_queue_out = Queue()
+
+request_msg_type = namedtuple('RequestMessage', 'type hash url is_alive')
+
+
+def requests_notification_callback(msg_queue_in, msg_queue_out):
+    """
+        Asynchronous callback.  Tracks status of requests and new requests.
+        This callback utilizes ``msg_queue_in`` & ``msg_queue_out`` to
+        manage request status.
+    """
+    log_name = '{0} :: {1}'.format(__name__,
+                                   requests_notification_callback.__name__)
+    logging.debug('{0}  - STARTING...'.format(log_name))
+
+    cache = OrderedDict()
+    while 1:
+        msg = msg_queue_in.get(True)
+
+        try:
+            type = msg[0]
+        except (KeyError, ValueError):
+            logging.error(log_name + ' - No valid type ' \
+                                     '{0}'.format(str(msg)))
+            continue
+
+        # Init request
+        if type == 0:
+            try:
+                cache[msg[1]] = [True, msg[2]]
+                logging.debug(log_name + ' - Initialize Request: ' \
+                                         '{0}.'.format(str(msg)))
+            except Exception:
+                logging.error(log_name + ' - Initialize Request' \
+                                         ' failed: {0}'.format(str(msg)))
+
+        # Kill request - leave on cache
+        elif type == 1:
+            try:
+                cache[msg[1]][0] = False
+                logging.debug(log_name + ' - Set request finished: ' \
+                                         '{0}.\n'.format(str(msg)))
+            except Exception:
+                logging.error(log_name + ' - Set request finished failed: ' \
+                                         '{0}\n'.format(str(msg)))
+
+        # Is the key in the cache and running?
+        elif type == 2:
+            try:
+                if msg[1] in cache:
+                    msg_queue_out.put([cache[msg[1]][0]], True)
+                else:
+                    msg_queue_out.put([False], True)
+                logging.debug(log_name + ' - Get request alive: ' \
+                                         '{0}.'.format(str(msg)))
+            except (KeyError, ValueError):
+                logging.error(log_name + ' - Get request alive failed: ' \
+                                         '{0}'.format(str(msg)))
+
+        # Get keys
+        elif type == 3:
+            msg_queue_out.put(cache.keys(), True)
+
+        # Get url
+        elif type == 4:
+            try:
+                if msg[1] in cache:
+                    msg_queue_out.put([cache[msg[1]][1]], True)
+                else:
+                    logging.error(log_name + ' - Get URL failed: {0}'.
+                    format(str(msg)))
+            except (KeyError, ValueError):
+                logging.error(log_name + ' - Get URL failed: {0}'.format(str(msg)))
+        else:
+            logging.error(log_name + ' - Bad message: {0}'.format(str(msg)))
+
+    logging.debug('{0}  - SHUTTING DOWN...'.format(log_name))
+
+
+# Wrapper Methods for working with Request Notifications
+# Use locks to enforce atomicity
+
+def req_cb_get_url(key, lock):
+    lock.acquire()
+    req_notification_queue_in.put([4, key], block=True)
+    val =req_notification_queue_out.get(True)[0]
+    lock.release()
+    return val
+
+
+def req_cb_get_cache_keys(lock):
+    lock.acquire()
+    req_notification_queue_in.put([3], block=True)
+    val =  req_notification_queue_out.get(block=True, timeout=0.1)
+    lock.release()
+    return val
+
+
+def req_cb_get_is_running(key, lock):
+    lock.acquire()
+    req_notification_queue_in.put([2, key], True)
+    val =  req_notification_queue_out.get(block=True, timeout=0.1)[0]
+    lock.release()
+    return val
+
+def req_cb_add_req(key, url, lock):
+    lock.acquire()
+    req_notification_queue_in.put([0, key, url])
+    lock.release()

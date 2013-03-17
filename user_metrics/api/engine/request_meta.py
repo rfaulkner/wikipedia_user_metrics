@@ -42,7 +42,6 @@ from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine import DEFAULT_QUERY_VAL
 from collections import namedtuple, OrderedDict
 from flask import escape
-from multiprocessing import Queue
 from user_metrics.config import logging
 from user_metrics.utils import unpack_fields
 
@@ -65,11 +64,6 @@ RequestMeta = recordtype('RequestMeta',
                          'cohort_expr cohort_gen_timestamp metric '
                          'time_series aggregator project '
                          'namespace start end interval t n  group')
-
-
-# API queues for API service requests and responses
-request_queue = Queue()
-response_queue = Queue()
 
 
 def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
@@ -408,3 +402,5 @@ def get_request_type(request_meta):
         return request_types.aggregator
     else:
         return request_types.raw
+
+

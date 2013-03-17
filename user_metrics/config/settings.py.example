@@ -51,6 +51,13 @@ import json
 # Project settings
 # ================
 
+
+__instance_host__ = '%project_host%'
+#__instance_host__ = '127.0.0.1'
+
+__instance_port__ = int('%app_serve_port%')
+#__instance_port__ = 5000
+
 __project_home__ = '%project_home%'
 __web_home__ = ''.join([__project_home__, 'web_interface/'])
 __data_file_dir__ = ''.join([__project_home__, 'data/'])

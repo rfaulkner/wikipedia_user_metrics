@@ -50,13 +50,6 @@ JOB_STATUS = eval('enum("' + '","'.join(JOB_STATUS_TYPES) +
                   '", **' + str({t[0]: t[1] for t in zip(JOB_STATUS_TYPES,
                   JOB_STATUS_TYPES)}) + ')')
 
-# Number of maximum concurrently running jobs
-MAX_CONCURRENT_JOBS = 1
-
-# Time to block on waiting for a new request to appear in the queue
-QUEUE_WAIT = 5
-
-
 #
 # Define remaining constants
 # ==========================

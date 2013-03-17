@@ -48,17 +48,28 @@ To be released on March 11th 2013.
 
 
 Version 0.1.4-dev
-
 -----------------
 
 To be released on March 25th 2013.
 
-- User Authentication
-- memcached for
+- User Session Management
+    - flask-login
+- Implementation of request caching outside the runtime
+    - start with pickle objects
 - Client for programmatically accessing API - https://github.com/rfaulkner/umapi_client
 - More robust testing.
+    - added some testing
+- Interface to load cohorts
+
+
+
+Future Work
+-----------
+
 - Redefine API request entry points:
     * run/cohort/..
     * run/set/..
     * run/user/..
 - Build filters that allow new cohorts to be generated from requests
+- OAuth/OpenID integration.  This is essential for programmatic access.
+- HTTPS

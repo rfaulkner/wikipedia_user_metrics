@@ -52,6 +52,7 @@ from datetime import datetime
 from re import search
 from collections import OrderedDict
 from hashlib import sha1
+import cPickle
 
 import user_metrics.etl.data_loader as dl
 from user_metrics.config import logging
@@ -60,6 +61,8 @@ from user_metrics.api.engine import COHORT_REGEX, parse_cohorts, \
 from user_metrics.api.engine.request_meta import REQUEST_META_QUERY_STR,\
     REQUEST_META_BASE
 from user_metrics.api import MetricsAPIError
+from user_metrics.config import settings
+
 
 # This is used to separate key meta and key strings for hash table data
 # e.g. "metric <==> blocks"
@@ -135,39 +138,40 @@ def get_cohort_refresh_datetime(utm_id):
     return utm_touched.strftime(DATETIME_STR_FORMAT)
 
 
-def get_data(hash_table_ref, request_meta, hash_result=True):
+def get_data(request_meta, hash_result=True):
     """
         Extract data from the global hash given a request object.  If an item
         is successfully recovered data is returned
     """
 
+    hash_table_ref = read_pickle_data()
+
     # Traverse the hash key structure to find data
     # @TODO rather than iterate through REQUEST_META_BASE &
     #   REQUEST_META_QUERY_STR look only at existing attributes
 
-    logging.debug(__name__ + " :: Attempting to pull data for request {0}".
-                  format(str(request_meta)))
+    logging.debug(__name__ + " - Attempting to pull data for request " \
+                             "COHORT {0}, METRIC {1}".
+                  format(request_meta.cohort_expr, request_meta.metric))
 
     key_sig = build_key_signature(request_meta, hash_result=hash_result)
-    data = find_item(hash_table_ref, key_sig)
+    item = find_item(hash_table_ref, key_sig)
 
-    # Ensure that an interface that does not rely on keyed values is returned
-    # all data must be in interfaces resembling lists
-    if data and not hasattr(data, 'keys'):
-        if hash_result:
-            return data[0]
-        else:
-            return data
+    if item:
+        # item[0] will be a stringified structure that
+        # is initialized, see set_data.
+        return eval(item[0])
     else:
-        logging.error(__name__ + ' :: Can\'t return an iterator.')
         return None
 
 
-def set_data(hash_table_ref, data, request_meta, hash_result=True):
+def set_data(data, request_meta, hash_result=True):
     """
         Given request meta-data and a dataset create a key path in the global
         hash to store the data
     """
+    hash_table_ref = read_pickle_data()
+
     key_sig = build_key_signature(request_meta, hash_result=hash_result)
     logging.debug(__name__ + " :: Adding data to hash @ key signature = {0}".
                   format(str(key_sig)))
@@ -182,6 +186,7 @@ def set_data(hash_table_ref, data, request_meta, hash_result=True):
             else:
                 hash_table_ref[item] = OrderedDict()
             hash_table_ref = hash_table_ref[item]
+    write_pickle_data(hash_table_ref)
 
 
 def find_item(hash_table_ref, key_sig):
@@ -264,32 +269,19 @@ def get_url_from_keys(keys, path_root):
     return url
 
 
-def build_key_tree(nested_dict):
-    """ Builds a tree of key values from a nested dict. """
-    if hasattr(nested_dict, 'keys'):
-        for key in nested_dict.keys():
-            yield (key, build_key_tree(nested_dict[key]))
-    else:
-        yield None
+def read_pickle_data():
+    try:
+        with open(settings.__data_file_dir__ +
+                  'api_data.pkl', 'rb') as pkl_file:
+            return cPickle.load(pkl_file)
+    except IOError:
+        with open(settings.__data_file_dir__ +
+                  'api_data.pkl', 'wb') as pkl_file:
+            data = OrderedDict()
+            cPickle.dump(data, pkl_file)
+            return data
 
-
-def get_keys_from_tree(tree):
-    """
-        Depth first traversal - get the key signatures from structure
-         produced by ``build_key_tree``.
-    """
-    key_sigs = list()
-    for node in tree:
-        stack_trace = [node]
-        while stack_trace:
-            if stack_trace[-1]:
-                ptr = stack_trace[-1][1]
-                try:
-                    stack_trace.append(ptr.next())
-                except StopIteration:
-                    # no more children
-                    stack_trace.pop()
-            else:
-                key_sigs.append([elem[0] for elem in stack_trace[:-1]])
-                stack_trace.pop()
-    return key_sigs
+def write_pickle_data(obj):
+    with open(settings.__data_file_dir__ +
+              'api_data.pkl', 'wb') as pkl_file:
+        cPickle.dump(obj, pkl_file)
