@@ -5,6 +5,7 @@
 MW_TIMESTAMP_FORMAT = "%Y%m%d%H%M%S"
 from dateutil.parser import parse as date_parse
 from collections import namedtuple, OrderedDict
+from hashlib import sha1
 
 
 def format_mediawiki_timestamp(timestamp_repr):
@@ -138,6 +139,29 @@ def get_keys_from_tree(tree):
                 key_sigs.append([elem[0] for elem in stack_trace[:-1]])
                 stack_trace.pop()
     return key_sigs
+
+
+
+def salt_string(unencoded_string, secret_key):
+    """
+        Produces a hash code using the SHA-1 hashing algorithm.
+
+        Parameters
+        ~~~~~~~~~~
+
+            unencoded_string : string
+                The string to be encoded.
+
+            secret_key : string
+                The secret key, appended to the string to be coded in order to
+                produce a more secure hash.
+    """
+
+    hash_str = secret_key.strip() + unencoded_string.strip()
+    hash_obj = sha1(hash_str)
+    hash_str = hash_obj.hexdigest()
+
+    return hash_str
 
 
 # Rudimentary Testing
