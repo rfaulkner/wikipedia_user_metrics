@@ -28,6 +28,7 @@ class TableLoader(dl.Connector):
 
     def __init__(self, **kwargs):
         """ Initialize parent class. """
+        super(TableLoader, self).__init__(**kwargs)
         self._table_name_ = 'meta'
         # self.set_connection(**kwargs)
 
