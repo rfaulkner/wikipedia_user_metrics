@@ -51,7 +51,7 @@ from user_metrics.config import logging, settings
 from user_metrics.api.engine.request_manager import job_control, \
     requests_notification_callback
 from user_metrics.api.engine.response_handler import process_responses
-from user_metrics.api.views import app, login_manager
+from user_metrics.api.views import app
 from user_metrics.api.engine import DATETIME_STR_FORMAT
 from user_metrics.api.views import api_data
 from user_metrics.api.engine.request_manager import req_notification_queue_in, \
@@ -127,7 +127,12 @@ if __name__ == '__main__':
                      req_notification_queue_in, req_notification_queue_out)
     try:
         app.config['SECRET_KEY'] = settings.__secret_key__
-        login_manager.setup_app(app)
+
+        # With the presence of flask.ext.login module
+        if settings.__flask_login_exists__:
+            from user_metrics.api.views import login_manager
+            login_manager.setup_app(app)
+
         app.run(debug=True,
                 use_reloader=False,
                 host=settings.__instance_host__,

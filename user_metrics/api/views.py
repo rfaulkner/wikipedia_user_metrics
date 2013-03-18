@@ -23,7 +23,7 @@ from collections import OrderedDict
 from multiprocessing import Lock
 
 from user_metrics.etl.data_loader import Connector
-from user_metrics.config import logging
+from user_metrics.config import logging, settings
 from user_metrics.utils import unpack_fields
 from user_metrics.api.engine.data import get_cohort_id, \
     get_cohort_refresh_datetime, get_data, get_url_from_keys, \
@@ -81,95 +81,105 @@ def get_errors(request_args):
 # API User Authentication
 # #######################
 
-from flask.ext.login import (LoginManager, current_user, login_required,
-                             login_user, logout_user, UserMixin, AnonymousUser,
-                             confirm_login, fresh_login_required)
+# With the presence of flask.ext.login module
+if settings.__flask_login_exists__:
+    from flask.ext.login import (LoginManager, current_user, login_required,
+                                 login_user, logout_user, UserMixin, AnonymousUser,
+                                 confirm_login, fresh_login_required)
 
 
-class APIUser(UserMixin):
-    """
-        Extends USerMixin.  User class for flask-login.
-    """
-    def __init__(self, name, id, active=True):
-        self.name = name
-        self.id = id
-        self.active = active
-
-    def is_active(self):
-        return self.active
-
-    @staticmethod
-    def get(uid):
+    class APIUser(UserMixin):
         """
-            Used by ``load_user`` to retrieve user session info.
+            Extends USerMixin.  User class for flask-login.
         """
-        usr_ref = query_mod.get_api_user(uid)
-        if usr_ref:
-            try:
-                return APIUser(unicode(str(usr_ref[0])),
-                               int(usr_ref[1]))
-            except (KeyError, ValueError):
-                logging.error(__name__ + ' :: Could not get API user info.')
-                return None
-        else:
-            return None
+        def __init__(self, name, id, active=True):
+            self.name = name
+            self.id = id
+            self.active = active
 
+        def is_active(self):
+            return self.active
 
-class Anonymous(AnonymousUser):
-    name = u'Anonymous'
-
-login_manager = LoginManager()
-
-login_manager.anonymous_user = Anonymous
-login_manager.login_view = 'login'
-login_manager.login_message = u'Please log in to access this page.'
-login_manager.refresh_view = 'reauth'
-
-
-@login_manager.user_loader
-def load_user(uid):
-    return APIUser.get(int(uid))
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST' and 'username' in request.form:
-        username = request.form['username']
-        passwd = request.form['password']
-        result = query_mod.get_api_user(username, by_id=False)
-
-        if result and passwd == str(result[2]):
-            uid = result[1]
-            remember = request.form.get('remember', 'no') == 'yes'
-            if login_user(APIUser.get(int(uid)), remember=remember):
-                flash('Logged in!')
-                return redirect(request.args.get('next')
-                                or url_for('api_root'))
+        @staticmethod
+        def get(uid):
+            """
+                Used by ``load_user`` to retrieve user session info.
+            """
+            usr_ref = query_mod.get_api_user(uid)
+            if usr_ref:
+                try:
+                    return APIUser(unicode(str(usr_ref[0])),
+                                   int(usr_ref[1]))
+                except (KeyError, ValueError):
+                    logging.error(__name__ + ' :: Could not get API user info.')
+                    return None
             else:
-                flash('Sorry, but you could not log in.')
-        elif result:
-            flash(u'Invalid password.')
-        else:
-            flash(u'Invalid username.')
-    return render_template('login.html')
+                return None
 
 
-@app.route('/reauth', methods=['GET', 'POST'])
-@login_required
-def reauth():
-    if request.method == 'POST':
-        confirm_login()
-        flash(u'Reauthenticated.')
-        return redirect(request.args.get('next') or url_for('api_root'))
-    return render_template('reauth.html')
+    class Anonymous(AnonymousUser):
+        name = u'Anonymous'
+
+    login_manager = LoginManager()
+
+    login_manager.anonymous_user = Anonymous
+    login_manager.login_view = 'login'
+    login_manager.login_message = u'Please log in to access this page.'
+    login_manager.refresh_view = 'reauth'
 
 
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    flash('Logged out.')
-    return redirect(url_for('api_root'))
+    @login_manager.user_loader
+    def load_user(uid):
+        return APIUser.get(int(uid))
+
+
+    @app.route('/login', methods=['GET', 'POST'])
+    def login():
+        if request.method == 'POST' and 'username' in request.form:
+            username = request.form['username']
+            passwd = request.form['password']
+            result = query_mod.get_api_user(username, by_id=False)
+
+            if result and passwd == str(result[2]):
+                uid = result[1]
+                remember = request.form.get('remember', 'no') == 'yes'
+                if login_user(APIUser.get(int(uid)), remember=remember):
+                    flash('Logged in!')
+                    return redirect(request.args.get('next')
+                                    or url_for('api_root'))
+                else:
+                    flash('Sorry, but you could not log in.')
+            elif result:
+                flash(u'Invalid password.')
+            else:
+                flash(u'Invalid username.')
+        return render_template('login.html')
+
+
+    @app.route('/reauth', methods=['GET', 'POST'])
+    @login_required
+    def reauth():
+        if request.method == 'POST':
+            confirm_login()
+            flash(u'Reauthenticated.')
+            return redirect(request.args.get('next') or url_for('api_root'))
+        return render_template('reauth.html')
+
+
+    @app.route('/logout')
+    @login_required
+    def logout():
+        logout_user()
+        flash('Logged out.')
+        return redirect(url_for('api_root'))
+
+else:
+
+    def login_required(f):
+        """ Does Nothing."""
+        def wrap(*args, **kwargs):
+            f(*args, **kwargs)
+        return wrap()
 
 
 # Views
@@ -198,8 +208,8 @@ def contact():
     return render_template('contact.html')
 
 
-@app.route('/metrics/', methods=['POST', 'GET'])
-@login_required
+# @app.route('/metrics/', methods=['POST', 'GET'])
+# @login_required
 def all_metrics():
     """ Display a list of available metrics """
     if request.method == 'POST':
@@ -207,6 +217,11 @@ def all_metrics():
         return metric(request.form['selectMetric'])
     else:
         return render_template('all_metrics.html')
+if not settings.__flask_login_exists__:
+    all_metrics = app.route('/metrics/', methods=['POST', 'GET'])(all_metrics)
+else:
+    all_metrics = app.route('/metrics/', methods=['POST', 'GET'])(all_metrics)
+    all_metrics = login_required(all_metrics)
 
 
 @app.route('/metrics/<string:metric>')
@@ -278,8 +293,8 @@ def cohort(cohort=''):
                                m_list=get_metric_names(), error=error)
 
 
-@app.route('/cohorts/<string:cohort>/<string:metric>')
-@login_required
+# @app.route('/cohorts/<string:cohort>/<string:metric>')
+# @login_required
 def output(cohort, metric):
     """ View corresponding to a data request -
         All of the setup and execution for a request happens here. """
@@ -334,6 +349,11 @@ def output(cohort, metric):
         req_cb_add_req(key_sig, url, VIEW_LOCK)
 
     return render_template('processing.html', url_str=str(rm))
+if not settings.__flask_login_exists__:
+    output = app.route('/cohorts/<string:cohort>/<string:metric>')(output)
+else:
+    output = app.route('/cohorts/<string:cohort>/<string:metric>')(output)
+    output = login_required(output)
 
 
 @app.route('/job_queue/')
