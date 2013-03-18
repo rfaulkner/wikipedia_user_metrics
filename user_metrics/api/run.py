@@ -118,21 +118,21 @@ def setup_controller(req_queue, res_queue, msg_queue_in, msg_queue_out):
 #
 #######
 
+# initialize API data - get the instance
+
+setup_controller(api_request_queue, api_response_queue,
+    req_notification_queue_in, req_notification_queue_out)
+
+app.config['SECRET_KEY'] = settings.__secret_key__
+
+# With the presence of flask.ext.login module
+if settings.__flask_login_exists__:
+    from user_metrics.api.views import login_manager
+    login_manager.setup_app(app)
+
 
 if __name__ == '__main__':
-
-    # initialize API data - get the instance
-
-    setup_controller(api_request_queue, api_response_queue,
-                     req_notification_queue_in, req_notification_queue_out)
     try:
-        app.config['SECRET_KEY'] = settings.__secret_key__
-
-        # With the presence of flask.ext.login module
-        if settings.__flask_login_exists__:
-            from user_metrics.api.views import login_manager
-            login_manager.setup_app(app)
-
         app.run(debug=True,
                 use_reloader=False,
                 host=settings.__instance_host__,
