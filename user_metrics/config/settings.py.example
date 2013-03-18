@@ -27,6 +27,8 @@
     cohorts.
     - **__secret_key__**            : User session secret key for use with
     flask-login
+    - **__flask_login_exists__**    : Option to include flask-login extension
+
 
     MediaWiki DB Settings
     ~~~~~~~~~~~~~~~~~~~~~
@@ -73,6 +75,8 @@ __cohort_meta_db__          = 'usertags_meta'
 __cohort_meta_instance__    = 'staging'
 
 __secret_key__ = 'your secret key - CHANGE THIS'
+
+__flask_login_exists__ = False
 
 
 # Database connection settings

@@ -41,11 +41,6 @@ from dateutil.parser import parse as date_parse
 # Module level query definitions
 # @TODO move these to the query package
 
-SELECT_LATEST_UTM_TAG =\
-    """
-        SELECT max(utm_id)
-        FROM %(cohort_meta_instance)s.%(cohort_meta_db)s
-    """
 
 SELECT_PROJECT_IDS =\
     """
@@ -68,40 +63,10 @@ SELECT_PROJECT_IDS =\
         LIMIT %(max_size)s;
     """
 
-INSERT_USERTAGS =\
-    """
-        INSERT INTO %(cohort_meta_instance)s.%(cohort_db)s
-        VALUES %(values_list)s
-    """
-
-INSERT_USERTAGS_META =\
-    """
-        INSERT INTO %(cohort_meta_instance)s.%(cohort_meta_db)s
-        VALUES (%(utm_id)s, "%(utm_name)s", "%(utm_project)s",
-            "%(utm_notes)s", "%(utm_touched)s", %(utm_enabled)s)
-    """
 
 
 # Cohort Processing Methods
 # =========================
-
-def get_latest_cohort_id():
-    """
-        Generates an ID for the next usertag cohort
-
-        Returns an integer one greater than the current greatest
-        usertag_meta ID
-    """
-    select = SELECT_LATEST_UTM_TAG % {
-        'cohort_meta_instance': settings.__cohort_meta_instance__,
-        'cohort_meta_db': settings.__cohort_meta_db__,
-    }
-    conn = Connector(instance=settings.__cohort_data_instance__)
-    conn._cur_.execute(select)
-    max_id = conn._cur_.fetchone()[0]
-    del conn
-
-    return int(max_id) + 1
 
 
 def generate_test_cohort_name(project):
@@ -157,7 +122,7 @@ def generate_test_cohort(project,
     ts_end_revs = format_mediawiki_timestamp(ts_end_revs_o)
 
     # Synthesize query and execute
-    logging.info(__name__ + ':: Getting users from {0}.\n\n'
+    logging.info(__name__ + ' :: Getting users from {0}.\n\n'
                             '\tUser interval: {1} - {2}\n'
                             '\tRevision interval: {1} - {3}\n'
                             '\tMax users = {4}\n'
@@ -184,49 +149,17 @@ def generate_test_cohort(project,
     del conn
 
     # get latest cohort id & cohort name
-    utm_id = get_latest_cohort_id()
     utm_name = generate_test_cohort_name(project)
 
     # add new ids to usertags & usertags_meta
     if write:
-        logging.info(__name__ + ':: Inserting records...\n\n'
+        logging.info(__name__ + ' :: Inserting records...\n\n'
                                 '\tCohort name - {0}\n'
-                                '\tCohort Tag ID - {1}\n'
                                 '\t{2} - {3} record(s)\n'.
-                                format(utm_name, utm_id,
+                                format(utm_name,
                                        settings.__cohort_db__,
-                                       len(users)
-                                       )
-                     )
-
-        values_list = ''
-        for user in users:
-            values_list += '("{0}",{1},{2}),'.\
-                format(project, user[0], utm_id)
-        values_list = values_list[:-1]
-
-        insert_ut = INSERT_USERTAGS % {
-            'cohort_meta_instance': settings.__cohort_meta_instance__,
-            'cohort_db': settings.__cohort_db__,
-            'values_list': values_list
-        }
-
-        insert_utm = INSERT_USERTAGS_META % {
-            'cohort_meta_instance': settings.__cohort_meta_instance__,
-            'cohort_meta_db': settings.__cohort_meta_db__,
-            'utm_id': utm_id,
-            'utm_name': utm_name,
-            'utm_project': project,
-            'utm_notes': 'Test cohort.',
-            'utm_touched': format_mediawiki_timestamp(datetime.now()),
-            'utm_enabled': 0
-        }
-
-        conn = Connector(instance=settings.__cohort_data_instance__)
-        conn._cur_.execute(insert_ut)
-        conn._cur_.execute(insert_utm)
-        conn._db_.commit()
-        del conn
+                                       len(users)))
+        query_mod.add_cohort_data(utm_name, users, project)
 
     return users
 
@@ -400,3 +333,5 @@ UMP_MAP = {
 }
 
 
+if __name__ == '__main__':
+    generate_test_cohort('dewiki', write=True)
