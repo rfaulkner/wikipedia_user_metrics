@@ -94,6 +94,7 @@ from collections import namedtuple
 from re import search
 from os import getpid
 from sys import getsizeof
+from Queue import Empty
 
 
 # API JOB HANDLER
@@ -527,10 +528,18 @@ def requests_notification_callback(msg_queue_in, msg_queue_out):
 # Wrapper Methods for working with Request Notifications
 # Use locks to enforce atomicity
 
+BLOCK_TIMEOUT = 1
+
+
 def req_cb_get_url(key, lock):
     lock.acquire()
     req_notification_queue_in.put([4, key], block=True)
-    val =req_notification_queue_out.get(True)[0]
+    try:
+        val = req_notification_queue_out.get(True, timeout=BLOCK_TIMEOUT)[0]
+    except Empty:
+        logging.error(__name__ + ' :: req_cb_get_url -'
+                                 ' Block time expired.')
+        return ''
     lock.release()
     return val
 
@@ -538,7 +547,13 @@ def req_cb_get_url(key, lock):
 def req_cb_get_cache_keys(lock):
     lock.acquire()
     req_notification_queue_in.put([3], block=True)
-    val =  req_notification_queue_out.get(block=True, timeout=0.1)
+    try:
+        val =  req_notification_queue_out.get(block=True,
+                                              timeout=BLOCK_TIMEOUT)
+    except Empty:
+        logging.error(__name__ + ' :: req_cb_get_cache_keys -'
+                                 ' Block time expired.')
+        return []
     lock.release()
     return val
 
@@ -546,9 +561,16 @@ def req_cb_get_cache_keys(lock):
 def req_cb_get_is_running(key, lock):
     lock.acquire()
     req_notification_queue_in.put([2, key], True)
-    val =  req_notification_queue_out.get(block=True, timeout=0.1)[0]
+    try:
+        val =  req_notification_queue_out.get(block=True,
+                                              timeout=BLOCK_TIMEOUT)[0]
+    except Empty:
+        logging.error(__name__ + ' :: req_cb_get_is_running -'
+                                 ' Block time expired.')
+        return False
     lock.release()
     return val
+
 
 def req_cb_add_req(key, url, lock):
     lock.acquire()
