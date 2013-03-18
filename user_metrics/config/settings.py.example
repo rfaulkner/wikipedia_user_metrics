@@ -47,7 +47,7 @@
 """
 
 from user_metrics.config import logging
-from pkg_resources import WorkingSet , DistributionNotFound
+from pkg_resources import WorkingSet , DistributionNotFound, VersionConflict
 from os.path import exists
 from urllib2 import urlopen
 import json
@@ -83,10 +83,10 @@ __cohort_meta_instance__    = 'staging'
 __secret_key__ = 'your secret key - CHANGE THIS'
 
 try:
-    working_set.require('Flask-Login>=0.1.3')
+    working_set.require('Flask-Login>=0.1.2')
     __flask_login_exists__ = True
     logging.debug(__name__ + ' :: Using module flask.ext.login...')
-except DistributionNotFound:
+except (DistributionNotFound, VersionConflict):
     __flask_login_exists__ = False
     logging.debug(__name__ + ' :: Can\'t find module flask.ext.login...')
 
