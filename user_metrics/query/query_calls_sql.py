@@ -10,9 +10,11 @@ __license__ = "GPL (version 2 or later)"
 
 import user_metrics.config.settings as conf
 
+from user_metrics.utils import format_mediawiki_timestamp
 from user_metrics.etl.data_loader import DataLoader, Connector
-from MySQLdb import escape_string, ProgrammingError
+from MySQLdb import escape_string, ProgrammingError, OperationalError
 from copy import deepcopy
+from datetime import datetime
 
 from user_metrics.config import logging
 
@@ -426,6 +428,67 @@ def get_api_user(user, by_id=True):
 get_api_user.__query_name__ = 'get_api_user'
 
 
+def add_cohort_data(cohort, users, project, notes=""):
+    """
+        Adds a new cohort to backend.
+
+        Parameters
+        ~~~~~~~~~~
+
+            cohort : string
+                Name of cohort (must be unique).
+
+            users : list
+                List of user ids to add to cohort.
+
+            project : string
+                Project of cohort.
+    """
+    conn = Connector(instance=conf.PROJECT_DB_MAP[
+                     conf.__cohort_data_instance__])
+    now = format_mediawiki_timestamp(datetime.now())
+
+    # Create an entry in ``usertags_meta``
+    utm_query = query_store[add_cohort_data.__query_name__ + '_meta'] % {
+        'utm_name': cohort,
+        'utm_project': project,
+        'utm_notes': notes,
+        'utm_touched': now,
+        'utm_enabled': '0'
+    }
+    conn._cur_.execute(utm_query)
+    try:
+        conn._db_.commit()
+    except (ProgrammingError, OperationalError):
+        conn._db_.rollback()
+
+    # get uid
+    conn._cur_.execute('SELECT utm_id FROM prod.usertags_meta '
+                       'where utm_name = {0}'.format(cohort))
+    usertag = conn._cur_.fetchone()[0]
+
+    # add data to ``user_tags``
+    value_list_ut = [('"{0}"'.format(data.user),
+                      '"{0}"'.format(project),
+                      usertag)
+                     for data in users]
+    value_list_ut = str(value_list_ut)[1:-1]
+
+    ut_query = query_store[delete_usertags_meta.__query_name__] % {
+        'cohort_meta_instance': conf.__cohort_meta_instance__,
+        'cohort_meta_db': conf.__cohort_meta_db__,
+        'value_list': value_list_ut
+    }
+    conn._cur_.execute(utm_query)
+    try:
+        conn._db_.commit()
+    except (ProgrammingError, OperationalError):
+        conn._db_.rollback()
+
+    del conn
+add_cohort_data.__query_name__ = 'add_cohort'
+
+
 # QUERY DEFINITIONS
 # #################
 
@@ -581,5 +644,17 @@ query_store = {
         SELECT user_name, user_id, user_pass
         FROM %(cohort_meta_instance)s.api_user
         WHERE user_name = '%(user)s'
+    """,
+    add_cohort_data.__query_name__:
+    """
+        INSERT INTO %(cohort_meta_instance)s.%(cohort_meta_db)s
+            VALUES %(value_list)s
+    """,
+    add_cohort_data.__query_name__ + '_meta':
+    """
+        INSERT INTO %(cohort_meta_instance)s.%(cohort_meta_db)s
+        (utm_name, utm_project, utm_notes, utm_touched, utm_enabled)
+        VALUES ("%(utm_name)s", "%(utm_project)s",
+            "%(utm_notes)s", "%(utm_touched)s", %(utm_enabled)s)
     """,
 }
