@@ -444,12 +444,13 @@ def add_cohort_data(cohort, users, project, notes=""):
             project : string
                 Project of cohort.
     """
-    conn = Connector(instance=conf.PROJECT_DB_MAP[
-                     conf.__cohort_data_instance__])
+    conn = Connector(instance=conf.__cohort_data_instance__)
     now = format_mediawiki_timestamp(datetime.now())
 
     # Create an entry in ``usertags_meta``
     utm_query = query_store[add_cohort_data.__query_name__ + '_meta'] % {
+        'cohort_meta_instance': conf.__cohort_meta_instance__,
+        'cohort_meta_db': conf.__cohort_meta_db__,
         'utm_name': cohort,
         'utm_project': project,
         'utm_notes': notes,
@@ -462,24 +463,22 @@ def add_cohort_data(cohort, users, project, notes=""):
     except (ProgrammingError, OperationalError):
         conn._db_.rollback()
 
-    # get uid
-    conn._cur_.execute('SELECT utm_id FROM prod.usertags_meta '
-                       'where utm_name = {0}'.format(cohort))
-    usertag = conn._cur_.fetchone()[0]
+    # get uid for new cohort
+    usertag = get_cohort_id(cohort)
 
     # add data to ``user_tags``
-    value_list_ut = [('"{0}"'.format(data.user),
-                      '"{0}"'.format(project),
-                      usertag)
-                     for data in users]
+    value_list_ut = [('{0}'.format(project),
+                      int(uid),
+                      int(usertag))
+                     for uid in users]
     value_list_ut = str(value_list_ut)[1:-1]
 
-    ut_query = query_store[delete_usertags_meta.__query_name__] % {
+    ut_query = query_store[add_cohort_data.__query_name__] % {
         'cohort_meta_instance': conf.__cohort_meta_instance__,
-        'cohort_meta_db': conf.__cohort_meta_db__,
+        'cohort_db': conf.__cohort_db__,
         'value_list': value_list_ut
     }
-    conn._cur_.execute(utm_query)
+    conn._cur_.execute(ut_query)
     try:
         conn._db_.commit()
     except (ProgrammingError, OperationalError):
@@ -487,6 +486,29 @@ def add_cohort_data(cohort, users, project, notes=""):
 
     del conn
 add_cohort_data.__query_name__ = 'add_cohort'
+
+
+def get_cohort_id(cohort_name):
+    """
+        Returns the cohort tag for a given cohort.
+
+        Parameters
+        ~~~~~~~~~~
+
+            cohort_name : string
+                Name of cohort.
+    """
+    conn = Connector(instance=conf.__cohort_data_instance__)
+    ut_query = query_store[get_cohort_id.__query_name__] % {
+        'cohort_meta_instance': conf.__cohort_meta_instance__,
+        'cohort_meta_db': conf.__cohort_meta_db__,
+        'utm_name': cohort_name
+    }
+    conn._cur_.execute(ut_query)
+    usertag = conn._cur_.fetchone()[0]
+    del conn
+    return usertag
+get_cohort_id.__query_name__ = 'get_cohort_id'
 
 
 # QUERY DEFINITIONS
@@ -647,7 +669,7 @@ query_store = {
     """,
     add_cohort_data.__query_name__:
     """
-        INSERT INTO %(cohort_meta_instance)s.%(cohort_meta_db)s
+        INSERT INTO %(cohort_meta_instance)s.%(cohort_db)s
             VALUES %(value_list)s
     """,
     add_cohort_data.__query_name__ + '_meta':
@@ -657,4 +679,14 @@ query_store = {
         VALUES ("%(utm_name)s", "%(utm_project)s",
             "%(utm_notes)s", "%(utm_touched)s", %(utm_enabled)s)
     """,
+    get_cohort_id.__query_name__:
+    """
+        SELECT utm_id
+        FROM %(cohort_meta_instance)s.%(cohort_meta_db)s
+        WHERE utm_name = "%(utm_name)s"
+    """,
 }
+
+
+if __name__ == '__main__':
+    print get_cohort_id('ServerSideAccountCreation_5233795_users')
