@@ -56,11 +56,14 @@ To be released on March 25th 2013.
     - flask-login
 - Implementation of request caching outside the runtime
     - start with pickle objects
-- Client for programmatically accessing API - https://github.com/rfaulkner/umapi_client
+- Client for programmatically accessing API
+    -> https://github.com/rfaulkner/umapi_client
 - More robust testing.
     - added some testing
 - Interface to load cohorts
-
+- Request notifications listener
+- Update request_manager module to handle larger responses on the queue
+- Response Handler that builds responses for caching as they finish
 
 
 Future Work
