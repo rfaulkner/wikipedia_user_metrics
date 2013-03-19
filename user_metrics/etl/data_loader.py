@@ -50,7 +50,8 @@ __author__ = "Ryan Faulkner"
 __date__ = "October 3rd, 2012"
 __license__ = "GPL (version 2 or later)"
 
-import sys
+
+from time import sleep
 import MySQLdb
 import logging
 import operator
@@ -67,15 +68,18 @@ def read_file(file_path_name):
     content = map(lambda s: s.strip(), content)
     return " ".join(content)
 
+
 class DataLoaderError(Exception):
     """ Basic exception class for UserMetric types """
     def __init__(self, message="Could not perform data operation."):
         Exception.__init__(self, message)
 
+
 class ConnectorError(Exception):
     """ Basic exception class for UserMetric types """
     def __init__(self, message="Could not establish a connection."):
         Exception.__init__(self, message)
+
 
 class Connector(object):
     """ This class implements the connection logic to MySQL """
@@ -86,7 +90,7 @@ class Connector(object):
     def __init__(self, **kwargs):
         self.set_connection(**kwargs)
 
-    def set_connection(self, retries=20, **kwargs):
+    def set_connection(self, retries=20, timeout=0.5, **kwargs):
         """
             Establishes a database connection.
 
@@ -105,9 +109,11 @@ class Connector(object):
                     self._db_ = MySQLdb.connect(**mysql_kwargs)
                     break
                 except MySQLdb.OperationalError:
-                    logging.debug(__name__ + '::Connection dropped. '
+                    logging.debug(__name__ + ':: Connection dropped. '
                                              'Reopening MySQL connection. '
-                                             '%s retries left' % retries)
+                                             '%s retries left, timeout = %s' %
+                                             (retries, timeout))
+                    sleep(timeout)
                     retries -= 1
             if not retries: raise ConnectorError()
 
