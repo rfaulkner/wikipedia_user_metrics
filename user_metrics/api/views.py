@@ -220,8 +220,8 @@ def all_metrics():
 if not settings.__flask_login_exists__:
     all_metrics = app.route('/metrics/', methods=['POST', 'GET'])(all_metrics)
 else:
-    all_metrics = app.route('/metrics/', methods=['POST', 'GET'])(all_metrics)
     all_metrics = login_required(all_metrics)
+    all_metrics = app.route('/metrics/', methods=['POST', 'GET'])(all_metrics)
 
 
 @app.route('/metrics/<string:metric>')
@@ -352,8 +352,8 @@ def output(cohort, metric):
 if not settings.__flask_login_exists__:
     output = app.route('/cohorts/<string:cohort>/<string:metric>')(output)
 else:
-    output = app.route('/cohorts/<string:cohort>/<string:metric>')(output)
     output = login_required(output)
+    output = app.route('/cohorts/<string:cohort>/<string:metric>')(output)
 
 
 @app.route('/job_queue/')
