@@ -194,7 +194,12 @@ def api_root():
     conn._cur_.execute('select utm_name from usertags_meta')
     data = [r[0] for r in conn._cur_]
     del conn
-    return render_template('index.html', cohort_data=data,
+
+    if settings.__flask_login_exists__ and current_user.is_anonymous():
+        return render_template('index_anon.html', cohort_data=data,
+            m_list=get_metric_names())
+    else:
+        return render_template('index.html', cohort_data=data,
                            m_list=get_metric_names())
 
 
