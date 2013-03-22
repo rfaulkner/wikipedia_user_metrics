@@ -65,7 +65,7 @@ if settings.__flask_login_exists__:
                 return None
 
         def set_password(self, password):
-            self.pw_hash = generate_password_hash(password)
+            self.pw_hash = generate_password_hash(str(password))
 
         def check_password(self, password):
             return check_password_hash(self.pw_hash, password)
