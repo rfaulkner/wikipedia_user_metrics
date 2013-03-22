@@ -40,47 +40,63 @@ if settings.__flask_login_exists__:
             .. HMAC_: http://tinyurl.com/d8zbbem
 
         """
-        def __init__(self, username, password, active=True):
-            self.name = username
-            self.active = active
+        def __init__(self, username, authenticated=False):
+
+            self.name = escape(unicode(username))
+            self.authenticated = authenticated
 
             user_ref =  query_mod.get_api_user(username, by_id=False)
             if user_ref:
-                self.pw_hash = str(user_ref[2])
-                self.registered = True
+                self.id = unicode(user_ref[1])
+                self.active = True
+                self.pw_hash = unicode(str(user_ref[2]))
             else:
-                self.set_password(password)
-                self.registered = False
+                self.id = None
+                self.active = False
+                self.pw_hash = None
+
+            logging.debug(__name__ + ' :: Initiatializing user obj. '
+                                     'user: "{0}", '
+                                     'is active: "{1}",'
+                                     'is authL {2}'.
+                format(username, self.active, self.authenticated))
 
         def is_active(self):
             return self.active
 
-        def is_reg(self):
-            return self.registered
+        def is_authenticated(self):
+            return self.authenticated
+
+        def authenticate(self, password):
+            password = escape(unicode(password))
+            logging.debug(__name__ + ' :: Authenticating "{0}"/"{1}" '
+                                     'on hash "{2}" ...'.
+                format(self.name, password, self.pw_hash))
+            if self.check_password(password):
+                self.authenticated = True
+            else:
+                self.authenticated = False
 
         @staticmethod
-        def get(username, password):
+        def get(uid):
             """
                 Used by ``load_user`` to retrieve user session info.
             """
-
-            pw = escape(unicode(str(password)))
-            usr_ref = APIUser(escape(unicode(str(username))), pw)
-
-            # User exists?
-            if usr_ref.is_reg():
-                # Password is Valid?
-                if usr_ref.check_password(pw):
-                    logging.debug(__name__ + ' :: Found user, logging in.')
-                    return True
-            logging.debug(__name__ + ' :: Bad pass or user name.')
-            return False
+            user_ref =  query_mod.get_api_user(uid)
+            if user_ref:
+                return APIUser(str(user_ref[0]),
+                               authenticated=True)
+            else:
+                return None
 
         def set_password(self, password):
             self.pw_hash = generate_password_hash(str(password))
 
         def check_password(self, password):
-            return check_password_hash(self.pw_hash, password)
+            if self.pw_hash:
+                return check_password_hash(self.pw_hash, password)
+            else:
+                return False
 
         def verify_user(self, password):
             return check_password_hash(self.pw_hash, password)
@@ -114,4 +130,4 @@ if settings.__flask_login_exists__:
 
     @login_manager.user_loader
     def load_user(uid):
-        return APIUser.get(int(uid))
+        return APIUser.get(uid)
