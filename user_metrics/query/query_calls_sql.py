@@ -428,6 +428,32 @@ def get_api_user(user, by_id=True):
 get_api_user.__query_name__ = 'get_api_user'
 
 
+def insert_api_user(user, password):
+    """
+        Retrieve an API user from the ``PROD`` database.
+
+        Parameters
+        ~~~~~~~~~~
+
+            user : int|str
+                User name.
+
+            password : string
+                Password, this should be a salted hash string.
+    """
+    conn = Connector(instance=conf.__cohort_data_instance__)
+    query = insert_api_user.__query_name__
+    query = query_store[query] % {
+        'cohort_meta_instance': conf.__cohort_meta_instance__,
+        'user': str(user),
+        'pass': str(password)
+    }
+    conn._cur_.execute(query)
+    conn._db_.commit()
+    del conn
+insert_api_user.__query_name__ = 'insert_api_user'
+
+
 def add_cohort_data(cohort, users, project, notes=""):
     """
         Adds a new cohort to backend.
@@ -667,6 +693,12 @@ query_store = {
         FROM %(cohort_meta_instance)s.api_user
         WHERE user_name = '%(user)s'
     """,
+    insert_api_user.__query_name__:
+        """
+            INSERT INTO %(cohort_meta_instance)s.api_user
+                (user_name, user_pass)
+            VALUES ("%(user)s", "%(pass)s")
+        """,
     add_cohort_data.__query_name__:
     """
         INSERT INTO %(cohort_meta_instance)s.%(cohort_db)s
