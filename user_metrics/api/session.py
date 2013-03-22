@@ -13,6 +13,7 @@ __date__ = "2013-03-21"
 __license__ = "GPL (version 2 or later)"
 
 
+
 from user_metrics.config import logging, settings
 from user_metrics.metrics import query_mod
 
@@ -24,6 +25,7 @@ from user_metrics.metrics import query_mod
 # With the presence of flask.ext.login module
 if settings.__flask_login_exists__:
 
+    from flask import escape
     from werkzeug.security import generate_password_hash,\
         check_password_hash
 
@@ -37,32 +39,42 @@ if settings.__flask_login_exists__:
 
             .. HMAC_: http://tinyurl.com/d8zbbem
 
-
         """
         def __init__(self, username, password, active=True):
             self.name = username
             self.active = active
-            self.set_password(password)
+
+            user_ref =  query_mod.get_api_user(username, by_id=False)
+            if user_ref:
+                self.pw_hash = str(user_ref[2])
+                self.registered = True
+            else:
+                self.set_password(password)
+                self.registered = False
 
         def is_active(self):
             return self.active
 
+        def is_reg(self):
+            return self.registered
+
         @staticmethod
-        def get(uid):
+        def get(username, password):
             """
                 Used by ``load_user`` to retrieve user session info.
             """
-            usr_ref = query_mod.get_api_user(uid)
-            if usr_ref:
-                try:
-                    return APIUser(unicode(str(usr_ref[0])),
-                                   int(usr_ref[1]))
-                except (KeyError, ValueError):
-                    logging.error(__name__ + ' :: Could not get API '
-                                             'user info.')
-                    return None
-            else:
-                return None
+
+            pw = escape(unicode(str(password)))
+            usr_ref = APIUser(escape(unicode(str(username))), pw)
+
+            # User exists?
+            if usr_ref.is_reg():
+                # Password is Valid?
+                if usr_ref.check_password(pw):
+                    logging.debug(__name__ + ' :: Found user, logging in.')
+                    return True
+            logging.debug(__name__ + ' :: Bad pass or user name.')
+            return False
 
         def set_password(self, password):
             self.pw_hash = generate_password_hash(str(password))
@@ -70,17 +82,25 @@ if settings.__flask_login_exists__:
         def check_password(self, password):
             return check_password_hash(self.pw_hash, password)
 
+        def verify_user(self, password):
+            return check_password_hash(self.pw_hash, password)
+
         def register_user(self):
             """ Writes the user credentials to the datastore. """
-            # 1. Ensure that the user is unique
-            # 2. Write the user / pass to the db
-            if not query_mod.get_api_user(self.name, by_id=False):
-                query_mod.insert_api_user(self.name, self.pw_hash)
-                logging.debug(__name__ + ' :: Added user {0}'.
-                    format(self.name))
-            else:
-                logging.error(__name__ + 'Could not add user {0}'.
-                    format(self.name))
+
+            # 1. Only users not already registered
+            # 2. Ensure that the user is unique
+            # 3. Write the user / pass to the db
+
+            if not self.registered:
+                if not query_mod.get_api_user(self.name, by_id=False):
+                    query_mod.insert_api_user(self.name, self.pw_hash)
+                    logging.debug(__name__ + ' :: Added user {0}'.
+                        format(self.name))
+                else:
+                    logging.error(__name__ + 'Could not add user {0}'.
+                        format(self.name))
+                self.registered = True
 
     class Anonymous(AnonymousUser):
         name = u'Anonymous'
