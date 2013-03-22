@@ -38,7 +38,7 @@ from user_metrics.api.engine.request_manager import api_request_queue, \
     req_cb_add_req
 
 from user_metrics.metrics import query_mod
-
+from user_metrics.api.session import APIUser
 
 # View Lock for atomic operations
 VIEW_LOCK = Lock()
@@ -78,60 +78,15 @@ def get_errors(request_args):
     return error
 
 
-# API User Authentication
-# #######################
+# Views
+# #####
 
-# With the presence of flask.ext.login module
+# Flask Login views
+
 if settings.__flask_login_exists__:
-    from flask.ext.login import (LoginManager, current_user, login_required,
-                                 login_user, logout_user, UserMixin, AnonymousUser,
-                                 confirm_login, fresh_login_required)
 
-
-    class APIUser(UserMixin):
-        """
-            Extends USerMixin.  User class for flask-login.
-        """
-        def __init__(self, name, id, active=True):
-            self.name = name
-            self.id = id
-            self.active = active
-
-        def is_active(self):
-            return self.active
-
-        @staticmethod
-        def get(uid):
-            """
-                Used by ``load_user`` to retrieve user session info.
-            """
-            usr_ref = query_mod.get_api_user(uid)
-            if usr_ref:
-                try:
-                    return APIUser(unicode(str(usr_ref[0])),
-                                   int(usr_ref[1]))
-                except (KeyError, ValueError):
-                    logging.error(__name__ + ' :: Could not get API user info.')
-                    return None
-            else:
-                return None
-
-
-    class Anonymous(AnonymousUser):
-        name = u'Anonymous'
-
-    login_manager = LoginManager()
-
-    login_manager.anonymous_user = Anonymous
-    login_manager.login_view = 'login'
-    login_manager.login_message = u'Please log in to access this page.'
-    login_manager.refresh_view = 'reauth'
-
-
-    @login_manager.user_loader
-    def load_user(uid):
-        return APIUser.get(int(uid))
-
+    from flask.ext.login import login_required, logout_user, \
+        confirm_login, login_user, fresh_login_required, current_user
 
     @app.route('/login', methods=['GET', 'POST'])
     def login():
@@ -155,7 +110,6 @@ if settings.__flask_login_exists__:
                 flash(u'Invalid username.')
         return render_template('login.html')
 
-
     @app.route('/reauth', methods=['GET', 'POST'])
     @login_required
     def reauth():
@@ -164,7 +118,6 @@ if settings.__flask_login_exists__:
             flash(u'Reauthenticated.')
             return redirect(request.args.get('next') or url_for('api_root'))
         return render_template('reauth.html')
-
 
     @app.route('/logout')
     @login_required
@@ -182,9 +135,7 @@ else:
         return wrap()
 
 
-# Views
-# #####
-
+# API views
 
 @app.route('/')
 def api_root():
@@ -197,10 +148,10 @@ def api_root():
 
     if settings.__flask_login_exists__ and current_user.is_anonymous():
         return render_template('index_anon.html', cohort_data=data,
-            m_list=get_metric_names())
+                               m_list=get_metric_names())
     else:
         return render_template('index.html', cohort_data=data,
-                           m_list=get_metric_names())
+                               m_list=get_metric_names())
 
 
 @app.route('/about/')
@@ -408,4 +359,3 @@ def all_urls():
                                  url,
                                  '</a>']))
     return render_template('all_urls.html', urls=url_list)
-
