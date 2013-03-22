@@ -419,7 +419,7 @@ def get_api_user(user, by_id=True):
         query = get_api_user.__query_name__ + '_by_name'
     query = query_store[query] % {
         'cohort_meta_instance': conf.__cohort_meta_instance__,
-        'user': str(user)
+        'user': str(escape_var(user))
     }
     conn._cur_.execute(query)
     api_user_tuple = conn._cur_.fetchone()
@@ -445,8 +445,8 @@ def insert_api_user(user, password):
     query = insert_api_user.__query_name__
     query = query_store[query] % {
         'cohort_meta_instance': conf.__cohort_meta_instance__,
-        'user': str(user),
-        'pass': str(password)
+        'user': str(escape_var(user)),
+        'pass': str(escape_var(password))
     }
     conn._cur_.execute(query)
     conn._db_.commit()
