@@ -24,17 +24,25 @@ from user_metrics.metrics import query_mod
 # With the presence of flask.ext.login module
 if settings.__flask_login_exists__:
 
+    from werkzeug.security import generate_password_hash,\
+        check_password_hash
+
     from flask.ext.login import LoginManager, current_user, UserMixin, \
         AnonymousUser, confirm_login
 
     class APIUser(UserMixin):
         """
-            Extends USerMixin.  User class for flask-login.
+            Extends USerMixin.  User class for flask-login.  Implements a way
+            to add user credentials with _HMAC and salting.
+
+            .. HMAC_: http://tinyurl.com/d8zbbem
+
+
         """
-        def __init__(self, name, id, active=True):
-            self.name = name
-            self.id = id
+        def __init__(self, username, password, active=True):
+            self.name = username
             self.active = active
+            self.set_password(password)
 
         def is_active(self):
             return self.active
@@ -55,6 +63,24 @@ if settings.__flask_login_exists__:
                     return None
             else:
                 return None
+
+        def set_password(self, password):
+            self.pw_hash = generate_password_hash(password)
+
+        def check_password(self, password):
+            return check_password_hash(self.pw_hash, password)
+
+        def register_user(self):
+            """ Writes the user credentials to the datastore. """
+            # 1. Ensure that the user is unique
+            # 2. Write the user / pass to the db
+            if not query_mod.get_api_user(self.name, by_id=False):
+                query_mod.insert_api_user(self.name, self.pw_hash)
+                logging.debug(__name__ + ' :: Added user {0}'.
+                    format(self.name))
+            else:
+                logging.error(__name__ + 'Could not add user {0}'.
+                    format(self.name))
 
     class Anonymous(AnonymousUser):
         name = u'Anonymous'
