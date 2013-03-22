@@ -91,23 +91,25 @@ if settings.__flask_login_exists__:
     @app.route('/login', methods=['GET', 'POST'])
     def login():
         if request.method == 'POST' and 'username' in request.form:
-            username = request.form['username']
-            passwd = request.form['password']
-            result = query_mod.get_api_user(username, by_id=False)
 
-            if result and passwd == str(result[2]):
-                uid = result[1]
-                remember = request.form.get('remember', 'no') == 'yes'
-                if login_user(APIUser.get(int(uid)), remember=remember):
-                    flash('Logged in!')
-                    return redirect(request.args.get('next')
-                                    or url_for('api_root'))
-                else:
-                    flash('Sorry, but you could not log in.')
-            elif result:
-                flash(u'Invalid password.')
+            username = escape(unicode(str(request.form['username'])))
+            passwd = escape(unicode(str(request.form['password'])))
+            remember = request.form.get('remember', 'no') == 'yes'
+
+            # Initialize user
+            user_ref = APIUser(username)
+            user_ref.authenticate(passwd)
+
+            logging.debug(__name__ + ' :: Authenticating "{0}"/"{1}" ...'.
+                format(username, passwd))
+
+            if user_ref.is_authenticated():
+                login_user(user_ref, remember=remember)
+                flash('Logged in.')
+                return redirect(request.args.get('next')
+                                or url_for('api_root'))
             else:
-                flash(u'Invalid username.')
+                flash('Login failed.')
         return render_template('login.html')
 
     @app.route('/reauth', methods=['GET', 'POST'])
@@ -120,7 +122,6 @@ if settings.__flask_login_exists__:
         return render_template('reauth.html')
 
     @app.route('/logout')
-    @login_required
     def logout():
         logout_user()
         flash('Logged out.')
@@ -153,12 +154,10 @@ def api_root():
                                m_list=get_metric_names())
 
 
-@app.route('/about/')
 def about():
     return render_template('about.html')
 
 
-@app.route('/contact/')
 def contact():
     return render_template('contact.html')
 
@@ -183,7 +182,6 @@ def metric(metric=''):
     return render_template('metric.html', m_str=metric, cohort_data=data)
 
 
-@app.route('/user/<string:user>/<string:metric>')
 def user_request(user, metric):
     """ View for requesting metrics for a single user """
     url = request.url.split(request.url_root)[1]
