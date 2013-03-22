@@ -145,8 +145,8 @@ def time_series_listener(process_queue, event_queue):
         time.sleep(PROCESS_SLEEP_TIME)
 
         logging.info(__name__ + ' :: Time series process queue\n'
-                                '\t{0} threads.'.
-            format(str(len(process_queue))))
+                                '\t{0} threads. (PID = {1})'.
+            format(str(len(process_queue)), os.getpid()))
 
         while not event_queue.empty():
             data.extend(event_queue.get())

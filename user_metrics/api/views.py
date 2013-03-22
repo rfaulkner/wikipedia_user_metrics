@@ -38,7 +38,7 @@ from user_metrics.api.engine.request_manager import api_request_queue, \
     req_cb_add_req
 
 from user_metrics.metrics import query_mod
-
+from user_metrics.api.session import APIUser
 
 # View Lock for atomic operations
 VIEW_LOCK = Lock()
@@ -78,60 +78,15 @@ def get_errors(request_args):
     return error
 
 
-# API User Authentication
-# #######################
+# Views
+# #####
 
-# With the presence of flask.ext.login module
+# Flask Login views
+
 if settings.__flask_login_exists__:
-    from flask.ext.login import (LoginManager, current_user, login_required,
-                                 login_user, logout_user, UserMixin, AnonymousUser,
-                                 confirm_login, fresh_login_required)
 
-
-    class APIUser(UserMixin):
-        """
-            Extends USerMixin.  User class for flask-login.
-        """
-        def __init__(self, name, id, active=True):
-            self.name = name
-            self.id = id
-            self.active = active
-
-        def is_active(self):
-            return self.active
-
-        @staticmethod
-        def get(uid):
-            """
-                Used by ``load_user`` to retrieve user session info.
-            """
-            usr_ref = query_mod.get_api_user(uid)
-            if usr_ref:
-                try:
-                    return APIUser(unicode(str(usr_ref[0])),
-                                   int(usr_ref[1]))
-                except (KeyError, ValueError):
-                    logging.error(__name__ + ' :: Could not get API user info.')
-                    return None
-            else:
-                return None
-
-
-    class Anonymous(AnonymousUser):
-        name = u'Anonymous'
-
-    login_manager = LoginManager()
-
-    login_manager.anonymous_user = Anonymous
-    login_manager.login_view = 'login'
-    login_manager.login_message = u'Please log in to access this page.'
-    login_manager.refresh_view = 'reauth'
-
-
-    @login_manager.user_loader
-    def load_user(uid):
-        return APIUser.get(int(uid))
-
+    from flask.ext.login import login_required, logout_user, \
+        confirm_login, login_user, fresh_login_required, current_user
 
     @app.route('/login', methods=['GET', 'POST'])
     def login():
@@ -155,7 +110,6 @@ if settings.__flask_login_exists__:
                 flash(u'Invalid username.')
         return render_template('login.html')
 
-
     @app.route('/reauth', methods=['GET', 'POST'])
     @login_required
     def reauth():
@@ -164,7 +118,6 @@ if settings.__flask_login_exists__:
             flash(u'Reauthenticated.')
             return redirect(request.args.get('next') or url_for('api_root'))
         return render_template('reauth.html')
-
 
     @app.route('/logout')
     @login_required
@@ -182,11 +135,8 @@ else:
         return wrap()
 
 
-# Views
-# #####
+# API views
 
-
-@app.route('/')
 def api_root():
     """ View for root url - API instructions """
     #@@@ TODO make tag list generation a dedicated method
@@ -194,8 +144,13 @@ def api_root():
     conn._cur_.execute('select utm_name from usertags_meta')
     data = [r[0] for r in conn._cur_]
     del conn
-    return render_template('index.html', cohort_data=data,
-                           m_list=get_metric_names())
+
+    if settings.__flask_login_exists__ and current_user.is_anonymous():
+        return render_template('index_anon.html', cohort_data=data,
+                               m_list=get_metric_names())
+    else:
+        return render_template('index.html', cohort_data=data,
+                               m_list=get_metric_names())
 
 
 @app.route('/about/')
@@ -208,8 +163,6 @@ def contact():
     return render_template('contact.html')
 
 
-# @app.route('/metrics/', methods=['POST', 'GET'])
-# @login_required
 def all_metrics():
     """ Display a list of available metrics """
     if request.method == 'POST':
@@ -217,14 +170,8 @@ def all_metrics():
         return metric(request.form['selectMetric'])
     else:
         return render_template('all_metrics.html')
-if not settings.__flask_login_exists__:
-    all_metrics = app.route('/metrics/', methods=['POST', 'GET'])(all_metrics)
-else:
-    all_metrics = app.route('/metrics/', methods=['POST', 'GET'])(all_metrics)
-    all_metrics = login_required(all_metrics)
 
 
-@app.route('/metrics/<string:metric>')
 def metric(metric=''):
     """ Display single metric documentation """
     #@@@ TODO make tag list generation a dedicated method
@@ -264,7 +211,6 @@ def user_request(user, metric):
     return redirect(url)
 
 
-@app.route('/cohorts/', methods=['POST', 'GET'])
 def all_cohorts():
     """ View for listing and selecting cohorts """
     error = get_errors(request.args)
@@ -282,7 +228,6 @@ def all_cohorts():
         return render_template('all_cohorts.html', data=o, error=error)
 
 
-@app.route('/cohorts/<string:cohort>')
 def cohort(cohort=''):
     """ View single cohort page """
     error = get_errors(request.args)
@@ -293,8 +238,6 @@ def cohort(cohort=''):
                                m_list=get_metric_names(), error=error)
 
 
-# @app.route('/cohorts/<string:cohort>/<string:metric>')
-# @login_required
 def output(cohort, metric):
     """ View corresponding to a data request -
         All of the setup and execution for a request happens here. """
@@ -349,14 +292,8 @@ def output(cohort, metric):
         req_cb_add_req(key_sig, url, VIEW_LOCK)
 
     return render_template('processing.html', url_str=str(rm))
-if not settings.__flask_login_exists__:
-    output = app.route('/cohorts/<string:cohort>/<string:metric>')(output)
-else:
-    output = app.route('/cohorts/<string:cohort>/<string:metric>')(output)
-    output = login_required(output)
 
 
-@app.route('/job_queue/')
 def job_queue():
     """ View for listing current jobs working """
 
@@ -388,7 +325,6 @@ def job_queue():
         return render_template('queue.html', procs=p_list)
 
 
-@app.route('/all_requests')
 def all_urls():
     """ View for listing all requests.  Retireves from cache """
     key_sigs = [api_data[key][1] for key in api_data]
@@ -404,3 +340,65 @@ def all_urls():
                                  '</a>']))
     return render_template('all_urls.html', urls=url_list)
 
+
+
+# Add View Decorators
+# ##
+
+# Stores view references in structure
+view_list = {
+    api_root.__name__: api_root,
+    all_urls.__name__: all_urls,
+    job_queue.__name__: job_queue,
+    output.__name__: output,
+    cohort.__name__: cohort,
+    all_cohorts.__name__: all_cohorts,
+    user_request.__name__: user_request,
+    metric.__name__: metric,
+    all_metrics.__name__: all_metrics,
+    about.__name__: about,
+    contact.__name__: contact
+}
+
+# Dict stores routing paths for each view
+route_deco = {
+    api_root.__name__: app.route('/'),
+    all_urls.__name__: app.route('/all_requests'),
+    job_queue.__name__: app.route('/job_queue/'),
+    output.__name__: app.route('/cohorts/<string:cohort>/<string:metric>'),
+    cohort.__name__: app.route('/cohorts/<string:cohort>'),
+    all_cohorts.__name__: app.route('/cohorts/', methods=['POST', 'GET']),
+    user_request.__name__: app.route('/user/<string:user>/<string:metric>'),
+    metric.__name__: app.route('/metrics/<string:metric>'),
+    all_metrics.__name__: app.route('/metrics/', methods=['POST', 'GET']),
+    about.__name__: app.route('/about/'),
+    contact.__name__: app.route('/contact/')
+}
+
+# Dict stores flag for login required on view
+login_req_deco = {
+    api_root.__name__: False,
+    all_urls.__name__: True,
+    job_queue.__name__: True,
+    output.__name__: True,
+    cohort.__name__: True,
+    all_cohorts.__name__: True,
+    user_request.__name__: True,
+    metric.__name__: True,
+    all_metrics.__name__: False,
+    about.__name__: False,
+    contact.__name__: False
+}
+
+# Apply decorators to views
+
+if settings.__flask_login_exists__:
+    for key in login_req_deco:
+        view_method = view_list[key]
+        if login_req_deco[key]:
+            view_list[key] = login_required(view_method)
+
+for key in route_deco:
+    route = route_deco[key]
+    view_method = view_list[key]
+    view_list[key] = route(view_method)

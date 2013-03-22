@@ -54,8 +54,8 @@ from user_metrics.api.engine.response_handler import process_responses
 from user_metrics.api.views import app
 from user_metrics.api.engine import DATETIME_STR_FORMAT
 from user_metrics.api.views import api_data
-from user_metrics.api.engine.request_manager import req_notification_queue_in, \
-    req_notification_queue_out, api_request_queue, api_response_queue
+from user_metrics.api.engine.request_manager import api_request_queue, \
+    req_notification_queue_out, req_notification_queue_in, api_response_queue
 
 job_controller_proc = None
 response_controller_proc = None
@@ -89,9 +89,9 @@ def teardown(data):
     # Try to shutdown the job control proc gracefully
     try:
         if job_controller_proc and\
-           hasattr(job_controller_proc, 'is_alive') and\
-           job_controller_proc.is_alive():
-            job_controller_proc.terminate()
+            hasattr(job_controller_proc, 'is_alive') and \
+                job_controller_proc.is_alive():
+                    job_controller_proc.terminate()
     except Exception:
         logging.error(__name__ + ' :: Could not shut down controller.')
 
@@ -118,21 +118,21 @@ def setup_controller(req_queue, res_queue, msg_queue_in, msg_queue_out):
 #
 #######
 
+# initialize API data - get the instance
+
+setup_controller(api_request_queue, api_response_queue,
+                 req_notification_queue_in, req_notification_queue_out)
+
+app.config['SECRET_KEY'] = settings.__secret_key__
+
+# With the presence of flask.ext.login module
+if settings.__flask_login_exists__:
+    from user_metrics.api.session import login_manager
+    login_manager.setup_app(app)
+
 
 if __name__ == '__main__':
-
-    # initialize API data - get the instance
-
-    setup_controller(api_request_queue, api_response_queue,
-                     req_notification_queue_in, req_notification_queue_out)
     try:
-        app.config['SECRET_KEY'] = settings.__secret_key__
-
-        # With the presence of flask.ext.login module
-        if settings.__flask_login_exists__:
-            from user_metrics.api.views import login_manager
-            login_manager.setup_app(app)
-
         app.run(debug=True,
                 use_reloader=False,
                 host=settings.__instance_host__,

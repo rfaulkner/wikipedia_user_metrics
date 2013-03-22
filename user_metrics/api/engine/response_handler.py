@@ -50,10 +50,10 @@ def process_responses(response_queue, msg_in):
 
         try:
             data = eval(stream)
-        except Exception:
-            logging.error(log_name + ' :: Request {0} failed.'.format(
-                request_meta))
-            continue
+        except Exception as  e:
+            logging.error(log_name + ' - Request failed. {0}'.format(
+                e.message))
+            stream = "OrderedDict([('data', 'Request failed.')])"
 
         key_sig = build_key_signature(request_meta, hash_result=True)
 
