@@ -137,7 +137,6 @@ else:
 
 # API views
 
-@app.route('/')
 def api_root():
     """ View for root url - API instructions """
     #@@@ TODO make tag list generation a dedicated method
@@ -164,8 +163,6 @@ def contact():
     return render_template('contact.html')
 
 
-# @app.route('/metrics/', methods=['POST', 'GET'])
-# @login_required
 def all_metrics():
     """ Display a list of available metrics """
     if request.method == 'POST':
@@ -173,14 +170,8 @@ def all_metrics():
         return metric(request.form['selectMetric'])
     else:
         return render_template('all_metrics.html')
-if not settings.__flask_login_exists__:
-    all_metrics = app.route('/metrics/', methods=['POST', 'GET'])(all_metrics)
-else:
-    all_metrics = login_required(all_metrics)
-    all_metrics = app.route('/metrics/', methods=['POST', 'GET'])(all_metrics)
 
 
-@app.route('/metrics/<string:metric>')
 def metric(metric=''):
     """ Display single metric documentation """
     #@@@ TODO make tag list generation a dedicated method
@@ -220,7 +211,6 @@ def user_request(user, metric):
     return redirect(url)
 
 
-@app.route('/cohorts/', methods=['POST', 'GET'])
 def all_cohorts():
     """ View for listing and selecting cohorts """
     error = get_errors(request.args)
@@ -238,7 +228,6 @@ def all_cohorts():
         return render_template('all_cohorts.html', data=o, error=error)
 
 
-@app.route('/cohorts/<string:cohort>')
 def cohort(cohort=''):
     """ View single cohort page """
     error = get_errors(request.args)
@@ -249,8 +238,6 @@ def cohort(cohort=''):
                                m_list=get_metric_names(), error=error)
 
 
-# @app.route('/cohorts/<string:cohort>/<string:metric>')
-# @login_required
 def output(cohort, metric):
     """ View corresponding to a data request -
         All of the setup and execution for a request happens here. """
@@ -305,14 +292,8 @@ def output(cohort, metric):
         req_cb_add_req(key_sig, url, VIEW_LOCK)
 
     return render_template('processing.html', url_str=str(rm))
-if not settings.__flask_login_exists__:
-    output = app.route('/cohorts/<string:cohort>/<string:metric>')(output)
-else:
-    output = login_required(output)
-    output = app.route('/cohorts/<string:cohort>/<string:metric>')(output)
 
 
-@app.route('/job_queue/')
 def job_queue():
     """ View for listing current jobs working """
 
@@ -344,7 +325,6 @@ def job_queue():
         return render_template('queue.html', procs=p_list)
 
 
-@app.route('/all_requests')
 def all_urls():
     """ View for listing all requests.  Retireves from cache """
     key_sigs = [api_data[key][1] for key in api_data]
@@ -359,3 +339,66 @@ def all_urls():
                                  url,
                                  '</a>']))
     return render_template('all_urls.html', urls=url_list)
+
+
+
+# Add View Decorators
+# ##
+
+# Stores view references in structure
+view_list = {
+    api_root.__name__: api_root,
+    all_urls.__name__: all_urls,
+    job_queue.__name__: job_queue,
+    output.__name__: output,
+    cohort.__name__: cohort,
+    all_cohorts.__name__: all_cohorts,
+    user_request.__name__: user_request,
+    metric.__name__: metric,
+    all_metrics.__name__: all_metrics,
+    about.__name__: about,
+    contact.__name__: contact
+}
+
+# Dict stores routing paths for each view
+route_deco = {
+    api_root.__name__: app.route('/'),
+    all_urls.__name__: app.route('/all_requests'),
+    job_queue.__name__: app.route('/job_queue/'),
+    output.__name__: app.route('/cohorts/<string:cohort>/<string:metric>'),
+    cohort.__name__: app.route('/cohorts/<string:cohort>'),
+    all_cohorts.__name__: app.route('/cohorts/', methods=['POST', 'GET']),
+    user_request.__name__: app.route('/user/<string:user>/<string:metric>'),
+    metric.__name__: app.route('/metrics/<string:metric>'),
+    all_metrics.__name__: app.route('/metrics/', methods=['POST', 'GET']),
+    about.__name__: app.route('/about/'),
+    contact.__name__: app.route('/contact/')
+}
+
+# Dict stores flag for login required on view
+login_req_deco = {
+    api_root.__name__: False,
+    all_urls.__name__: True,
+    job_queue.__name__: True,
+    output.__name__: True,
+    cohort.__name__: True,
+    all_cohorts.__name__: True,
+    user_request.__name__: True,
+    metric.__name__: True,
+    all_metrics.__name__: False,
+    about.__name__: False,
+    contact.__name__: False
+}
+
+# Apply decorators to views
+
+if settings.__flask_login_exists__:
+    for key in login_req_deco:
+        view_method = view_list[key]
+        if login_req_deco[key]:
+            view_list[key] = login_required(view_method)
+
+for key in route_deco:
+    route = route_deco[key]
+    view_method = view_list[key]
+    view_list[key] = route(view_method)
