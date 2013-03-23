@@ -17,7 +17,8 @@ from collections import namedtuple
 
 from user_metrics.metrics import edit_count
 from user_metrics.metrics.users import UMP_MAP, USER_METRIC_PERIOD_TYPE
-
+from user_metrics.config import settings
+from user_metrics.etl.data_loader import Connector, ConnectorError
 
 # User Metric tests
 # =================
@@ -139,6 +140,7 @@ def test_user_UMPRegInput():
     o = namedtuple('nothing', 't project datetime_start, datetime_end')
 
     o.project = 'enwiki'
+    o.t = '24'
     o.datetime_start = datetime(year=2010, month=10, day=1)
     o.datetime_end = o.datetime_start + timedelta(days=30)
 
@@ -163,7 +165,14 @@ def test_get_user_reg_from_logging():
 
 
 def test_connect_to_dbs():
-    assert False  # TODO: implement your test here
+    for key in settings.connections:
+        try:
+            conn = Connector(instance=key, retries=1)
+            del conn
+        except ConnectorError as e:
+            print e.message
+            assert False
+        assert True
 
 
 # API tests
