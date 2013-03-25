@@ -95,6 +95,7 @@ from re import search
 from os import getpid
 from sys import getsizeof
 from Queue import Empty
+from time import sleep
 
 
 # API JOB HANDLER
@@ -463,7 +464,14 @@ def requests_notification_callback(msg_queue_in, msg_queue_out):
 
     cache = OrderedDict()
     while 1:
-        msg = msg_queue_in.get(True)
+
+        try:
+            msg = msg_queue_in.get(True)
+        except IOError as e:
+            logging.error(__name__ + ' :: Could not block '
+                                     'on in queue: "{0}"'.format(e.message))
+            sleep(1)
+            continue
 
         try:
             type = msg[0]
