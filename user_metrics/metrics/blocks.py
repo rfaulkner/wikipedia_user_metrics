@@ -145,7 +145,6 @@ setattr(block_rate_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
                                                     'rate'])
 setattr(block_rate_agg, um.METRIC_AGG_METHOD_KWARGS, {
     'val_idx': 1,
-    'data_type': 'float16'
 })
 
 
