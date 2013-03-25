@@ -20,13 +20,13 @@ the handling of several UserMetric objects.
 Metrics Manager Module
 -----------------------
 
-.. automodule:: src.metrics.metrics_manager
+.. automodule:: user_metrics.metrics.metrics_manager
    :members:
 
 Users Module
 ------------
 
-.. automodule:: src.metrics.users
+.. automodule:: user_metrics.metrics.users
    :members:
 
 User Metrics Classes
@@ -41,66 +41,66 @@ better understand the evolving Wikipedia communities.
 UserMetric Module
 -----------------
 
-.. automodule:: src.metrics.user_metric
+.. automodule:: user_metrics.metrics.user_metric
    :members:
 
 
 BytesAdded Module
 -----------------
 
-.. automodule:: src.metrics.bytes_added
+.. automodule:: user_metrics.metrics.bytes_added
    :members:
 
 Blocks Module
 -------------
 
-.. automodule:: src.metrics.blocks
+.. automodule:: user_metrics.metrics.blocks
    :members:
 
 Edit Count Module
 -----------------
 
-.. automodule:: src.metrics.edit_count
+.. automodule:: user_metrics.metrics.edit_count
    :members:
 
 Edit Rate Module
 ----------------
 
-.. automodule:: src.metrics.edit_rate
+.. automodule:: user_metrics.metrics.edit_rate
    :members:
 
 Live Account Module
 -------------------
 
-.. automodule:: src.metrics.live_account
+.. automodule:: user_metrics.metrics.live_account
    :members:
 
 Namespace of Edits Module
 -------------------------
 
-.. automodule:: src.metrics.namespace_of_edits
+.. automodule:: user_metrics.metrics.namespace_of_edits
    :members:
 
 Survival Module
 ---------------
 
-.. automodule:: src.metrics.survival
+.. automodule:: user_metrics.metrics.survival
    :members:
 
 Threshold Module
 ----------------
 
-.. automodule:: src.metrics.threshold
+.. automodule:: user_metrics.metrics.threshold
    :members:
 
 TimeToThreshold Module
 ----------------------
 
-.. automodule:: src.metrics.time_to_threshold
+.. automodule:: user_metrics.metrics.time_to_threshold
    :members:
 
 RevertRate Module
 -----------------
 
-.. automodule:: src.metrics.revert_rate
+.. automodule:: user_metrics.metrics.revert_rate
    :members:

@@ -4,11 +4,11 @@ Overview
 Run Module
 ----------
 
-.. automodule:: src.api.run
+.. automodule:: user_metrics.api.run
    :members:
 
 Engine Module
 -------------
 
-.. automodule:: src.api.engine
+.. automodule:: user_metrics.api.engine
   :members:

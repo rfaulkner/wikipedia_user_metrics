@@ -7,17 +7,17 @@ metrics source code but may have more general applicability.
 Autovivification Module
 -----------------------
 
-.. automodule:: src.utils.autovivification
+.. automodule:: user_metrics.utils.autovivification
    :members:
 
 Multiprocessing Wrapper Module
 ------------------------------
 
-.. automodule:: src.utils.multiprocessing_wrapper
+.. automodule:: user_metrics.utils.multiprocessing_wrapper
    :members:
 
 Record Type Module
 -----------------------
 
-.. automodule:: src.utils.record_type
+.. automodule:: user_metrics.utils.record_type
    :members:

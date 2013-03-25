@@ -6,13 +6,13 @@ Extract-Transact-Load (ETL) modules are used to gather data from a source, optio
 Aggregator Module
 -----------------
 
-.. automodule:: src.etl.aggregator
+.. automodule:: user_metrics.etl.aggregator
    :members:
 
 Aggregator Error Class
 ~~~~~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: src.etl.aggregator.AggregatorError
+.. autoclass:: user_metrics.etl.aggregator.AggregatorError
    :members:
 
 DataLoader Module
@@ -35,34 +35,34 @@ It's often necessary or helpful to generate a tab separated file from the result
 Connector Class
 ~~~~~~~~~~~~~~~
 
-.. autoclass:: src.etl.data_loader.Connector
+.. autoclass:: user_metrics.etl.data_loader.Connector
     :members:
 
 DataLoader Class
 ~~~~~~~~~~~~~~~~
 
-.. autoclass:: src.etl.data_loader.DataLoader
+.. autoclass:: user_metrics.etl.data_loader.DataLoader
    :members:
 
 
 TableLoader Module
 ------------------
 
-.. automodule:: src.etl.table_loader
+.. automodule:: user_metrics.etl.table_loader
 
 TableLoader Class
 ~~~~~~~~~~~~~~~~~
 
-.. autoclass:: src.etl.table_loader.TableLoader
+.. autoclass:: user_metrics.etl.table_loader.TableLoader
    :members:
 
 WPAPI Module
 ------------
 
-.. automodule:: src.etl.wpapi
+.. automodule:: user_metrics.etl.wpapi
 
 WPAPI Class
 ~~~~~~~~~~~
 
-.. autoclass:: src.etl.wpapi.WPAPI
+.. autoclass:: user_metrics.etl.wpapi.WPAPI
    :members:
