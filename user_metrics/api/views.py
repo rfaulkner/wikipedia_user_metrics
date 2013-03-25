@@ -330,14 +330,17 @@ def all_urls():
     # This extracts ALL data from the cache, the data is assumed to be in the
     # form of <hash key -> (data, key signature)> pairs.  The key signature is
     # extracted to reconstruct the url.
-    all_data = read_pickle_data()
 
-    try:
-        key_sigs = [val[1] for val in all_data.itervalues()]
-    except (KeyError, IndexError):
-        logging.error(__name__ + ' :: Could not render key signatures '
-                                 'from data:\n\n {0}'.format(all_data))
-        key_sigs = []
+    all_data = read_pickle_data()
+    key_sigs = list()
+
+    for key, val in all_data.iteritems():
+        if hasattr(val, '__iter__'):
+            try:
+                key_sigs.append(val[1])
+            except (KeyError, IndexError):
+                logging.error(__name__ + ' :: Could not render key signature '
+                                         'from data, key = {0}'.format(key))
 
     # Compose urls from key sigs
     url_list = list()
