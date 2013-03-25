@@ -15,3 +15,5 @@ data
 scripts/e3_settings.py
 e3_analysis
 MANIFEST
+.ipynb  # Ipython notebook backups
+.pkl    # Never save pickle data
