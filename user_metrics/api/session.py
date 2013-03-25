@@ -57,8 +57,8 @@ if settings.__flask_login_exists__:
 
             logging.debug(__name__ + ' :: Initiatializing user obj. '
                                      'user: "{0}", '
-                                     'is active: "{1}",'
-                                     'is authL {2}'.
+                                     'is active: "{1}", '
+                                     'is auth: {2}'.
                 format(username, self.active, self.authenticated))
 
         def is_active(self):
@@ -90,16 +90,24 @@ if settings.__flask_login_exists__:
                 return None
 
         def set_password(self, password):
-            self.pw_hash = generate_password_hash(str(password))
+            try:
+                password = escape(unicode(password))
+                self.pw_hash = generate_password_hash(password)
+            except (TypeError, NameError) as e:
+                logging.error(__name__ + ' :: Hash set error - ' + e.message)
+                self.pw_hash = None
 
         def check_password(self, password):
             if self.pw_hash:
-                return check_password_hash(self.pw_hash, password)
+                try:
+                    password = escape(unicode(password))
+                    return check_password_hash(self.pw_hash, password)
+                except (TypeError, NameError) as e:
+                    logging.error(__name__ +
+                                  ' :: Hash check error - ' + e.message)
+                    return False
             else:
                 return False
-
-        def verify_user(self, password):
-            return check_password_hash(self.pw_hash, password)
 
         def register_user(self):
             """ Writes the user credentials to the datastore. """
