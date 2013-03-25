@@ -49,6 +49,7 @@ __author__ = "ryan faulkner"
 __date__ = "12/12/2012"
 __license__ = "GPL (version 2 or later)"
 
+from types import FloatType
 from collections import namedtuple
 from itertools import izip
 from numpy import array, transpose
@@ -231,7 +232,6 @@ def numpy_op(iter, **kwargs):
     """
 
     # Retrieve indices on data for which to compute medians
-    data_type = kwargs['data_type'] if 'data_type' in kwargs else 'float16'
     agg_meta = kwargs['agg_meta']
     values = list()
 
@@ -244,9 +244,9 @@ def numpy_op(iter, **kwargs):
             results.append(i)
         results = array(iter._results)
 
-    # Transpose the array and convert it's elements to 'uint8'
+    # Transpose the array and convert it's elements to Python FloatType
     results = transpose(results)
-    results = results.astype(data_type)
+    results = results.astype(FloatType)
 
     # Compute the median of each specified data index
     for agg_meta_obj in agg_meta:

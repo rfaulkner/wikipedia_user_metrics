@@ -156,7 +156,6 @@ setattr(edit_rate_agg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
                                                    'total_weight', 'rate'])
 setattr(edit_rate_agg, um.METRIC_AGG_METHOD_KWARGS, {
     'val_idx': 2,
-    'data_type': 'float16'
 })
 
 metric_header = EditRate.header()
@@ -175,5 +174,4 @@ er_stats_agg = build_numpy_op_agg(build_agg_meta(op_list, field_prefixes),
                                   'er_stats_agg')
 
 agg_kwargs = getattr(er_stats_agg, METRIC_AGG_METHOD_KWARGS)
-agg_kwargs['data_type'] = 'float'
 setattr(er_stats_agg, METRIC_AGG_METHOD_KWARGS, agg_kwargs)
