@@ -331,7 +331,13 @@ def all_urls():
     # form of <hash key -> (data, key signature)> pairs.  The key signature is
     # extracted to reconstruct the url.
     all_data = read_pickle_data()
-    key_sigs = [val[1] for val in all_data.itervalues()]
+
+    try:
+        key_sigs = [val[1] for val in all_data.itervalues()]
+    except (KeyError, IndexError):
+        logging.error(__name__ + ' :: Could not render key signatures '
+                                 'from data:\n\n {0}'.format(all_data))
+        key_sigs = []
 
     # Compose urls from key sigs
     url_list = list()
