@@ -50,13 +50,13 @@ To be released on March 11th 2013.
 Version 0.1.4-dev
 -----------------
 
-To be released on March 25th 2013.
+To be released on March 26th 2013.
 
-- User Session Management
+- User Session Management (session.py)
     - flask-login
 - Implementation of request caching outside the runtime
     - start with pickle objects
-- Client for programmatically accessing API
+- Initial commit for client for programmatically accessing API
     -> https://github.com/rfaulkner/umapi_client
 - More robust testing.
     - added some testing
@@ -64,6 +64,33 @@ To be released on March 25th 2013.
 - Request notifications listener
 - Update request_manager module to handle larger responses on the queue
 - Response Handler that builds responses for caching as they finish
+- Add backend facility for loading cohorts
+    (add_cohort_data in query_calls module)
+- Add backend facility for registering users (session.py)
+- Fixed API views to properly interact with callbacks managing requests,
+    responses, job notifications, and cache
+
+https://github.com/wikimedia/user_metrics/pull/11
+https://github.com/wikimedia/user_metrics/pull/12
+https://github.com/wikimedia/user_metrics/pull/13
+https://github.com/wikimedia/user_metrics/pull/14
+https://github.com/wikimedia/user_metrics/pull/15
+https://github.com/wikimedia/user_metrics/pull/16
+
+
+Version 0.1.5-dev
+-----------------
+
+To be released on April 15th 2013.
+
+- Implement hooks for client UMAPI client
+- Address existing security issues relating to potential SQL
+    injection and XSS
+- Refactor docs
+- Add several tests for metrics, and API events
+- Facility for importing cohorts
+- Fix/Test Single user endpoint request
+- Fix/Test cohort combo request
 
 
 Future Work
