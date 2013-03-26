@@ -1,17 +1,38 @@
+
+# Project files
+MANIFEST
+.DS_Store
+.idea
+
+
+# ignore docs and build sub-folders
 build/*
 docs/_build/*
-.DS_Store
-*.pyc
-*.pyo
 dist
 *.egg
 *.egg-info
-_mailinglist
+
+
+# Ignore (optimized) Python bytecode
+*.pyc
+*.pyo
+
+
+# TOX test scripts
 .tox
-.idea
-*.tsv
+
+
+# Project dependencies to ignore
 settings.py
 data
 scripts/e3_settings.py
-e3_analysis
-MANIFEST
+_mailinglist
+
+
+# Ipython notebook backups
+*.ipynb
+
+
+# Ignore data files
+*.pkl
+*.tsv

@@ -27,7 +27,7 @@ from user_metrics.config import logging, settings
 from user_metrics.utils import unpack_fields
 from user_metrics.api.engine.data import get_cohort_id, \
     get_cohort_refresh_datetime, get_data, get_url_from_keys, \
-    build_key_signature
+    build_key_signature, read_pickle_data
 from user_metrics.api.engine import MW_UNAME_REGEX
 from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine.request_meta import filter_request_input, \
@@ -324,8 +324,23 @@ def job_queue():
 
 
 def all_urls():
-    """ View for listing all requests.  Retireves from cache """
-    key_sigs = [api_data[key][1] for key in api_data]
+    """ View for listing all requests.  Retrieves from cache """
+
+    # @TODO - this reads the entire cache into memory, filters will be needed
+    # This extracts ALL data from the cache, the data is assumed to be in the
+    # form of <hash key -> (data, key signature)> pairs.  The key signature is
+    # extracted to reconstruct the url.
+
+    all_data = read_pickle_data()
+    key_sigs = list()
+
+    for key, val in all_data.iteritems():
+        if hasattr(val, '__iter__'):
+            try:
+                key_sigs.append(val[1])
+            except (KeyError, IndexError):
+                logging.error(__name__ + ' :: Could not render key signature '
+                                         'from data, key = {0}'.format(key))
 
     # Compose urls from key sigs
     url_list = list()

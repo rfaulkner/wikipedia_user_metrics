@@ -17,7 +17,6 @@ Contents:
    Metrics Modules <metrics>
    API Modules <api>
    Utilities Modules <util>
-   Experiments Log <experiments_log>
 
 Indices and tables
 ==================

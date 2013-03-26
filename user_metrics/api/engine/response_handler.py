@@ -13,6 +13,7 @@ from user_metrics.config import logging
 from user_metrics.api.engine.request_meta import rebuild_unpacked_request
 from user_metrics.api.engine.data import set_data, build_key_signature
 from Queue import Empty
+from flask import escape
 
 # Timeout in seconds to wait for data on the queue.  This should be long
 # enough to ensure that the full response can be received
@@ -50,10 +51,23 @@ def process_responses(response_queue, msg_in):
 
         try:
             data = eval(stream)
-        except Exception as  e:
-            logging.error(log_name + ' - Request failed. {0}'.format(
-                e.message))
-            stream = "OrderedDict([('data', 'Request failed.')])"
+        except Exception as e:
+
+            # Report a fraction of the failed response data directly in the
+            # logger
+            if len(unicode(stream)) > 2000:
+                excerpt = stream[:1000] + ' ... ' + stream[-1000:]
+            else:
+                excerpt = stream
+
+            logging.error(log_name + ' - Request failed. {0}\n\n' \
+                                     'data excerpt: {1}'.format(e.message, excerpt))
+
+            # Format a response that will report on the failed request
+            stream = "OrderedDict([('status', 'Request failed.'), " \
+                     "('exception', '" + escape(unicode(e.message)) + "')," \
+                     "('request', '" + escape(unicode(request_meta)) + "'), " \
+                     "('data', '" + escape(unicode(stream)) + "')])"
 
         key_sig = build_key_signature(request_meta, hash_result=True)
 

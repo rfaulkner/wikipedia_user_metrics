@@ -57,8 +57,8 @@ if settings.__flask_login_exists__:
 
             logging.debug(__name__ + ' :: Initiatializing user obj. '
                                      'user: "{0}", '
-                                     'is active: "{1}",'
-                                     'is authL {2}'.
+                                     'is active: "{1}", '
+                                     'is auth: {2}'.
                 format(username, self.active, self.authenticated))
 
         def is_active(self):
@@ -90,16 +90,24 @@ if settings.__flask_login_exists__:
                 return None
 
         def set_password(self, password):
-            self.pw_hash = generate_password_hash(str(password))
+            try:
+                password = escape(unicode(password))
+                self.pw_hash = generate_password_hash(password)
+            except (TypeError, NameError) as e:
+                logging.error(__name__ + ' :: Hash set error - ' + e.message)
+                self.pw_hash = None
 
         def check_password(self, password):
             if self.pw_hash:
-                return check_password_hash(self.pw_hash, password)
+                try:
+                    password = escape(unicode(password))
+                    return check_password_hash(self.pw_hash, password)
+                except (TypeError, NameError) as e:
+                    logging.error(__name__ +
+                                  ' :: Hash check error - ' + e.message)
+                    return False
             else:
                 return False
-
-        def verify_user(self, password):
-            return check_password_hash(self.pw_hash, password)
 
         def register_user(self):
             """ Writes the user credentials to the datastore. """
@@ -108,7 +116,7 @@ if settings.__flask_login_exists__:
             # 2. Ensure that the user is unique
             # 3. Write the user / pass to the db
 
-            if not self.registered:
+            if not self.active:
                 if not query_mod.get_api_user(self.name, by_id=False):
                     query_mod.insert_api_user(self.name, self.pw_hash)
                     logging.debug(__name__ + ' :: Added user {0}'.
@@ -116,7 +124,7 @@ if settings.__flask_login_exists__:
                 else:
                     logging.error(__name__ + 'Could not add user {0}'.
                         format(self.name))
-                self.registered = True
+                self.active = True
 
     class Anonymous(AnonymousUser):
         name = u'Anonymous'
