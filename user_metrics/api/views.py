@@ -37,7 +37,6 @@ from user_metrics.api.engine.request_manager import api_request_queue, \
     req_cb_get_cache_keys, req_cb_get_url, req_cb_get_is_running, \
     req_cb_add_req
 
-from user_metrics.metrics import query_mod
 from user_metrics.api.session import APIUser
 
 # View Lock for atomic operations
@@ -354,6 +353,25 @@ def all_urls():
     return render_template('all_urls.html', urls=url_list)
 
 
+def thin_client_view():
+    """
+        View for handling requests outside sessions.  Useful for processing
+        jobs from https://github.com/rfaulkner/umapi_client.
+
+        Returns:
+
+            1) JSON response if the request is complete
+            2) Validation response (minimal size)
+    """
+
+    # Validate key
+    # Construct request meta
+    # Check for job cached
+    #   If YES return
+    #   If NO queue job, return verify
+
+    return None
+
 
 # Add View Decorators
 # ##
@@ -370,7 +388,8 @@ view_list = {
     metric.__name__: metric,
     all_metrics.__name__: all_metrics,
     about.__name__: about,
-    contact.__name__: contact
+    contact.__name__: contact,
+    thin_client_view.__name__: thin_client_view
 }
 
 # Dict stores routing paths for each view
@@ -385,7 +404,8 @@ route_deco = {
     metric.__name__: app.route('/metrics/<string:metric>'),
     all_metrics.__name__: app.route('/metrics/', methods=['POST', 'GET']),
     about.__name__: app.route('/about/'),
-    contact.__name__: app.route('/contact/')
+    contact.__name__: app.route('/contact/'),
+    thin_client_view.__name__: app.route('/thin/<string:cohort>/<string:metric>')
 }
 
 # Dict stores flag for login required on view
@@ -400,7 +420,8 @@ login_req_deco = {
     metric.__name__: True,
     all_metrics.__name__: False,
     about.__name__: False,
-    contact.__name__: False
+    contact.__name__: False,
+    thin_client_view.__name__: False
 }
 
 # Apply decorators to views
