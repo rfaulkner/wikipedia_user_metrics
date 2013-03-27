@@ -280,9 +280,10 @@ class UserMetric(object):
             # Duck-type the "cohort" ref for a ID generating interface
             # see src/metrics/users.py
             if hasattr(users, 'get_users'):
-                logging.info(__name__ + ':: Calling get_users() ...')
-                users = [u for u in users.get_users(self._start_ts_,
-                                                    self._end_ts_)]
+                logging.info(__name__ + ' :: Calling get_users() ...')
+                users = [u for u in users.get_users(self.datetime_start,
+                                                    self.datetime_start,
+                                                    project=self.project)]
 
             # If users are empty flag an error
             if not users:
@@ -296,7 +297,7 @@ class UserMetric(object):
 
             # Echo input params for metric process call
             if hasattr(self, 'log_') and self.log_:
-                logging.info(__name__ + " :: parameters = " + str(kwargs))
+                logging.info(__name__ + ' :: parameters = ' + str(kwargs))
 
             return proc_func(self, users, **kwargs)
         return wrapper
