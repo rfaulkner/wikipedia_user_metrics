@@ -43,22 +43,20 @@ __date__ = "2012-12-21"
 __license__ = "GPL (version 2 or later)"
 
 
-import cPickle
 import multiprocessing as mp
-from datetime import datetime
 
 from user_metrics.config import logging, settings
 from user_metrics.api.engine.request_manager import job_control, \
     requests_notification_callback
 from user_metrics.api.engine.response_handler import process_responses
 from user_metrics.api.views import app
-from user_metrics.api.engine import DATETIME_STR_FORMAT
-from user_metrics.api.views import api_data
 from user_metrics.api.engine.request_manager import api_request_queue, \
     req_notification_queue_out, req_notification_queue_in, api_response_queue
+from user_metrics.utils import terminate_process_with_checks
 
 job_controller_proc = None
 response_controller_proc = None
+rm_callback_proc = None
 
 
 ######
@@ -68,32 +66,18 @@ response_controller_proc = None
 #######
 
 
-def teardown(data):
+def teardown():
     """ When the instance is deleted store the pickled data and shutdown
         the job controller """
 
-    # Handle persisting data to file
-    pkl_file = None
-    try:
-        timestamp = datetime.now().strftime(DATETIME_STR_FORMAT)
-        pkl_file = open(settings.__data_file_dir__ +
-                        'api_data_{0}.pkl'.
-                        format(timestamp), 'wb')
-        cPickle.dump(data, pkl_file)
-    except Exception:
-        logging.error(__name__ + '::Could not pickle data.')
-    finally:
-        if hasattr(pkl_file, 'close'):
-            pkl_file.close()
-
     # Try to shutdown the job control proc gracefully
     try:
-        if job_controller_proc and\
-            hasattr(job_controller_proc, 'is_alive') and \
-                job_controller_proc.is_alive():
-                    job_controller_proc.terminate()
+        terminate_process_with_checks(job_controller_proc)
+        terminate_process_with_checks(response_controller_proc)
+        terminate_process_with_checks(rm_callback_proc)
+
     except Exception:
-        logging.error(__name__ + ' :: Could not shut down controller.')
+        logging.error(__name__ + ' :: Could not shut down callbacks.')
 
 
 def setup_controller(req_queue, res_queue, msg_queue_in, msg_queue_out):
@@ -138,4 +122,4 @@ if __name__ == '__main__':
                 host=settings.__instance_host__,
                 port=settings.__instance_port__,)
     finally:
-        teardown(api_data)
+        teardown()
