@@ -164,6 +164,15 @@ def salt_string(unencoded_string, secret_key):
     return hash_str
 
 
+def terminate_process_with_checks(proc):
+    """
+        Gracefully terminates a process exposing the correct interface
+    """
+    if proc and hasattr(proc, 'is_alive') and proc.is_alive() and \
+       hasattr(proc, 'terminate'):
+        proc.terminate()
+
+
 # Rudimentary Testing
 if __name__ == '__main__':
     t = build_namedtuple(['a', 'b'], [int, str], [1, 's'])
