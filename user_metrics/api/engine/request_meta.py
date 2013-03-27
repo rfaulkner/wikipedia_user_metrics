@@ -80,7 +80,13 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
     """
     default_params = 'cohort_expr cohort_gen_timestamp metric '
     additional_params = ''
-    for val in ParameterMapping.QUERY_PARAMS_BY_METRIC[metric_expr]:
+
+    try:
+        metric_params = ParameterMapping.QUERY_PARAMS_BY_METRIC[metric_expr]
+    except KeyError:
+        raise MetricsAPIError('Bad metric name.', error_code=4)
+
+    for val in metric_params:
         additional_params += val.query_var + ' '
     additional_params = additional_params[:-1]
     params = default_params + additional_params
@@ -123,7 +129,7 @@ def format_request_params(request_meta):
                 escape(request_meta.start))
         except ValueError:
             # Pass the value of the error code in `error_codes`
-            raise MetricsAPIError('1')
+            raise MetricsAPIError(error_code=1)
 
     if request_meta.end:
         try:
@@ -131,7 +137,7 @@ def format_request_params(request_meta):
                 escape(request_meta.end))
         except ValueError:
             # Pass the value of the error code in `error_codes`
-            raise MetricsAPIError('1')
+            raise MetricsAPIError(error_code=1)
 
     # set the aggregator if there is one
     agg_key = get_agg_key(request_meta.aggregator, request_meta.metric)

@@ -19,7 +19,6 @@ __license__ = "GPL (version 2 or later)"
 from flask import Flask, render_template, Markup, redirect, url_for, \
     request, escape, flash, jsonify, make_response
 from re import search, sub
-from collections import OrderedDict
 from multiprocessing import Lock
 
 from user_metrics.etl.data_loader import Connector
@@ -29,7 +28,7 @@ from user_metrics.api.engine.data import get_cohort_id, \
     get_cohort_refresh_datetime, get_data, get_url_from_keys, \
     build_key_signature, read_pickle_data
 from user_metrics.api.engine import MW_UNAME_REGEX
-from user_metrics.api import MetricsAPIError
+from user_metrics.api import MetricsAPIError, error_codes
 from user_metrics.api.engine.request_meta import filter_request_input, \
     format_request_params, RequestMetaFactory, \
     get_metric_names
@@ -47,23 +46,6 @@ app = Flask(__name__)
 
 # REGEX to identify refresh flags in the URL
 REFRESH_REGEX = r'refresh[^&]*&|\?refresh[^&]*$|&refresh[^&]*$'
-
-
-# Stores cached requests (this should eventually be replaced with
-# a proper cache)
-api_data = OrderedDict()
-
-
-# Error codes for web requests
-# ############################
-
-global error_codes
-error_codes = {
-    0: 'Job already running.',
-    1: 'Badly Formatted timestamp',
-    2: 'Could not locate stored request.',
-    3: 'Could not find User ID.',
-}
 
 
 def get_errors(request_args):
@@ -258,12 +240,18 @@ def output(cohort, metric):
     # 1. Populate with request parameters from query args.
     # 2. Filter the input discarding any url junk
     # 3. Process defaults for request parameters
-    rm = RequestMetaFactory(cohort, cohort_refresh_ts, metric)
+    try:
+        rm = RequestMetaFactory(cohort, cohort_refresh_ts, metric)
+    except MetricsAPIError as e:
+        return redirect(url_for('all_cohorts') + '?error=' +
+                        str(e.error_code))
+
     filter_request_input(request, rm)
     try:
         format_request_params(rm)
     except MetricsAPIError as e:
-        return redirect(url_for('all_cohorts') + '?error=' + e.message)
+        return redirect(url_for('all_cohorts') + '?error=' +
+                        str(e.error_code))
 
     # Determine if the request maps to an existing response.
     # 1. The response already exists in the hash, return.
@@ -283,6 +271,7 @@ def output(cohort, metric):
         return render_template('processing.html',
                                error=error_codes[0],
                                url_str=str(rm))
+
     # Add the request to the queue
     else:
         api_request_queue.put(unpack_fields(rm), block=True)
