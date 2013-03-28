@@ -50,6 +50,8 @@ from user_metrics.utils import unpack_fields
 # ####################################################
 
 
+DEFAULT_PROJECT = 'enwiki'
+
 # Structure that maps values in the query string to new ones
 REQUEST_VALUE_MAPPING = {
     'group': {
@@ -58,13 +60,6 @@ REQUEST_VALUE_MAPPING = {
         'reginput': 2,
     }
 }
-
-# Define standard variable names in the query string - store in named tuple
-RequestMeta = recordtype('RequestMeta',
-                         'cohort_expr cohort_gen_timestamp metric '
-                         'time_series aggregator project '
-                         'namespace start end interval t n  group')
-
 
 def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
     """
@@ -80,7 +75,13 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
     """
     default_params = 'cohort_expr cohort_gen_timestamp metric '
     additional_params = ''
-    for val in ParameterMapping.QUERY_PARAMS_BY_METRIC[metric_expr]:
+
+    try:
+        metric_params = ParameterMapping.QUERY_PARAMS_BY_METRIC[metric_expr]
+    except KeyError:
+        raise MetricsAPIError('Bad metric name.', error_code=4)
+
+    for val in metric_params:
         additional_params += val.query_var + ' '
     additional_params = additional_params[:-1]
     params = default_params + additional_params
@@ -97,7 +98,7 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
 REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace',
                           'start', 'end', 'interval', 't', 'n',
                           'time_unit', 'time_unit_count', 'look_ahead',
-                          'look_back', 'threshold_type', 'group']
+                          'look_back', 'threshold_type', 'group', 'is_user']
 
 # Defines which variables may be taken from the URL path
 REQUEST_META_BASE = ['cohort_expr', 'metric']
@@ -123,7 +124,7 @@ def format_request_params(request_meta):
                 escape(request_meta.start))
         except ValueError:
             # Pass the value of the error code in `error_codes`
-            raise MetricsAPIError('1')
+            raise MetricsAPIError(error_code=1)
 
     if request_meta.end:
         try:
@@ -131,7 +132,10 @@ def format_request_params(request_meta):
                 escape(request_meta.end))
         except ValueError:
             # Pass the value of the error code in `error_codes`
-            raise MetricsAPIError('1')
+            raise MetricsAPIError(error_code=1)
+
+    if not request_meta.project:
+        request_meta.project = DEFAULT_PROJECT
 
     # set the aggregator if there is one
     agg_key = get_agg_key(request_meta.aggregator, request_meta.metric)
@@ -257,7 +261,8 @@ class ParameterMapping(object):
                      varMapping('time_series', 'time_series'),
                      varMapping('aggregator', 'aggregator'),
                      varMapping('t', 't'),
-                     varMapping('group', 'group')]
+                     varMapping('group', 'group'),
+                     varMapping('is_user', 'is_user')]
 
     QUERY_PARAMS_BY_METRIC = {
         'blocks': common_params,

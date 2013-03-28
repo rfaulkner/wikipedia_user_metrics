@@ -217,11 +217,25 @@ class MediaWikiUser(object):
             'date_end': format_mediawiki_timestamp(date_end),
             'project': project,
         }
-        conn = Connector(instance=settings.__cohort_data_instance__)
-        conn._cur_.execute(self.QUERY_TYPES[self._query_type] % param_dict)
+        conn = Connector(instance=settings.PROJECT_DB_MAP[project])
+        sql = self.QUERY_TYPES[self._query_type] % param_dict
+        conn._cur_.execute(sql)
 
         for row in conn._cur_:
             yield row[0]
+
+    @staticmethod
+    def is_user_name(user_name, project):
+        """ Validation on MediaWiki user names. Returns userID for a username
+            if it exists.  False otherwise. """
+        try:
+            uid = query_mod.get_mw_user_id(user_name, project)
+        except Exception:
+            return False
+
+        if uid:
+            return uid
+        return False
 
     def map_user_id(self, users, project_in, project_out):
         """

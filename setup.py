@@ -6,7 +6,7 @@ from distutils.core import setup
 with open('README.md') as file:
     long_description = file.read()
 
-__version__ = '0.1.3-dev'
+__version__ = '0.1.4-dev'
 
 setup(
     name='wmf_user_metrics',

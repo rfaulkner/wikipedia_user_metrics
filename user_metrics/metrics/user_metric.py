@@ -277,16 +277,9 @@ class UserMetric(object):
     def pre_process_metric_call(proc_func):
         def wrapper(self, users, **kwargs):
 
-            # Duck-type the "cohort" ref for a ID generating interface
-            # see src/metrics/users.py
-            if hasattr(users, 'get_users'):
-                logging.info(__name__ + ':: Calling get_users() ...')
-                users = [u for u in users.get_users(self._start_ts_,
-                                                    self._end_ts_)]
-
             # If users are empty flag an error
             if not users:
-                raise Exception('No users to pass to process method.')
+                raise UserMetricError('No users to pass to process method.')
 
             # Ensure user IDs are strings
             users = dl.DataLoader().cast_elems_to_string(users)
@@ -296,7 +289,7 @@ class UserMetric(object):
 
             # Echo input params for metric process call
             if hasattr(self, 'log_') and self.log_:
-                logging.info(__name__ + " :: parameters = " + str(kwargs))
+                logging.info(__name__ + ' :: parameters = ' + str(kwargs))
 
             return proc_func(self, users, **kwargs)
         return wrapper

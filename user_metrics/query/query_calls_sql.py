@@ -11,7 +11,7 @@ __license__ = "GPL (version 2 or later)"
 import user_metrics.config.settings as conf
 
 from user_metrics.utils import format_mediawiki_timestamp
-from user_metrics.etl.data_loader import DataLoader, Connector
+from user_metrics.etl.data_loader import DataLoader, Connector, ConnectorError
 from MySQLdb import escape_string, ProgrammingError, OperationalError
 from copy import deepcopy
 from datetime import datetime
@@ -93,8 +93,11 @@ def query_method_deco(f):
         try:
             conn = Connector(instance=conf.PROJECT_DB_MAP[project])
         except KeyError:
-            logging.error(__name__ + '::Project does not exist.')
+            logging.error(__name__ + ' :: Project does not exist.')
             return []
+        except ConnectorError:
+            logging.error(__name__ + ' :: Could not establish a connection.')
+            raise UMQueryCallError('Could not establish a connection.')
 
         try:
             conn._cur_.execute(query)
@@ -537,6 +540,31 @@ def get_cohort_id(cohort_name):
 get_cohort_id.__query_name__ = 'get_cohort_id'
 
 
+def get_mw_user_id(username, project):
+    """
+    Returns a UID given.
+
+    Parameters
+    ~~~~~~~~~~
+
+        username : string
+            MediaWiki user name
+
+        project : string
+            MediaWiki project.
+    """
+    conn = Connector(instance=conf.PROJECT_DB_MAP[project])
+    query = query_store[get_mw_user_id.__query_name__] % {
+        'username': username,
+        'project': project
+    }
+    conn._cur_.execute(query)
+    uid = conn._cur_.fetchone()[0]
+    del conn
+    return uid
+get_mw_user_id.__query_name__ = 'get_mw_user_id'
+
+
 # QUERY DEFINITIONS
 # #################
 
@@ -716,6 +744,12 @@ query_store = {
         SELECT utm_id
         FROM %(cohort_meta_instance)s.%(cohort_meta_db)s
         WHERE utm_name = "%(utm_name)s"
+    """,
+    get_mw_user_id.__query_name__:
+    """
+        SELECT user_id
+        FROM %(project)s.user
+        WHERE user_name = "%(username)s"
     """,
 }
 

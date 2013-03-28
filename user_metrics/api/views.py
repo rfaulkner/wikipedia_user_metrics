@@ -18,8 +18,7 @@ __license__ = "GPL (version 2 or later)"
 
 from flask import Flask, render_template, Markup, redirect, url_for, \
     request, escape, flash, jsonify, make_response
-from re import search, sub
-from collections import OrderedDict
+from re import sub
 from multiprocessing import Lock
 
 from user_metrics.etl.data_loader import Connector
@@ -28,16 +27,14 @@ from user_metrics.utils import unpack_fields
 from user_metrics.api.engine.data import get_cohort_id, \
     get_cohort_refresh_datetime, get_data, get_url_from_keys, \
     build_key_signature, read_pickle_data
-from user_metrics.api.engine import MW_UNAME_REGEX
-from user_metrics.api import MetricsAPIError
+from user_metrics.api import MetricsAPIError, error_codes
 from user_metrics.api.engine.request_meta import filter_request_input, \
     format_request_params, RequestMetaFactory, \
     get_metric_names
 from user_metrics.api.engine.request_manager import api_request_queue, \
     req_cb_get_cache_keys, req_cb_get_url, req_cb_get_is_running, \
     req_cb_add_req
-
-from user_metrics.metrics import query_mod
+from user_metrics.metrics.users import MediaWikiUser
 from user_metrics.api.session import APIUser
 
 # View Lock for atomic operations
@@ -48,23 +45,6 @@ app = Flask(__name__)
 
 # REGEX to identify refresh flags in the URL
 REFRESH_REGEX = r'refresh[^&]*&|\?refresh[^&]*$|&refresh[^&]*$'
-
-
-# Stores cached requests (this should eventually be replaced with
-# a proper cache)
-api_data = OrderedDict()
-
-
-# Error codes for web requests
-# ############################
-
-global error_codes
-error_codes = {
-    0: 'Job already running.',
-    1: 'Badly Formatted timestamp',
-    2: 'Could not locate stored request.',
-    3: 'Could not find User ID.',
-}
 
 
 def get_errors(request_args):
@@ -182,33 +162,6 @@ def metric(metric=''):
     return render_template('metric.html', m_str=metric, cohort_data=data)
 
 
-def user_request(user, metric):
-    """ View for requesting metrics for a single user """
-    url = request.url.split(request.url_root)[1]
-
-    # If it is a user name convert to ID
-    if search(MW_UNAME_REGEX, user):
-        # Extract project from query string
-        # @TODO `project` should match what's in REQUEST_META_QUERY_STR
-        project = request.args['project'] if 'project' in request.args\
-            else 'enwiki'
-        logging.debug(__name__ + '::Getting user id from name.')
-        conn = Connector(instance='slave')
-        conn._cur_.execute('SELECT user_id FROM {0}.user WHERE '
-                           'user_name = "{1}"'.format(project,
-                                                      str(escape(user))))
-        try:
-            user_id = str(conn._cur_.fetchone()[0])
-            url = sub(user, user_id, url)
-        except Exception:
-            logging.error(error_codes[3])
-            return redirect(url_for('all_cohorts') + '?error=3')
-
-    # redirect to output view
-    url = sub('user', 'cohorts', url)
-    return redirect(url)
-
-
 def all_cohorts():
     """ View for listing and selecting cohorts """
     error = get_errors(request.args)
@@ -229,6 +182,9 @@ def all_cohorts():
 def cohort(cohort=''):
     """ View single cohort page """
     error = get_errors(request.args)
+
+    # @TODO CALL COHORT VALIDATION HERE
+
     if not cohort:
         return redirect(url_for('all_cohorts'))
     else:
@@ -255,18 +211,38 @@ def output(cohort, metric):
         logging.error(__name__ + ' :: Could not retrieve refresh '
                                  'time of cohort.')
 
-    # Build a request.
+    # Build a request and validate.
+    #
     # 1. Populate with request parameters from query args.
     # 2. Filter the input discarding any url junk
     # 3. Process defaults for request parameters
-    rm = RequestMetaFactory(cohort, cohort_refresh_ts, metric)
+    # 4. See if this maps to a single user request
+    # 5. See if this maps to a single user request
+    try:
+        rm = RequestMetaFactory(cohort, cohort_refresh_ts, metric)
+    except MetricsAPIError as e:
+        return redirect(url_for('all_cohorts') + '?error=' +
+                        str(e.error_code))
+
     filter_request_input(request, rm)
     try:
         format_request_params(rm)
     except MetricsAPIError as e:
-        return redirect(url_for('all_cohorts') + '?error=' + e.message)
+        return redirect(url_for('all_cohorts') + '?error=' +
+                        str(e.error_code))
+
+    if rm.is_user:
+        project = rm.project if rm.project else 'enwiki'
+        if not MediaWikiUser.is_user_name(cohort, project):
+            logging.error(__name__ + ' :: "{0}" is not a valid username '
+                                     'in "{1}"'.format(cohort, project))
+            return redirect(url_for('all_cohorts') + '?error=3')
+    else:
+        # @TODO CALL COHORT VALIDATION HERE
+        pass
 
     # Determine if the request maps to an existing response.
+    #
     # 1. The response already exists in the hash, return.
     # 2. Otherwise, add the request tot the queue.
     data = get_data(rm)
@@ -284,6 +260,7 @@ def output(cohort, metric):
         return render_template('processing.html',
                                error=error_codes[0],
                                url_str=str(rm))
+
     # Add the request to the queue
     else:
         api_request_queue.put(unpack_fields(rm), block=True)
@@ -354,6 +331,25 @@ def all_urls():
     return render_template('all_urls.html', urls=url_list)
 
 
+def thin_client_view():
+    """
+        View for handling requests outside sessions.  Useful for processing
+        jobs from https://github.com/rfaulkner/umapi_client.
+
+        Returns:
+
+            1) JSON response if the request is complete
+            2) Validation response (minimal size)
+    """
+
+    # Validate key
+    # Construct request meta
+    # Check for job cached
+    #   If YES return
+    #   If NO queue job, return verify
+
+    return None
+
 
 # Add View Decorators
 # ##
@@ -366,11 +362,11 @@ view_list = {
     output.__name__: output,
     cohort.__name__: cohort,
     all_cohorts.__name__: all_cohorts,
-    user_request.__name__: user_request,
     metric.__name__: metric,
     all_metrics.__name__: all_metrics,
     about.__name__: about,
-    contact.__name__: contact
+    contact.__name__: contact,
+    thin_client_view.__name__: thin_client_view
 }
 
 # Dict stores routing paths for each view
@@ -381,11 +377,11 @@ route_deco = {
     output.__name__: app.route('/cohorts/<string:cohort>/<string:metric>'),
     cohort.__name__: app.route('/cohorts/<string:cohort>'),
     all_cohorts.__name__: app.route('/cohorts/', methods=['POST', 'GET']),
-    user_request.__name__: app.route('/user/<string:user>/<string:metric>'),
     metric.__name__: app.route('/metrics/<string:metric>'),
     all_metrics.__name__: app.route('/metrics/', methods=['POST', 'GET']),
     about.__name__: app.route('/about/'),
-    contact.__name__: app.route('/contact/')
+    contact.__name__: app.route('/contact/'),
+    thin_client_view.__name__: app.route('/thin/<string:cohort>/<string:metric>')
 }
 
 # Dict stores flag for login required on view
@@ -396,11 +392,11 @@ login_req_deco = {
     output.__name__: True,
     cohort.__name__: True,
     all_cohorts.__name__: True,
-    user_request.__name__: True,
     metric.__name__: True,
     all_metrics.__name__: False,
     about.__name__: False,
-    contact.__name__: False
+    contact.__name__: False,
+    thin_client_view.__name__: False
 }
 
 # Apply decorators to views

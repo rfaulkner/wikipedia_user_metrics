@@ -90,7 +90,7 @@ class Connector(object):
     def __init__(self, **kwargs):
         self.set_connection(**kwargs)
 
-    def set_connection(self, retries=20, timeout=0.5, **kwargs):
+    def set_connection(self, retries=20, timeout=1, **kwargs):
         """
             Establishes a database connection.
 
@@ -108,14 +108,16 @@ class Connector(object):
                 try:
                     self._db_ = MySQLdb.connect(**mysql_kwargs)
                     break
-                except MySQLdb.OperationalError:
-                    logging.debug(__name__ + ':: Connection dropped. '
+                except MySQLdb.OperationalError as e:
+                    logging.debug(__name__ + ' :: Connection dropped. '
                                              'Reopening MySQL connection. '
-                                             '%s retries left, timeout = %s' %
-                                             (retries, timeout))
+                                             '{0} retries left, timeout = {1}: '
+                                             '"{2}"'.format(retries, timeout,
+                                                            e.message))
                     sleep(timeout)
                     retries -= 1
-            if not retries: raise ConnectorError()
+            if not retries:
+                raise ConnectorError()
 
             self._cur_ = self._db_.cursor()
 
@@ -144,7 +146,7 @@ class Connector(object):
             column_data = self._cur_.description
         except AttributeError:
             column_data = []
-            logging.error(__name__ + ':: No column description for this '
+            logging.error(__name__ + ' :: No column description for this '
                                      'connection.')
         return [elem[0] for elem in column_data]
 
@@ -372,7 +374,8 @@ class DataLoader(object):
         try:
             file_obj = open(projSet.__data_file_dir__ + outfile, 'w')
         except IOError as e:
-            logging.info('Could not open xsv for writing: %s' % e.message)
+            logging.error(__name__ + ' :: Could not open '
+                                     'xsv for writing: %s' % e.message)
             return
 
         if hasattr(nested_list, '__iter__'):
@@ -418,7 +421,8 @@ class DataLoader(object):
                 conn.execute_SQL(create_sql)
 
             except MySQLdb.ProgrammingError:
-                logging.error('Could not create table: %s' % create_sql)
+                logging.error(__name__ + ' :: Could not '
+                                         'create table: %s' % create_sql)
                 return
 
         # Get column names - reset the values if header has already been set
@@ -445,7 +449,8 @@ class DataLoader(object):
 
             # Perform batch insert if max is reached
             if count % max_records == 0 and count:
-                logging.info('Inserting %s records. Total = %s' % (
+                logging.debug(__name__ + ' :: Inserting '
+                                         '%s records. Total = %s' % (
                     str(max_records), str(count)))
                 conn.execute_SQL(insert_sql[:-2])
                 insert_sql = " ".join(sql.strip().split())
@@ -461,8 +466,8 @@ class DataLoader(object):
 
         # Perform final insert
         if count:
-            logging.info('Inserting remaining records. Total = %s' %
-                         str(count))
+            logging.info(__name__ + ' :: Inserting remaining records. '
+                                    'Total = %s' % str(count))
             conn.execute_SQL(insert_sql[:-2])
 
 
