@@ -277,14 +277,6 @@ class UserMetric(object):
     def pre_process_metric_call(proc_func):
         def wrapper(self, users, **kwargs):
 
-            # Duck-type the "cohort" ref for a ID generating interface
-            # see src/metrics/users.py
-            if hasattr(users, 'get_users'):
-                logging.info(__name__ + ' :: Calling get_users() ...')
-                users = [u for u in users.get_users(self.datetime_start,
-                                                    self.datetime_end,
-                                                    project=self.project)]
-
             # If users are empty flag an error
             if not users:
                 raise UserMetricError('No users to pass to process method.')
