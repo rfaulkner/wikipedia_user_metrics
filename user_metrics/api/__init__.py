@@ -5,6 +5,11 @@
     are defined at https://meta.wikimedia.org/wiki/Research:Metrics.
 """
 
+from user_metrics.utils import nested_import
+from user_metrics.config import settings
+
+query_mod = nested_import(settings.__query_module__)
+
 # Error codes for web requests
 # ############################
 
