@@ -282,12 +282,12 @@ class UserMetric(object):
             if hasattr(users, 'get_users'):
                 logging.info(__name__ + ' :: Calling get_users() ...')
                 users = [u for u in users.get_users(self.datetime_start,
-                                                    self.datetime_start,
+                                                    self.datetime_end,
                                                     project=self.project)]
 
             # If users are empty flag an error
             if not users:
-                raise Exception('No users to pass to process method.')
+                raise UserMetricError('No users to pass to process method.')
 
             # Ensure user IDs are strings
             users = dl.DataLoader().cast_elems_to_string(users)
