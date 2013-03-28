@@ -537,6 +537,32 @@ def get_cohort_id(cohort_name):
 get_cohort_id.__query_name__ = 'get_cohort_id'
 
 
+def get_mw_user_id(username, project):
+    """
+    Returns a UID given.
+
+    Parameters
+    ~~~~~~~~~~
+
+        username : string
+            MediaWiki user name
+
+        project : string
+            MediaWiki project.
+    """
+    conn = Connector(instance=conf.PROJECT_DB_MAP[project])
+    query = query_store[get_mw_user_id.__query_name__] % {
+        'username': username,
+        'project': project
+    }
+    print query
+    conn._cur_.execute(query)
+    uid = conn._cur_.fetchone()[0]
+    del conn
+    return uid
+get_mw_user_id.__query_name__ = 'get_mw_user_id'
+
+
 # QUERY DEFINITIONS
 # #################
 
@@ -716,6 +742,12 @@ query_store = {
         SELECT utm_id
         FROM %(cohort_meta_instance)s.%(cohort_meta_db)s
         WHERE utm_name = "%(utm_name)s"
+    """,
+    get_mw_user_id.__query_name__:
+    """
+        SELECT user_id
+        FROM %(project)s.user
+        WHERE user_name = "%(username)s"
     """,
 }
 
