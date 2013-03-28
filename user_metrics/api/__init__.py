@@ -20,6 +20,7 @@ error_codes = {
     2: 'Could not locate stored request.',
     3: 'Could not find User ID.',
     4: 'Bad metric name.',
+    5: 'Failed to retrieve users.',
 }
 
 

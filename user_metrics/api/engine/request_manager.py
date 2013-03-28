@@ -270,15 +270,21 @@ def process_metrics(p, request_meta):
     # The "all" user group.  All users within a time period.
     elif request_meta.cohort_expr == 'all':
         users = MediaWikiUser(query_type=1)
-        users = [u for u in users.get_users(
-            request_meta.start, request_meta.end,
-            project=request_meta.project)]
-        valid = True
+
+        try:
+            users = [u for u in users.get_users(
+                request_meta.start, request_meta.end,
+                project=request_meta.project)]
+            valid = True
+        except Exception:
+            valid = False
+            err_msg = error_codes[5]
 
     # "TYPICAL" COHORT PROCESSING
     else:
         users = get_users(request_meta.cohort_expr)
         valid = True
+        err_msg = ''
 
     if valid:
         # process request
