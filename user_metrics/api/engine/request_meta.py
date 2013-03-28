@@ -63,7 +63,7 @@ REQUEST_VALUE_MAPPING = {
 RequestMeta = recordtype('RequestMeta',
                          'cohort_expr cohort_gen_timestamp metric '
                          'time_series aggregator project '
-                         'namespace start end interval t n  group')
+                         'namespace start end interval t n group is_user')
 
 
 def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
@@ -103,7 +103,7 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
 REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace',
                           'start', 'end', 'interval', 't', 'n',
                           'time_unit', 'time_unit_count', 'look_ahead',
-                          'look_back', 'threshold_type', 'group']
+                          'look_back', 'threshold_type', 'group', 'is_user']
 
 # Defines which variables may be taken from the URL path
 REQUEST_META_BASE = ['cohort_expr', 'metric']
