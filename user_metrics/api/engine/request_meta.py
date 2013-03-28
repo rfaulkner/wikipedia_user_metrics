@@ -50,6 +50,8 @@ from user_metrics.utils import unpack_fields
 # ####################################################
 
 
+DEFAULT_PROJECT = 'enwiki'
+
 # Structure that maps values in the query string to new ones
 REQUEST_VALUE_MAPPING = {
     'group': {
@@ -58,13 +60,6 @@ REQUEST_VALUE_MAPPING = {
         'reginput': 2,
     }
 }
-
-# Define standard variable names in the query string - store in named tuple
-RequestMeta = recordtype('RequestMeta',
-                         'cohort_expr cohort_gen_timestamp metric '
-                         'time_series aggregator project '
-                         'namespace start end interval t n group is_user')
-
 
 def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
     """
@@ -138,6 +133,9 @@ def format_request_params(request_meta):
         except ValueError:
             # Pass the value of the error code in `error_codes`
             raise MetricsAPIError(error_code=1)
+
+    if not request_meta.project:
+        request_meta.project = DEFAULT_PROJECT
 
     # set the aggregator if there is one
     agg_key = get_agg_key(request_meta.aggregator, request_meta.metric)
@@ -263,7 +261,8 @@ class ParameterMapping(object):
                      varMapping('time_series', 'time_series'),
                      varMapping('aggregator', 'aggregator'),
                      varMapping('t', 't'),
-                     varMapping('group', 'group')]
+                     varMapping('group', 'group'),
+                     varMapping('is_user', 'is_user')]
 
     QUERY_PARAMS_BY_METRIC = {
         'blocks': common_params,

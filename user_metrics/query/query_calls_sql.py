@@ -555,7 +555,6 @@ def get_mw_user_id(username, project):
         'username': username,
         'project': project
     }
-    print query
     conn._cur_.execute(query)
     uid = conn._cur_.fetchone()[0]
     del conn
