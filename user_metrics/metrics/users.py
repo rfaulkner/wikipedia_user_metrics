@@ -217,8 +217,10 @@ class MediaWikiUser(object):
             'date_end': format_mediawiki_timestamp(date_end),
             'project': project,
         }
-        conn = Connector(instance=settings.__cohort_data_instance__)
-        conn._cur_.execute(self.QUERY_TYPES[self._query_type] % param_dict)
+        conn = Connector(instance=settings.PROJECT_DB_MAP[project])
+        sql = self.QUERY_TYPES[self._query_type] % param_dict
+        print sql
+        conn._cur_.execute(sql)
 
         for row in conn._cur_:
             yield row[0]
