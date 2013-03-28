@@ -82,8 +82,7 @@ __date__ = "2013-03-05"
 __license__ = "GPL (version 2 or later)"
 
 from user_metrics.config import logging, settings
-from user_metrics.api.engine import MW_UID_REGEX
-from user_metrics.api import MetricsAPIError
+from user_metrics.api import MetricsAPIError, error_codes
 from user_metrics.api.engine.data import get_users
 from user_metrics.api.engine.request_meta import rebuild_unpacked_request
 from user_metrics.metrics.users import MediaWikiUser
@@ -91,7 +90,6 @@ from user_metrics.utils import unpack_fields
 
 from multiprocessing import Process, Queue
 from collections import namedtuple
-from re import search
 from os import getpid
 from sys import getsizeof
 from Queue import Empty
@@ -238,8 +236,14 @@ def job_control(request_queue, response_queue):
 
 
 def process_metrics(p, request_meta):
-    """ Worker process for requests -
-        this will typically operate in a forked process """
+    """
+        Worker process for requests, forked from the job controller.  This
+        method handles:
+
+            * Filtering cohort type: "regular" cohort, single user, user group
+            * Secondary validation
+            *
+    """
 
     log_name = '{0} :: {1}'.format(__name__, process_metrics.__name__)
 
@@ -248,35 +252,59 @@ def process_metrics(p, request_meta):
                             ' -  PID = {2})'.
         format(request_meta.cohort_expr, request_meta.metric, getpid()))
 
+    err_msg = __name__ + ' :: Request failed.'
+    users = list()
+
     # obtain user list - handle the case where a lone user ID is passed
-    if search(MW_UID_REGEX, str(request_meta.cohort_expr)):
-        users = [request_meta.cohort_expr]
-    # Special case where user lists are to be generated based on registered
-    # user reg dates from the logging table -- see src/metrics/users.py
+    # !! The username should already be validated
+    if request_meta.is_user:
+        uid = MediaWikiUser.is_user_name(request_meta.cohort_expr,
+                                         request_meta.project)
+        if uid:
+            valid = True
+            users = [uid]
+        else:
+            valid = False
+            err_msg = error_codes[3]
+
+    # The "all" user group.  All users within a time period.
     elif request_meta.cohort_expr == 'all':
         users = MediaWikiUser(query_type=1)
+        valid = True
+
+    # "TYPICAL" COHORT PROCESSING
     else:
         users = get_users(request_meta.cohort_expr)
+        valid = True
 
-    # process request
-    results = process_data_request(request_meta, users)
-    results = str(results)
-    response_size = getsizeof(results, None)
+    if valid:
+        # process request
+        results = process_data_request(request_meta, users)
+        results = str(results)
+        response_size = getsizeof(results, None)
 
-    if response_size > MAX_BLOCK_SIZE:
-        index = 0
+        if response_size > MAX_BLOCK_SIZE:
+            index = 0
 
-        # Dump the data in pieces - block until it is picked up
-        while index < response_size:
-            p.put(results[index:index+MAX_BLOCK_SIZE], block=True)
-            index += MAX_BLOCK_SIZE
+            # Dump the data in pieces - block until it is picked up
+            while index < response_size:
+                p.put(results[index:index+MAX_BLOCK_SIZE], block=True)
+                index += MAX_BLOCK_SIZE
+        else:
+            p.put(results, block=True)
+
+        logging.info(log_name + ' - END JOB'
+                                '\n\tCOHORT = {0} - METRIC = {1}'
+                                ' -  PID = {2})'.
+            format(request_meta.cohort_expr, request_meta.metric, getpid()))
+
     else:
-        p.put(results, block=True)
-
-    logging.info(log_name + ' - END JOB'
-                            '\n\tCOHORT = {0} - METRIC = {1}'
-                            ' -  PID = {2})'.
+        p.put(err_msg, block=True)
+        logging.info(log_name + ' - END JOB - FAILED.'
+                                '\n\tCOHORT = {0} - METRIC = {1}'
+                                ' -  PID = {2})'.
         format(request_meta.cohort_expr, request_meta.metric, getpid()))
+
 
 
 
