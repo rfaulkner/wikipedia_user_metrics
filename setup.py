@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from setuptools import setup
+from distutils.core import setup
 
 with open('README.md') as file:
     long_description = file.read()

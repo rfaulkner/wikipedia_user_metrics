@@ -219,7 +219,6 @@ class MediaWikiUser(object):
         }
         conn = Connector(instance=settings.PROJECT_DB_MAP[project])
         sql = self.QUERY_TYPES[self._query_type] % param_dict
-        print sql
         conn._cur_.execute(sql)
 
         for row in conn._cur_:
