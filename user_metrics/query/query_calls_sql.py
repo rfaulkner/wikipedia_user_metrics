@@ -11,7 +11,7 @@ __license__ = "GPL (version 2 or later)"
 import user_metrics.config.settings as conf
 
 from user_metrics.utils import format_mediawiki_timestamp
-from user_metrics.etl.data_loader import DataLoader, Connector
+from user_metrics.etl.data_loader import DataLoader, Connector, ConnectorError
 from MySQLdb import escape_string, ProgrammingError, OperationalError
 from copy import deepcopy
 from datetime import datetime
@@ -93,8 +93,11 @@ def query_method_deco(f):
         try:
             conn = Connector(instance=conf.PROJECT_DB_MAP[project])
         except KeyError:
-            logging.error(__name__ + '::Project does not exist.')
+            logging.error(__name__ + ' :: Project does not exist.')
             return []
+        except ConnectorError:
+            logging.error(__name__ + ' :: Could not establish a connection.')
+            raise UMQueryCallError('Could not establish a connection.')
 
         try:
             conn._cur_.execute(query)
