@@ -28,7 +28,7 @@ from user_metrics.api.engine.data import get_cohort_id, \
     get_cohort_refresh_datetime, get_data, get_url_from_keys, \
     build_key_signature, read_pickle_data
 from user_metrics.api.engine import MW_UNAME_REGEX
-from user_metrics.api import MetricsAPIError, error_codes
+from user_metrics.api import MetricsAPIError, error_codes, query_mod
 from user_metrics.api.engine.request_meta import filter_request_input, \
     format_request_params, RequestMetaFactory, \
     get_metric_names
@@ -161,33 +161,6 @@ def metric(metric=''):
     del conn
     #@@@ TODO validate user input against list of existing metrics
     return render_template('metric.html', m_str=metric, cohort_data=data)
-
-
-def user_request(user, metric):
-    """ View for requesting metrics for a single user """
-    url = request.url.split(request.url_root)[1]
-
-    # If it is a user name convert to ID
-    if search(MW_UNAME_REGEX, user):
-        # Extract project from query string
-        # @TODO `project` should match what's in REQUEST_META_QUERY_STR
-        project = request.args['project'] if 'project' in request.args\
-            else 'enwiki'
-        logging.debug(__name__ + '::Getting user id from name.')
-        conn = Connector(instance='slave')
-        conn._cur_.execute('SELECT user_id FROM {0}.user WHERE '
-                           'user_name = "{1}"'.format(project,
-                                                      str(escape(user))))
-        try:
-            user_id = str(conn._cur_.fetchone()[0])
-            url = sub(user, user_id, url)
-        except Exception:
-            logging.error(error_codes[3])
-            return redirect(url_for('all_cohorts') + '?error=3')
-
-    # redirect to output view
-    url = sub('user', 'cohorts', url)
-    return redirect(url)
 
 
 def all_cohorts():
@@ -373,7 +346,6 @@ view_list = {
     output.__name__: output,
     cohort.__name__: cohort,
     all_cohorts.__name__: all_cohorts,
-    user_request.__name__: user_request,
     metric.__name__: metric,
     all_metrics.__name__: all_metrics,
     about.__name__: about,
@@ -389,7 +361,6 @@ route_deco = {
     output.__name__: app.route('/cohorts/<string:cohort>/<string:metric>'),
     cohort.__name__: app.route('/cohorts/<string:cohort>'),
     all_cohorts.__name__: app.route('/cohorts/', methods=['POST', 'GET']),
-    user_request.__name__: app.route('/user/<string:user>/<string:metric>'),
     metric.__name__: app.route('/metrics/<string:metric>'),
     all_metrics.__name__: app.route('/metrics/', methods=['POST', 'GET']),
     about.__name__: app.route('/about/'),
@@ -405,7 +376,6 @@ login_req_deco = {
     output.__name__: True,
     cohort.__name__: True,
     all_cohorts.__name__: True,
-    user_request.__name__: True,
     metric.__name__: True,
     all_metrics.__name__: False,
     about.__name__: False,
