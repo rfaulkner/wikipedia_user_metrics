@@ -130,15 +130,27 @@ def __revert(rev_id, page_id, sha1, user_text, metric_args):
 def __history(rev_id, page_id, n, project, namespace):
     """ Produce the n revisions on a page before a given revision
             Returns a generator of revision objects """
-    return query_mod.page_rev_hist_query(rev_id, page_id, n, project,
+    try:
+        history =  query_mod.page_rev_hist_query(rev_id, page_id, n, project,
                                                  namespace, look_ahead=False)
+    except query_mod.UMQueryCallError as e:
+        logging.error(__name__ + ' :: Failed to '
+                                 'get revision history: {0}'.format(e.message))
+        history = list()
+    return history
 
 
 def __future(rev_id, page_id, n, project, namespace):
     """ Produce the n revisions on a page after a given revision
             Returns a generator of revision objects """
-    return query_mod.page_rev_hist_query(rev_id, page_id, n, project,
-                                                   namespace, look_ahead=True)
+    try:
+        future = query_mod.page_rev_hist_query(rev_id, page_id, n, project,
+                                                namespace, look_ahead=True)
+    except query_mod.UMQueryCallError as e:
+        logging.error(__name__ + ' :: Failed to '
+                                 'get revision future: {0}'.format(e.message))
+        future = list()
+    return future
 
 
 def _process_help(args):
@@ -153,9 +165,10 @@ def _process_help(args):
 
     if thread_args.log_progress:
         logging.info(__name__ +
-                    ':: Computing reverts on %s users in thread %s.'
+                    ' :: Computing reverts on %s users (PID %s)'
                     % (len(users), str(os.getpid())))
     results_agg = list()
+    dropped_users = 0
 
     umpd_obj = UMP_MAP[thread_args.group](users, thread_args)
     for user_data in umpd_obj:
@@ -171,9 +184,18 @@ def _process_help(args):
         query_args = namedtuple('QueryArgs', 'date_start date_end')\
             (format_mediawiki_timestamp(user_data.start),
              format_mediawiki_timestamp(user_data.end))
-        revisions = query_mod.revert_rate_user_revs_query(user_data.user,
-                                                          thread_args.project,
-                                                          query_args)
+
+        try:
+            revisions = query_mod.\
+                revert_rate_user_revs_query(user_data.user,
+                                            thread_args.project,
+                                            query_args)
+        except query_mod.UMQueryCallError as e:
+            logging.error(__name__ + ' :: Failed to '
+                                     'get revisions: {0}'.format(e.message))
+            dropped_users += 1
+            continue
+
         results_thread = mpw.build_thread_pool(revisions, _revision_proc,
                                                thread_args.rev_threads, state)
 
@@ -186,9 +208,10 @@ def _process_help(args):
             results_agg.append([user_data.user, total_reverts / total_revisions,
                                 total_revisions])
 
-    if thread_args.log_progress: logging.info(__name__ +
-                                              ':: PID %s complete.' %
-                                              (str(os.getpid())))
+    if thread_args.log_progress:
+        logging.debug(__name__ + ' :: PID {0} complete. Dropped users = {1}'.
+            format(str(os.getpid()), dropped_users))
+
     return results_agg
 
 
