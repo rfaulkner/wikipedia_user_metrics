@@ -82,7 +82,7 @@ __date__ = "2013-03-05"
 __license__ = "GPL (version 2 or later)"
 
 from user_metrics.config import logging, settings
-from user_metrics.api import MetricsAPIError, error_codes
+from user_metrics.api import MetricsAPIError, error_codes, query_mod
 from user_metrics.api.engine.data import get_users
 from user_metrics.api.engine.request_meta import rebuild_unpacked_request
 from user_metrics.metrics.users import MediaWikiUser
@@ -283,6 +283,14 @@ def process_metrics(p, request_meta):
     # "TYPICAL" COHORT PROCESSING
     else:
         users = get_users(request_meta.cohort_expr)
+
+        # Default project is what is stored in usertags_meta
+        project = query_mod.get_cohort_project_by_meta(
+            request_meta.cohort_expr)
+        request_meta.project = project
+        logging.debug(__name__ + ' :: Using default project from ' \
+                                 'usertags_meta {0}.'.format(project))
+
         valid = True
         err_msg = ''
 

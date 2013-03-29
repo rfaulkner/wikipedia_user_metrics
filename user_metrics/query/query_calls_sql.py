@@ -533,7 +533,7 @@ def add_cohort_data(cohort, users, project,
 add_cohort_data.__query_name__ = 'add_cohort'
 
 
-def get_cohort_id(cohort_name):
+def get_cohort_data(cohort_name):
     """
         Returns the cohort tag for a given cohort.
 
@@ -544,16 +544,30 @@ def get_cohort_id(cohort_name):
                 Name of cohort.
     """
     conn = Connector(instance=conf.__cohort_data_instance__)
-    ut_query = query_store[get_cohort_id.__query_name__] % {
+    ut_query = query_store[get_cohort_data.__query_name__] % {
         'cohort_meta_instance': conf.__cohort_meta_instance__,
         'cohort_meta_db': conf.__cohort_meta_db__,
         'utm_name': cohort_name
     }
     conn._cur_.execute(ut_query)
-    usertag = conn._cur_.fetchone()[0]
+    data = conn._cur_.fetchone()
     del conn
-    return usertag
-get_cohort_id.__query_name__ = 'get_cohort_id'
+    return data
+get_cohort_data.__query_name__ = 'get_cohort_data'
+
+
+def get_cohort_id(cohort_name):
+    try:
+        return get_cohort_data(cohort_name)[0]
+    except TypeError:
+        return None
+
+
+def get_cohort_project_by_meta(cohort_name):
+    try:
+        return get_cohort_data(cohort_name)[1]
+    except TypeError:
+        return None
 
 
 def get_mw_user_id(username, project):
@@ -757,9 +771,9 @@ query_store = {
             "%(utm_notes)s", "%(utm_group)s", %(utm_owner)s,
             "%(utm_touched)s", %(utm_enabled)s)
     """,
-    get_cohort_id.__query_name__:
+    get_cohort_data.__query_name__:
     """
-        SELECT utm_id
+        SELECT utm_id, utm_project
         FROM %(cohort_meta_instance)s.%(cohort_meta_db)s
         WHERE utm_name = "%(utm_name)s"
     """,
@@ -769,8 +783,4 @@ query_store = {
         FROM %(project)s.user
         WHERE user_name = "%(username)s"
     """,
-}
-
-
-if __name__ == '__main__':
-    print get_cohort_id('ServerSideAccountCreation_5233795_users')
+    }
