@@ -79,7 +79,7 @@ def get_users(cohort_expr):
         logging.info(__name__ + ' :: Processing cohort by tag name.')
         try:
             id = query_mod.get_cohort_id(cohort_expr)
-            users = query_mod.get_cohort_users(id)
+            users = [u for u in query_mod.get_cohort_users(id)]
         except (IndexError, TypeError,
                 query_mod.UMQueryCallError) as e:
             logging.error(__name__ + ' :: Could not retrieve users '

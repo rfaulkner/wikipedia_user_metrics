@@ -591,9 +591,9 @@ def get_cohort_users(tag_id):
     except OperationalError:
         raise UMQueryCallError('Failed to retrieve users.')
 
-    data = [unicode(row[0]) for row in conn._cur_]
+    for row in conn._cur_:
+        yield unicode(row[0])
     del conn
-    return data
 get_cohort_users.__query_name__ = 'get_cohort_users'
 
 
