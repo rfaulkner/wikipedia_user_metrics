@@ -570,6 +570,33 @@ def get_cohort_project_by_meta(cohort_name):
         return None
 
 
+def get_cohort_users(tag_id):
+    """
+        Returns user id list for cohort.
+
+        Parameters
+        ~~~~~~~~~~
+
+            cohort_name : string
+                Name of cohort.
+    """
+    conn = Connector(instance=conf.__cohort_data_instance__)
+    ut_query = query_store[get_cohort_users.__query_name__] % {
+        'cohort_meta_instance': conf.__cohort_meta_instance__,
+        'cohort_db': conf.__cohort_db__,
+        'tag_id': tag_id
+    }
+    try:
+        conn._cur_.execute(ut_query)
+    except OperationalError:
+        raise UMQueryCallError('Failed to retrieve users.')
+
+    data = [unicode(row[0]) for row in conn._cur_]
+    del conn
+    return data
+get_cohort_users.__query_name__ = 'get_cohort_users'
+
+
 def get_mw_user_id(username, project):
     """
     Returns a UID given.
@@ -782,5 +809,11 @@ query_store = {
         SELECT user_id
         FROM %(project)s.user
         WHERE user_name = "%(username)s"
+    """,
+    get_cohort_users.__query_name__:
+    """
+        SELECT ut_user
+        FROM %(cohort_meta_instance)s.%(cohort_db)s
+        WHERE ut_tag = %(tag_id)s
     """,
     }

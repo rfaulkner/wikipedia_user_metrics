@@ -47,7 +47,7 @@ __author__ = {
 __date__ = "2012-01-11"
 __license__ = "GPL (version 2 or later)"
 
-from flask import escape, redirect, url_for
+from flask import escape
 from datetime import datetime
 from re import search
 from collections import OrderedDict
@@ -60,7 +60,7 @@ from user_metrics.api.engine import COHORT_REGEX, parse_cohorts, \
     DATETIME_STR_FORMAT
 from user_metrics.api.engine.request_meta import REQUEST_META_QUERY_STR,\
     REQUEST_META_BASE
-from user_metrics.api import MetricsAPIError
+from user_metrics.api import MetricsAPIError, query_mod
 from user_metrics.config import settings
 
 
@@ -73,26 +73,26 @@ def get_users(cohort_expr):
     """ get users from cohort """
 
     if search(COHORT_REGEX, cohort_expr):
-        logging.info(__name__ + '::Processing cohort by expression.')
+        logging.info(__name__ + ' :: Processing cohort by expression.')
         users = [user for user in parse_cohorts(cohort_expr)]
     else:
-        logging.info(__name__ + '::Processing cohort by tag name.')
-        conn = dl.Connector(instance='slave')
+        logging.info(__name__ + ' :: Processing cohort by tag name.')
         try:
-            conn._cur_.execute('select utm_id from usertags_meta '
-                               'WHERE utm_name = "%s"' % str(cohort_expr))
-            res = conn._cur_.fetchone()[0]
-            conn._cur_.execute('select ut_user from usertags '
-                               'WHERE ut_tag = "%s"' % res)
-        except IndexError:
-            redirect(url_for('cohorts'))
-        users = [r[0] for r in conn._cur_]
-        del conn
+            id = query_mod.get_cohort_id(cohort_expr)
+            users = query_mod.get_cohort_users(id)
+        except (IndexError, TypeError,
+                query_mod.UMQueryCallError) as e:
+            logging.error(__name__ + ' :: Could not retrieve users '
+                                     'for cohort {0}: {1}'.
+                format(cohort_expr, str(e)))
+            return []
     return users
 
 
 def get_cohort_id(utm_name):
     """ Pull cohort ids from cohort handles """
+
+    # @TODO MOVE DB REFS INTO QUERY MODULE
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('SELECT utm_id FROM usertags_meta '
                        'WHERE utm_name = "%s"' % str(escape(utm_name)))
@@ -118,6 +118,8 @@ def get_cohort_refresh_datetime(utm_id):
         Get the latest refresh datetime of a cohort.  Returns current time
         formatted as a string if the field is not found.
     """
+
+    # @TODO MOVE DB REFS INTO QUERY MODULE
     conn = dl.Connector(instance='slave')
     conn._cur_.execute('SELECT utm_touched FROM usertags_meta '
                        'WHERE utm_id = %s' % str(escape(utm_id)))
