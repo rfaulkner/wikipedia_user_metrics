@@ -86,6 +86,7 @@ from user_metrics.api import MetricsAPIError, error_codes, query_mod
 from user_metrics.api.engine.data import get_users
 from user_metrics.api.engine.request_meta import rebuild_unpacked_request
 from user_metrics.metrics.users import MediaWikiUser
+from user_metrics.metrics.user_metric import UserMetricError
 from user_metrics.utils import unpack_fields
 
 from multiprocessing import Process, Queue
@@ -457,11 +458,18 @@ def process_data_request(request_meta, users):
                                     'start': str(start),
                                     'end': str(end),
                                     })
-        metric_obj.process(users,
-                           k_=USER_THREADS,
-                           kr_=REVISION_THREADS,
-                           log_=True,
-                           **args)
+
+        try:
+            metric_obj.process(users,
+                               k_=USER_THREADS,
+                               kr_=REVISION_THREADS,
+                               log_=True,
+                               **args)
+        except UserMetricError as e:
+            logging.error(__name__ + ' :: Metrics call failed: ' + str(e))
+            results['data'] = str(e)
+            return results
+
         r = um.aggregator(aggregator_func, metric_obj, metric_obj.header())
         results['header'] = to_string(r.header)
         results['data'] = r.data[1:]
@@ -475,11 +483,17 @@ def process_data_request(request_meta, users):
                                     'start': str(start),
                                     'end': str(end),
                                     })
-        metric_obj.process(users,
-                           k_=USER_THREADS,
-                           kr_=REVISION_THREADS,
-                           log_=True,
-                           **args)
+        try:
+            metric_obj.process(users,
+                               k_=USER_THREADS,
+                               kr_=REVISION_THREADS,
+                               log_=True,
+                               **args)
+        except UserMetricError as e:
+            logging.error(__name__ + ' :: Metrics call failed: ' + str(e))
+            results['data'] = str(e)
+            return results
+
         for m in metric_obj.__iter__():
             results['data'][m[0]] = m[1:]
 
