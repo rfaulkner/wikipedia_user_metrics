@@ -35,8 +35,7 @@ __date__ = "january 11 2012"
 __license__ = "GPL (version 2 or later)"
 
 from re import search
-import user_metrics.etl.data_loader as dl
-from user_metrics.api import MetricsAPIError
+from user_metrics.api import MetricsAPIError, query_mod
 
 #
 # Define remaining constants
@@ -100,33 +99,17 @@ def parse(expression):
                 yield user_id
 
 
-def get_cohort_ids(conn, cohort_id):
-    """ Returns string valued ids corresponding to a cohort """
-    sql = """
-        SELECT ut_user
-        FROM staging.usertags
-        WHERE ut_tag = %(id)s
-    """ % {
-        'id': str(cohort_id)
-    }
-    conn._cur_.execute(sql)
-    for row in conn._cur_:
-        yield str(row[0])
-
-
 def intersect_ids(cohort_id_list):
-
-    conn = dl.Connector(instance='slave')
 
     user_ids = dict()
     # only a single cohort id in the expression - return all users of this
     # cohort
     if len(cohort_id_list) == 1:
-        for id in get_cohort_ids(conn, cohort_id_list[0]):
+        for id in query_mod.get_cohort_users(cohort_id_list[0]):
             yield id
     else:
         for cid in cohort_id_list:
-            for id in get_cohort_ids(conn, cid):
+            for id in query_mod.get_cohort_users(cid):
                 if id in user_ids:
                     user_ids[id] += 1
                 else:
@@ -136,4 +119,3 @@ def intersect_ids(cohort_id_list):
         for key in user_ids:
             if user_ids[key] > 1:
                 yield key
-    del conn
