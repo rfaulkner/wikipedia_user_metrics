@@ -253,6 +253,28 @@ USER_METRIC_PERIOD_TYPE = enum('REGISTRATION', 'INPUT', 'REGINPUT')
 USER_METRIC_PERIOD_DATA = namedtuple('UMPData', 'user start end')
 
 
+def get_registration_dates(users, project):
+    """
+    Method to handle pulling reg dates from project datastores.
+
+        users : list
+            List of user ids.
+
+        project : str
+            project from which to retrieve ids
+    """
+
+    # Get registration dates from logging table
+    reg = query_mod.user_registration_date_logging(users, project, None)
+
+    # If any reg dates were missing in set from logging table
+    # look in user table
+    missing_users = list(set(users) - set([r[0] for r in reg]))
+    reg += query_mod.user_registration_date_user(missing_users, project, None)
+
+    return reg
+
+
 class UserMetricPeriod(object):
     """
         Base class of family.  Sub-classes define 1) the ``start`` and ``end``
@@ -287,8 +309,9 @@ class UMPRegistration(UserMetricPeriod):
     """
     @staticmethod
     def get(users, metric):
-        for row in query_mod.\
-                user_registration_date_logging(users, metric.project, None):
+        # For each registration date build time interval
+        reg = get_registration_dates(users, metric.project)
+        for row in reg:
             reg = date_parse(row[1])
             end = reg + timedelta(hours=int(metric.t))
             yield USER_METRIC_PERIOD_DATA(row[0],
@@ -320,8 +343,8 @@ class UMPRegInput(UserMetricPeriod):
 
     @staticmethod
     def get(users, metric):
-        for row in query_mod.\
-                user_registration_date_logging(users, metric.project, None):
+        reg = get_registration_dates(users, metric.project)
+        for row in reg:
 
             user = row[0]
             reg = date_parse(row[1])
