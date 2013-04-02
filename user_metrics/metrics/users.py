@@ -287,8 +287,8 @@ class UMPRegistration(UserMetricPeriod):
     """
     @staticmethod
     def get(users, metric):
-        for row in query_mod.user_registration_date(users, metric.project,
-                                                    None):
+        for row in query_mod.\
+                user_registration_date_logging(users, metric.project, None):
             reg = date_parse(row[1])
             end = reg + timedelta(hours=int(metric.t))
             yield USER_METRIC_PERIOD_DATA(row[0],
@@ -312,31 +312,32 @@ class UMPInput(UserMetricPeriod):
 
 
 class UMPRegInput(UserMetricPeriod):
-        """
-            This ``UserMetricPeriod`` class returns the set of users
-            conditional on their registration falling within the time interval
-            defined by ``metric``.
-        """
-        @staticmethod
-        def get(users, metric):
-            for row in query_mod.user_registration_date(users, metric.project,
-                                                        None):
+    """
+        This ``UserMetricPeriod`` class returns the set of users
+        conditional on their registration falling within the time interval
+        defined by ``metric``.
+    """
 
-                user = row[0]
-                reg = date_parse(row[1])
+    @staticmethod
+    def get(users, metric):
+        for row in query_mod.\
+                user_registration_date_logging(users, metric.project, None):
 
-                start = format_mediawiki_timestamp(metric.datetime_start)
-                end = format_mediawiki_timestamp(metric.datetime_end)
+            user = row[0]
+            reg = date_parse(row[1])
 
-                if date_parse(start) <= reg <= date_parse(end):
-                    reg_plus_t = reg + timedelta(hours=int(metric.t))
-                    yield USER_METRIC_PERIOD_DATA(user,
-                                                  format_mediawiki_timestamp
-                                                  (reg),
-                                                  format_mediawiki_timestamp
-                                                  (reg_plus_t))
-                else:
-                    continue
+            start = format_mediawiki_timestamp(metric.datetime_start)
+            end = format_mediawiki_timestamp(metric.datetime_end)
+
+            if date_parse(start) <= reg <= date_parse(end):
+                reg_plus_t = reg + timedelta(hours=int(metric.t))
+                yield USER_METRIC_PERIOD_DATA(user,
+                                              format_mediawiki_timestamp
+                                              (reg),
+                                              format_mediawiki_timestamp
+                                              (reg_plus_t))
+            else:
+                continue
 
 
 # Define a mapping from UMP types to get methods

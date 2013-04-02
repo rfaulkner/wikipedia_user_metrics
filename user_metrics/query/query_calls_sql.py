@@ -354,17 +354,17 @@ namespace_edits_rev_query.__query_name__ = 'namespace_edits_rev_query'
 
 
 @query_method_deco
-def user_registration_date(users, project, args):
+def user_registration_date_logging(users, project, args):
     """ Returns user registration date from logging table """
     users = DataLoader().cast_elems_to_string(users)
     uid_str = DataLoader().format_comma_separated_list(users,
                                                        include_quotes=False)
-    query = query_store[user_registration_date.__query_name__] % {
+    query = query_store[user_registration_date_logging.__query_name__] % {
         "uid": uid_str,
         "project": project,
     }
     return " ".join(query.strip().splitlines())
-user_registration_date.__query_name__ = 'user_registration_date'
+user_registration_date_logging.__query_name__ = 'user_registration_date'
 
 
 def delete_usertags(ut_tag):
@@ -744,7 +744,7 @@ query_store = {
         WHERE %(user_cond)s AND %(ts_cond)s
         GROUP BY 1,2
     """,
-    user_registration_date.__query_name__:
+    user_registration_date_logging.__query_name__:
     """
         SELECT
             log_user,
