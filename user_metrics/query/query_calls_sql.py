@@ -103,7 +103,7 @@ def query_method_deco(f):
             conn._cur_.execute(query)
         except ProgrammingError:
             logging.error(__name__ +
-                          'Could not get edit counts - Query failed.')
+                          ' :: Query failed: {0}'.format(query))
             raise UMQueryCallError()
         results = [row for row in conn._cur_]
         del conn
@@ -364,7 +364,22 @@ def user_registration_date_logging(users, project, args):
         "project": project,
     }
     return " ".join(query.strip().splitlines())
-user_registration_date_logging.__query_name__ = 'user_registration_date'
+user_registration_date_logging.__query_name__ = \
+    'user_registration_date_logging'
+
+
+@query_method_deco
+def user_registration_date_user(users, project, args):
+    """ Returns user registration date from user table """
+    users = DataLoader().cast_elems_to_string(users)
+    uid_str = DataLoader().format_comma_separated_list(users,
+        include_quotes=False)
+    query = query_store[user_registration_date_user.__query_name__] % {
+        "uid": uid_str,
+        "project": project,
+        }
+    return " ".join(query.strip().splitlines())
+user_registration_date_user.__query_name__ = 'user_registration_date_user'
 
 
 def delete_usertags(ut_tag):
@@ -755,6 +770,14 @@ query_store = {
             log_type='newusers' AND
             log_user in (%(uid)s)
     """,
+    user_registration_date_user.__query_name__:
+        """
+            SELECT
+                user_id,
+                user_registration
+            FROM %(project)s.user
+            WHERE user_id in (%(uid)s)
+        """,
     delete_usertags.__query_name__:
     """
         DELETE FROM %(cohort_meta_instance)s.%(cohort_db)s
