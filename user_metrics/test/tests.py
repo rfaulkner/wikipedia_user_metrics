@@ -158,14 +158,15 @@ def test_user_UMPRegInput():
 
 import user_metrics.query.query_calls_sql as qSQL
 
-UID = 13234584
+UID_1 = 13234584
+UID_2 = 15013214
 PROJECT = 'enwiki'
 
 def test_rev_count_query():
     """
     Test revision count query.
     """
-    rev_count = qSQL.rev_count_query(UID, False, [0], PROJECT,
+    rev_count = qSQL.rev_count_query(UID_1, False, [0], PROJECT,
                                      '20100101000000', '20130301000000')
     assert rev_count == 14
 
@@ -174,10 +175,28 @@ def test_live_account_query():
     """
     Test Live account query.
     """
-    res = qSQL.live_account_query([UID], PROJECT,
+    res = qSQL.live_account_query([UID_2], PROJECT,
         namedtuple('x', 'namespace')([0]))
     assert not cmp("[(15013214L, '20110725223731', '20110725223838')]",
                    str(res))
+
+
+def test_rev_query():
+    """
+    Test revision query.
+    """
+    res = qSQL.rev_query([UID_1], PROJECT, namedtuple('x',
+        'namespace date_start date_end')([0], '20100101000000',
+        '20130301000000'))
+    assert not cmp("[(15013214L, '20110725223731', '20110725223838')]",
+        str(res))
+
+
+def test_rev_len_query():
+    """
+    Test revision length query.
+    """
+    assert 17039 == qSQL.rev_len_query(412553375, 'enwiki')
 
 
 # ETL tests
