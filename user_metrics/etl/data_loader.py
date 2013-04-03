@@ -150,26 +150,6 @@ class Connector(object):
                                      'connection.')
         return [elem[0] for elem in column_data]
 
-    def execute_SQL(self, SQL_statement):
-        """
-            Executes a SQL statement and return the raw results.
-
-            Parameters:
-                - **SQL_statement**: String. variable storing the SQL query
-
-            Return:
-                - List(tuple).  The query results (or -1 for a failed query).
-        """
-
-        try:
-            self._cur_.execute(SQL_statement)
-            self._db_.commit()
-
-        except MySQLdb.ProgrammingError as inst:
-            self._db_.rollback()
-            logging.error(inst.__str__())
-
-        return self._cur_.fetchall()
 
 class DataLoader(object):
     """ Singleton class for performing operations on data sets.
