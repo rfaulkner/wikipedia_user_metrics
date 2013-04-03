@@ -387,7 +387,7 @@ namespace_edits_rev_query.__query_name__ = 'namespace_edits_rev_query'
 @query_method_deco
 def user_registration_date_logging(users, project, args):
     """ Returns user registration date from logging table """
-    return query_store[user_registration_date_logging.__query_name__]
+    return query_store[user_registration_date_logging.__query_name__], None
 user_registration_date_logging.__query_name__ = \
     'user_registration_date_logging'
 
@@ -395,7 +395,7 @@ user_registration_date_logging.__query_name__ = \
 @query_method_deco
 def user_registration_date_user(users, project, args):
     """ Returns user registration date from user table """
-    return query_store[user_registration_date_user.__query_name__]
+    return query_store[user_registration_date_user.__query_name__], None
 user_registration_date_user.__query_name__ = 'user_registration_date_user'
 
 
@@ -456,7 +456,10 @@ def get_api_user(user, by_id=True):
 
     if by_id:
         query = get_api_user.__query_name__ + '_by_id'
-        params = {'user': int(user)}
+        try:
+            params = {'user': int(user)}
+        except ValueError as e:
+            raise UMQueryCallError(__name__ + ' :: ' + str(e))
     else:
         query = get_api_user.__query_name__ + '_by_name'
         params = {'user': str(user)}
@@ -674,7 +677,8 @@ def get_mw_user_id(username, project):
     try:
         conn._cur_.execute(query, {'username': str(username)})
         uid = conn._cur_.fetchone()[0]
-    except (IndexError, ValueError, ProgrammingError, OperationalError) as e:
+    except (IndexError, ValueError, ProgrammingError,
+            OperationalError, TypeError) as e:
         raise UMQueryCallError(__name__ + ' :: ' + str(e))
 
     del conn
@@ -880,7 +884,7 @@ query_store = {
     """
         SELECT user_id
         FROM <database>.user
-        WHERE user_name = "%(username)s"
+        WHERE user_name = %(username)s
     """,
     get_cohort_users.__query_name__:
     """
