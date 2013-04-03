@@ -60,7 +60,7 @@ def escape_var(var):
             escaped_var.append(escape_var(elem))
         return escaped_var
     else:
-        return escape_string(str(var))
+        return escape_string(''.join(str(var).split()))
 
 
 def format_namespace(namespace):
