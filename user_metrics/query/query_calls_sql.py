@@ -159,7 +159,6 @@ def rev_count_query(uid, is_survival, namespace, project,
 
     query = query_store[rev_count_query.__name__] + timestamp_cond
     query = sub_tokens(query, db=escape_var(project), where=ns_cond)
-    print query
     conn._cur_.execute(query, {'uid': int(uid), 'ts': threshold_ts})
     try:
         count = int(conn._cur_.fetchone()[0])
@@ -184,18 +183,16 @@ def live_account_query(users, project, args):
     if ns_cond:
         where_clause += ' AND ' + ns_cond
 
-    from_clause = '%(project)s.edit_page_tracking AS e RIGHT JOIN ' \
-                  '%(project)s.logging AS l ON e.ept_user = l.log_user'
+    from_clause = '<database>.edit_page_tracking AS e RIGHT JOIN ' \
+                  '<database>.logging AS l ON e.ept_user = l.log_user'
     if ns_cond:
-        from_clause += " LEFT JOIN %(project)s.page as p " \
+        from_clause += " LEFT JOIN <database>.page as p " \
                        "ON e.ept_title = p.page_title"
-    from_clause = from_clause % {
-        "project": escape_var(project)
-    }
-    query = query_store[live_account_query.__query_name__] % {
-        'from_clause': from_clause,
-        'where_clause': where_clause,
-    }
+    from_clause = sub_tokens(from_clause, db=escape_var(project))
+
+    query = query_store[live_account_query.__query_name__]
+    query = sub_tokens(query, from_repl=from_clause, where=where_clause)
+    print query
     return query
 live_account_query.__query_name__ = 'live_account_query'
 
@@ -683,8 +680,8 @@ query_store = {
             e.ept_user,
             MIN(l.log_timestamp) as registration,
             MIN(e.ept_timestamp) as first_click
-        FROM %(from_clause)s
-        WHERE %(where_clause)s
+        FROM <from>
+        WHERE <where>
         GROUP BY 1
     """,
     rev_query.__query_name__:
