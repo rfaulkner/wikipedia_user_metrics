@@ -53,7 +53,6 @@ __license__ = "GPL (version 2 or later)"
 
 from time import sleep
 import MySQLdb
-import logging
 import operator
 import user_metrics.config.settings as projSet
 
@@ -150,26 +149,6 @@ class Connector(object):
                                      'connection.')
         return [elem[0] for elem in column_data]
 
-    def execute_SQL(self, SQL_statement):
-        """
-            Executes a SQL statement and return the raw results.
-
-            Parameters:
-                - **SQL_statement**: String. variable storing the SQL query
-
-            Return:
-                - List(tuple).  The query results (or -1 for a failed query).
-        """
-
-        try:
-            self._cur_.execute(SQL_statement)
-            self._db_.commit()
-
-        except MySQLdb.ProgrammingError as inst:
-            self._db_.rollback()
-            logging.error(inst.__str__())
-
-        return self._cur_.fetchall()
 
 class DataLoader(object):
     """ Singleton class for performing operations on data sets.
@@ -392,84 +371,6 @@ class DataLoader(object):
 
         file_obj.close()
 
-    def create_table_from_list(self, l, create_sql, table_name, user_db,
-                               conn = Connector(instance='slave'),
-                               max_records=10000):
-        """
-            Populates or creates a table from a .list.
-
-            Parameters:
-                - **filename** - String.  The .xsv filename, assumed to be
-                    located in the project data folder.
-                - **create_sql** - String.  Contains the SQL create statement
-                    for the table (if necessary).
-                - **table_name** - String.  Name of table to populate.
-                - **max_record** - Integer. Maximum number of records
-                    allowable in insert statement.
-                - **user_db** - String. Database instance.
-
-            Return:
-                - empty.
-        """
-
-        # Optionally create the table - if no create sql is specified
-        # create a generic tbale based on column names
-        if create_sql:
-            try:
-                conn.execute_SQL("drop table if exists `%s`.`%s`" % (
-                    user_db, table_name))
-                conn.execute_SQL(create_sql)
-
-            except MySQLdb.ProgrammingError:
-                logging.error(__name__ + ' :: Could not '
-                                         'create table: %s' % create_sql)
-                return
-
-        # Get column names - reset the values if header has already been set
-        conn.execute_SQL('select * from `%s`.`%s` limit 1' % (user_db,
-                                                              table_name))
-        column_names = conn.get_column_names()
-        column_names_str = self.format_comma_separated_list(column_names,
-            include_quotes=False)
-
-        # Prepare SQL syntax
-        sql = """
-                        insert into `%(user_db)s`.`%(table_name)s`
-                        (%(column_names)s) values
-                    """ % {
-            'table_name' : table_name,
-            'column_names' : column_names_str,
-            'user_db' : user_db}
-        insert_sql = " ".join(sql.strip().split())
-
-        # Crawl the log line by line - insert the contents of each line into
-        # the table
-        count = 0
-        for e in l:
-
-            # Perform batch insert if max is reached
-            if count % max_records == 0 and count:
-                logging.debug(__name__ + ' :: Inserting '
-                                         '%s records. Total = %s' % (
-                    str(max_records), str(count)))
-                conn.execute_SQL(insert_sql[:-2])
-                insert_sql = " ".join(sql.strip().split())
-                count += 1
-
-            # ensure the correct number of columns are present
-            if len(e) != len(column_names): continue
-
-            # Only add the record if the correct
-            insert_sql += '(%s), ' % self.format_comma_separated_list(
-                self.cast_elems_to_string(e))
-            count += 1
-
-        # Perform final insert
-        if count:
-            logging.info(__name__ + ' :: Inserting remaining records. '
-                                    'Total = %s' % str(count))
-            conn.execute_SQL(insert_sql[:-2])
-
 
     def remove_duplicates(self, l):
         """
@@ -500,35 +401,6 @@ class DataLoader(object):
         return new_list
 
 
-    def create_xsv_from_SQL(self, sql, conn=Connector(instance='slave'),
-                            outfile = 'sql_to_xsv.out', separator = '\t'):
-        """
-            Generate an xsv file from SQL output.  The rows from the query
-            results are written to a file using the specified field separator.
-
-            Parameters:
-                - **sql** - String.  The .xsv filename, assumed to be located
-                    in the project data folder.
-                - **outfile** - String.  The output filename, assumed to be
-                    located in the project data folder.
-                - **separator** - String.  The separating character in the
-                    output file.  Default to tab.
-
-            Return:
-                - List.  List of elements parsed from each line of the input.
-        """
-
-        file_obj_out = open(projSet.__data_file_dir__ + outfile, 'w')
-        results = conn.execute_SQL(sql)
-
-        for row in results:
-            line_str = ''
-            for elem in row:
-                line_str = line_str + str(elem).strip() + separator
-            line_str = line_str[:-1] + '\n'
-            file_obj_out.write(line_str)
-        file_obj_out.close()
-
     def write_dict_to_xsv(self, d, separator="\t", outfile='dict_to_xsv.out'):
         """
             Write the contents of a dictionary whose values are lists to a file
@@ -546,19 +418,15 @@ class DataLoader(object):
 
         file_obj_out = open(projSet.__data_file_dir__ + outfile, 'w')
 
-        # All keys must reference a list
-        for key in d.keys():
-            if not(isinstance(d[key],list)):
-                message = 'DataLoader::write_dict_to_xsv - '
-                'All keys must index lists, bad key = %s' % key
-            logging.error(message)
-            raise Exception(message)
-
         # Determine the length of each key-list and store
         max_lens = dict()
         max_list_len = 0
         for key in d.keys():
-            max_lens[key] = len(d[key])
+            try:
+                max_lens[key] = len(d[key])
+            except TypeError:
+                raise DataLoaderError(__name__ +
+                                      ' :: dict must contain lists.')
             if max_lens[key] > max_list_len:
                 max_list_len = max_lens[key]
 
@@ -568,27 +436,17 @@ class DataLoader(object):
             line_elems = list()
             for key in d:
                 if i < max_lens[key]:
-                    line_elems.append(str(d[key][i]))
+                    try:
+                        line_elems.append(str(d[key][i]))
+                    except IndexError:
+                        raise DataLoaderError(
+                            __name__ + ' :: dict must contain lists.')
                 else:
                     line_elems.append('None')
             file_obj_out.write(separator.join(line_elems) + '\n')
 
         file_obj_out.close()
 
-    def create_generic_table(self, table_name, column_names,
-                             conn=Connector(instance='slave')):
-        """
-            Given a table name and a set of column names create a generic table
-
-            Parameters:
-                - **table_name** - str.
-                = **column_names** - list(str).
-        """
-        create_stmt = 'CREATE TABLE `%s` (' % table_name
-        for col in column_names:
-            create_stmt += "`%s` varbinary(255) NOT NULL DEFAULT ''," % col
-        create_stmt = create_stmt[:-1]+") ENGINE=MyISAM DEFAULT CHARSET=binary"
-        conn.execute_SQL(create_stmt)
 
     def format_condition_in(self, field_name, item_list, include_quotes=False):
         """ Formats a SQL "in" condition """
@@ -603,6 +461,7 @@ class DataLoader(object):
                                      'item_list must implement the '
                                      'iterable interface.')
             return ''
+
 
     def format_condition_between(self, field_name, val_1, val_2,
                                  include_quotes=False):

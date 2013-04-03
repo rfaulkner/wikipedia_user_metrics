@@ -15,14 +15,37 @@ from user_metrics.etl.data_loader import DataLoader, Connector, ConnectorError
 from MySQLdb import escape_string, ProgrammingError, OperationalError
 from copy import deepcopy
 from datetime import datetime
+from re import sub
 
 from user_metrics.config import logging
+
+DB_TOKEN = '<database>'
+TABLE_TOKEN = '<table>'
+FROM_TOKEN = '<from>'
+WHERE_TOKEN = '<where>'
+COMP1_TOKEN = '<comparator_1>'
+USERS_TOKEN = '<users>'
 
 
 class UMQueryCallError(Exception):
     """ Basic exception class for UserMetric types """
     def __init__(self, message="Query call failed."):
         Exception.__init__(self, message)
+
+
+def sub_tokens(query, db='', table='', from_repl='', where='',
+               comp_1='', users=''):
+    """
+    Substitutes values for portions of queries that specify MySQL databases and
+    tables.
+    """
+    query = sub(DB_TOKEN, db, query)
+    query = sub(TABLE_TOKEN, table, query)
+    query = sub(FROM_TOKEN, from_repl, query)
+    query = sub(WHERE_TOKEN, where, query)
+    query = sub(COMP1_TOKEN, comp_1, query)
+    query = sub(USERS_TOKEN, users, query)
+    return query
 
 
 def escape_var(var):
@@ -37,6 +60,8 @@ def escape_var(var):
 
         - Return:
             - List or string.  escaped elements.
+
+        ** THIS METHOD ONLY EMITS SQL SAFE STRINGS **
     """
 
     # If the input is a list recursively call on elements
@@ -46,14 +71,16 @@ def escape_var(var):
             escaped_var.append(escape_var(elem))
         return escaped_var
     else:
-        return escape_string(str(var))
+        return escape_string(''.join(str(var).split()))
 
 
 def format_namespace(namespace):
     """ Format the namespace condition in queries and returns the string.
 
         Expects a list of numeric namespace keys.  Otherwise returns
-        an empty condition string
+        an empty condition string.
+
+        ** THIS METHOD ONLY EMITS SQL SAFE STRINGS **
     """
     ns_cond = ''
 
@@ -78,6 +105,13 @@ def query_method_deco(f):
         if not hasattr(users, '__iter__'):
             users = [users]
 
+        # escape project & users
+        users = escape_var(users)
+        project = escape_var(project)
+
+        # compose a csv of user ids
+        user_str = DataLoader().format_comma_separated_list(users)
+
         # get query and call
         if hasattr(args, 'log') and args.log:
             logging.debug(__name__ + ':: calling "%(method)s" '
@@ -87,9 +121,10 @@ def query_method_deco(f):
                                          'project': project
                                      }
                           )
-        # Call query escaping user and project variables for SQL injection
-        query = f(escape_var(users), escape_var(project), args)
-
+        # 1. Synthesize query
+        # 2. substitute project
+        query, params = f(users, project, args)
+        query = sub_tokens(query, db=project, users=user_str)
         try:
             conn = Connector(instance=conf.PROJECT_DB_MAP[project])
         except KeyError:
@@ -97,14 +132,18 @@ def query_method_deco(f):
             return []
         except ConnectorError:
             logging.error(__name__ + ' :: Could not establish a connection.')
-            raise UMQueryCallError('Could not establish a connection.')
+            raise UMQueryCallError(__name__ + ' :: Could not '
+                                              'establish a connection.')
 
         try:
-            conn._cur_.execute(query)
-        except ProgrammingError:
+            if params:
+                conn._cur_.execute(query, params)
+            else:
+                conn._cur_.execute(query)
+        except (OperationalError, ProgrammingError) as e:
             logging.error(__name__ +
-                          'Could not get edit counts - Query failed.')
-            raise UMQueryCallError()
+                          ' :: Query failed: {0}'.format(query))
+            raise UMQueryCallError(__name__ + ' :: ' + str(e))
         results = [row for row in conn._cur_]
         del conn
         return results
@@ -112,7 +151,7 @@ def query_method_deco(f):
 
 
 def rev_count_query(uid, is_survival, namespace, project,
-                    threshold_ts):
+                    start_ts, threshold_ts):
     """ Get count of revisions associated with a UID for Threshold metrics """
     conn = Connector(instance=conf.PROJECT_DB_MAP[project])
 
@@ -122,24 +161,21 @@ def rev_count_query(uid, is_survival, namespace, project,
     if is_survival:
         timestamp_cond = ' and rev_timestamp > %(ts)s'
     else:
-        timestamp_cond = ' and rev_timestamp <= "%(ts)s"'
+        timestamp_cond = ' AND rev_timestamp > "' + \
+                         escape_var(start_ts) + '" AND ' + \
+                         'rev_timestamp <= %(ts)s'
 
     # format the namespace condition
     ns_cond = format_namespace(deepcopy(namespace))
 
     query = query_store[rev_count_query.__name__] + timestamp_cond
-    query = query % {
-        'project': project,
-        'ts': escape_var(threshold_ts),
-        'ns': ns_cond,
-        'uid': long(uid)
-    }
-    query = " ".join(query.strip().splitlines())
-    conn._cur_.execute(query)
+    query = sub_tokens(query, db=escape_var(project), where=ns_cond)
+    conn._cur_.execute(query, {'uid': int(uid), 'ts': str(threshold_ts)})
     try:
         count = int(conn._cur_.fetchone()[0])
     except (IndexError, ValueError):
         raise UMQueryCallError()
+    del conn
     return count
 rev_count_query.__query_name__ = 'rev_count_query'
 
@@ -148,8 +184,13 @@ rev_count_query.__query_name__ = 'rev_count_query'
 def live_account_query(users, project, args):
     """ Format query for live_account metric """
 
-    user_cond = DataLoader().format_condition_in('ept_user', users)
-    ns_cond = format_namespace(args.namespace)
+    user_cond = DataLoader().format_condition_in('ept_user',
+                                                 escape_var(users))
+
+    try:
+        ns_cond = format_namespace(args.namespace)
+    except AttributeError as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
 
     where_clause = 'log_action = "create"'
     if user_cond:
@@ -157,17 +198,16 @@ def live_account_query(users, project, args):
     if ns_cond:
         where_clause += ' AND ' + ns_cond
 
-    from_clause = '%(project)s.edit_page_tracking AS e RIGHT JOIN ' \
-                  '%(project)s.logging AS l ON e.ept_user = l.log_user'
+    from_clause = '<database>.edit_page_tracking AS e RIGHT JOIN ' \
+                  '<database>.logging AS l ON e.ept_user = l.log_user'
     if ns_cond:
-        from_clause += " LEFT JOIN %(project)s.page as p " \
+        from_clause += " LEFT JOIN <database>.page as p " \
                        "ON e.ept_title = p.page_title"
-    from_clause = from_clause % {"project": project}
-    sql = query_store[live_account_query.__query_name__] % {
-        'from_clause': from_clause,
-        'where_clause': where_clause,
-    }
-    return " ".join(sql.strip().splitlines())
+    from_clause = sub_tokens(from_clause, db=escape_var(project))
+
+    query = query_store[live_account_query.__query_name__]
+    query = sub_tokens(query, from_repl=from_clause, where=where_clause)
+    return query, None
 live_account_query.__query_name__ = 'live_account_query'
 
 
@@ -175,44 +215,48 @@ live_account_query.__query_name__ = 'live_account_query'
 def rev_query(users, project, args):
     """ Get revision length, user, and page """
     # Format query conditions
-    ts_condition = \
-        'rev_timestamp >= "%(date_start)s" AND rev_timestamp < ' \
-        '"%(date_end)s"' % {
-        'date_start': escape_var(args.date_start),
-        'date_end': escape_var(args.date_end)
-        }
+    try:
+        ts_condition = \
+            'rev_timestamp >= "%(date_start)s" AND rev_timestamp < ' \
+            '"%(date_end)s"' % {
+            'date_start': escape_var(args.date_start),
+            'date_end': escape_var(args.date_end)
+            }
+    except AttributeError as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
+
     user_set = DataLoader().format_comma_separated_list(users,
                                                         include_quotes=False)
     where_clause = 'rev_user in (%(user_set)s) and %(ts_condition)s' % {
         'user_set': user_set,
         'ts_condition': ts_condition
     }
-    ns_cond = format_namespace(args.namespace)
-    if ns_cond:
-        ns_cond += ' and'
 
-    query = query_store[rev_query.__query_name__] % {
-        'where_clause': where_clause,
-        'project': project,
-        'namespace': ns_cond}
-    query = " ".join(query.strip().splitlines())
-    return query
+    try:
+        ns_cond = format_namespace(args.namespace)
+    except AttributeError as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
+
+    if ns_cond:
+        ns_cond += ' and '
+    where_clause = ns_cond + where_clause
+    query = query_store[rev_query.__query_name__]
+    query = sub_tokens(query, db=escape_var(project), where=where_clause)
+    return query, None
 rev_query.__query_name__ = 'rev_query'
 
 
 def rev_len_query(rev_id, project):
     """ Get parent revision length - returns long """
     conn = Connector(instance=conf.PROJECT_DB_MAP[project])
-    query = query_store[rev_len_query.__name__] % {
-        'project': escape_var(project),
-        'parent_rev_id': int(rev_id),
-    }
-    query = " ".join(query.strip().splitlines())
-    conn._cur_.execute(query)
+    query = query_store[rev_len_query.__name__]
+    query = sub_tokens(query, db=escape_var(project))
+    conn._cur_.execute(query, {'parent_rev_id': int(rev_id)})
     try:
         rev_len = conn._cur_.fetchone()[0]
-    except (IndexError, KeyError, ProgrammingError):
-        raise UMQueryCallError()
+    except (IndexError, KeyError, ProgrammingError) as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
+    del conn
     return rev_len
 rev_len_query.__query_name__ = 'rev_len_query'
 
@@ -220,13 +264,15 @@ rev_len_query.__query_name__ = 'rev_len_query'
 def rev_user_query(project, start, end):
     """ Produce all users that made a revision within period """
     conn = Connector(instance=conf.PROJECT_DB_MAP[project])
-    query = query_store[rev_user_query.__name__] % {
-        'start': escape_var(start),
-        'end': escape_var(end),
+    query = query_store[rev_user_query.__name__]
+    query = sub_tokens(query, db=escape_var(project))
+    params = {
+        'start': str(start),
+        'end': str(end)
     }
-    query = " ".join(query.strip().splitlines())
-    conn._cur_.execute(query)
+    conn._cur_.execute(query, params)
     users = [str(row[0]) for row in conn._cur_]
+    del conn
     return users
 rev_user_query.__query_name__ = 'rev_user_query'
 
@@ -239,15 +285,19 @@ def page_rev_hist_query(rev_id, page_id, n, project, namespace,
     # Format namespace expression and comparator
     ns_cond = format_namespace(namespace)
     comparator = '>' if look_ahead else '<'
+    query = query_store[page_rev_hist_query.__name__]
+    query = sub_tokens(query, db=escape_var(project),
+                       comp_1=comparator, where=ns_cond)
+    try:
+        params = {
+            'rev_id':  long(rev_id),
+            'page_id': long(page_id),
+            'n':       int(n),
+        }
+    except ValueError as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
 
-    conn._cur_.execute(query_store[page_rev_hist_query.__name__] % {
-        'rev_id':  long(rev_id),
-        'page_id': long(page_id),
-        'n':       int(n),
-        'project': escape_var(project),
-        'namespace': ns_cond,
-        'comparator': comparator,
-    })
+    conn._cur_.execute(query, params)
     for row in conn._cur_:
         yield row
     del conn
@@ -257,22 +307,25 @@ page_rev_hist_query.__query_name__ = 'page_rev_hist_query'
 @query_method_deco
 def revert_rate_user_revs_query(user, project, args):
     """ Get revision history for a user """
-    return query_store[revert_rate_user_revs_query.__query_name__] % {
-        'user': user[0],
-        'project': project,
-        'start_ts': escape_var(args.date_start),
-        'end_ts': escape_var(args.date_end),
-    }
+    try:
+        params = {
+            'user': int(user[0]),
+            'start_ts': str(args.date_start),
+            'end_ts': str(args.date_end),
+        }
+    except ValueError as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
+
+    return query_store[revert_rate_user_revs_query.__query_name__], params
 revert_rate_user_revs_query.__query_name__ = 'revert_rate_user_revs_query'
 
 
 @query_method_deco
 def time_to_threshold_revs_query(user_id, project, args):
     """ Obtain revisions to perform threshold computation """
-    sql = query_store[time_to_threshold_revs_query.__query_name__] % {
-        'user_handle': str(user_id[0]),
-        'project': project}
-    return " ".join(sql.strip().splitlines())
+    query = query_store[time_to_threshold_revs_query.__query_name__]
+    params = {'user_handle': str(user_id[0])}
+    return query, params
 time_to_threshold_revs_query.__query_name__ = 'time_to_threshold_revs_query'
 
 
@@ -283,9 +336,8 @@ def blocks_user_map_query(users, project):
     user_str = DataLoader().format_comma_separated_list(
         escape_var(users))
 
-    query = query_store[blocks_user_map_query.__name__] % \
-        {'users': user_str}
-    query = " ".join(query.strip().splitlines())
+    query = query_store[blocks_user_map_query.__name__]
+    query = sub_tokens(query, db=escape_var(project), users=user_str)
     conn._cur_.execute(query)
 
     # keys username on userid
@@ -299,72 +351,52 @@ def blocks_user_map_query(users, project):
 @query_method_deco
 def blocks_user_query(users, project, args):
     """ Obtain block/ban events for users """
-    user_str = DataLoader().format_comma_separated_list(users)
-    query = query_store[blocks_user_query.__query_name__] % {
-        'user_str': user_str,
-        'timestamp': escape_var(args.date_start),
-        'project': project
-    }
-    query = " ".join(query.strip().splitlines())
-    return query
+    query = query_store[blocks_user_query.__query_name__]
+    try:
+        params = {'timestamp': str(args.date_start)}
+    except AttributeError as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
+    return query, params
 blocks_user_query.__query_name__ = 'blocks_user_query'
 
 
 @query_method_deco
 def edit_count_user_query(users, project, args):
     """  Obtain rev counts by user """
-    user_str = DataLoader().format_comma_separated_list(users)
-    ts_condition = 'and rev_timestamp >= "%s" and rev_timestamp < "%s"' % \
-                   (escape_var(args.date_start),
-                   escape_var(args.date_end))
-    query = query_store[edit_count_user_query.__query_name__] % {
-        'users': user_str,
-        'ts_condition': ts_condition,
-        'project': project
-    }
-    query = " ".join(query.strip().splitlines())
-    return query
+    query = query_store[edit_count_user_query.__query_name__]
+    try:
+        params = {'start': str(args.date_start), 'end': str(args.date_end)}
+    except AttributeError as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
+    return query, params
 edit_count_user_query.__query_name__ = 'edit_count_user_query'
 
 
 @query_method_deco
 def namespace_edits_rev_query(users, project, args):
     """ Obtain revisions by namespace """
-
-    # @TODO check attributes for existence and throw error otherwise
-
-    to_string = DataLoader().cast_elems_to_string
-    to_csv_str = DataLoader().format_comma_separated_list
-
-    # Format user condition
-    user_str = "rev_user in (" + to_csv_str(to_string(users)) + ")"
-
-    # Format timestamp condition
-    ts_cond = "rev_timestamp >= %s and rev_timestamp < %s" % \
-        (escape_var(args.start), escape_var(args.end))
-
-    query = query_store[namespace_edits_rev_query.__query_name__] % {
-        "user_cond": user_str,
-        "ts_cond": ts_cond,
-        "project": project,
-    }
-    query = " ".join(query.strip().splitlines())
-    return query
+    query = query_store[namespace_edits_rev_query.__query_name__]
+    try:
+        params = {'start': str(args.start), 'end': str(args.end)}
+    except AttributeError as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
+    return query, params
 namespace_edits_rev_query.__query_name__ = 'namespace_edits_rev_query'
 
 
 @query_method_deco
-def user_registration_date(users, project, args):
+def user_registration_date_logging(users, project, args):
     """ Returns user registration date from logging table """
-    users = DataLoader().cast_elems_to_string(users)
-    uid_str = DataLoader().format_comma_separated_list(users,
-                                                       include_quotes=False)
-    query = query_store[user_registration_date.__query_name__] % {
-        "uid": uid_str,
-        "project": project,
-    }
-    return " ".join(query.strip().splitlines())
-user_registration_date.__query_name__ = 'user_registration_date'
+    return query_store[user_registration_date_logging.__query_name__], None
+user_registration_date_logging.__query_name__ = \
+    'user_registration_date_logging'
+
+
+@query_method_deco
+def user_registration_date_user(users, project, args):
+    """ Returns user registration date from user table """
+    return query_store[user_registration_date_user.__query_name__], None
+user_registration_date_user.__query_name__ = 'user_registration_date_user'
 
 
 def delete_usertags(ut_tag):
@@ -374,13 +406,16 @@ def delete_usertags(ut_tag):
     """
     conn = Connector(instance=conf.PROJECT_DB_MAP[
         conf.__cohort_data_instance__])
-    del_query = query_store[delete_usertags.__query_name__] % {
-        'cohort_meta_instance': conf.__cohort_meta_instance__,
-        'cohort_db': conf.__cohort_db__,
-        'ut_tag': ut_tag
-    }
-    conn._cur_.execute(del_query)
+    del_query = query_store[delete_usertags.__query_name__]
+    del_query = sub_tokens(del_query,
+                           db=conf.__cohort_meta_instance__,
+                           table=conf.__cohort_db__)
+    try:
+        conn._cur_.execute(del_query, {'ut_tag': int(ut_tag)})
+    except (ValueError, ProgrammingError, OperationalError) as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
     conn._db_.commit()
+    del conn
 delete_usertags.__query_name__ = 'delete_usertags'
 
 
@@ -391,13 +426,16 @@ def delete_usertags_meta(ut_tag):
     """
     conn = Connector(instance=conf.PROJECT_DB_MAP[
         conf.__cohort_data_instance__])
-    del_query = query_store[delete_usertags_meta.__query_name__] % {
-        'cohort_meta_instance': conf.__cohort_meta_instance__,
-        'cohort_meta_db': conf.__cohort_meta_db__,
-        'ut_tag': ut_tag
-    }
-    conn._cur_.execute(del_query)
+    del_query = query_store[delete_usertags_meta.__query_name__]
+    del_query = sub_tokens(del_query,
+                           db=conf.__cohort_meta_instance__,
+                           table=conf.__cohort_meta_db__)
+    try:
+        conn._cur_.execute(del_query, {'ut_tag': int(ut_tag)})
+    except (ValueError, ProgrammingError, OperationalError) as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
     conn._db_.commit()
+    del conn
 delete_usertags_meta.__query_name__ = 'delete_usertags_meta'
 
 
@@ -418,13 +456,21 @@ def get_api_user(user, by_id=True):
 
     if by_id:
         query = get_api_user.__query_name__ + '_by_id'
+        try:
+            params = {'user': int(user)}
+        except ValueError as e:
+            raise UMQueryCallError(__name__ + ' :: ' + str(e))
     else:
         query = get_api_user.__query_name__ + '_by_name'
-    query = query_store[query] % {
-        'cohort_meta_instance': conf.__cohort_meta_instance__,
-        'user': str(escape_var(user))
-    }
-    conn._cur_.execute(query)
+        params = {'user': str(user)}
+    query = query_store[query]
+    query = sub_tokens(query, db=conf.__cohort_meta_instance__)
+
+    try:
+        conn._cur_.execute(query, params)
+    except (ValueError, ProgrammingError, OperationalError) as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
+
     api_user_tuple = conn._cur_.fetchone()
     del conn
     return api_user_tuple
@@ -446,18 +492,26 @@ def insert_api_user(user, password):
     """
     conn = Connector(instance=conf.__cohort_data_instance__)
     query = insert_api_user.__query_name__
-    query = query_store[query] % {
-        'cohort_meta_instance': conf.__cohort_meta_instance__,
-        'user': str(escape_var(user)),
-        'pass': str(escape_var(password))
+    query = query_store[query]
+    params = {
+        'user': str(user),
+        'pass': str(password)
     }
-    conn._cur_.execute(query)
+    query = sub_tokens(query, db=conf.__cohort_meta_instance__)
+
+    try:
+        conn._cur_.execute(query, params)
+    except (ProgrammingError, OperationalError) as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
+
     conn._db_.commit()
     del conn
 insert_api_user.__query_name__ = 'insert_api_user'
 
 
-def add_cohort_data(cohort, users, project, notes=""):
+def add_cohort_data(cohort, users, project,
+                    notes="", owner=1, group=3,
+                    add_meta=True):
     """
         Adds a new cohort to backend.
 
@@ -476,48 +530,70 @@ def add_cohort_data(cohort, users, project, notes=""):
     conn = Connector(instance=conf.__cohort_data_instance__)
     now = format_mediawiki_timestamp(datetime.now())
 
-    # Create an entry in ``usertags_meta``
-    utm_query = query_store[add_cohort_data.__query_name__ + '_meta'] % {
-        'cohort_meta_instance': conf.__cohort_meta_instance__,
-        'cohort_meta_db': conf.__cohort_meta_db__,
-        'utm_name': cohort,
-        'utm_project': project,
-        'utm_notes': notes,
-        'utm_touched': now,
-        'utm_enabled': '0'
-    }
-    conn._cur_.execute(utm_query)
-    try:
-        conn._db_.commit()
-    except (ProgrammingError, OperationalError):
-        conn._db_.rollback()
+    # TODO: ALLOW THE COHORT DEF TO BE REFRESHED IF IT ALREADY EXISTS
 
-    # get uid for new cohort
-    usertag = get_cohort_id(cohort)
+    if add_meta:
+        logging.debug(__name__ + ' :: Adding new cohort "{0}".'.
+                      format(cohort))
+        if not notes:
+            notes = 'Generated by: ' + __name__
+
+        # Create an entry in ``usertags_meta``
+        utm_query = query_store[add_cohort_data.__query_name__ + '_meta']
+
+        try:
+            params = {
+                'utm_name': str(cohort),
+                'utm_project': str(project),
+                'utm_notes': str(notes),
+                'utm_group': int(group),
+                'utm_owner': int(owner),
+                'utm_touched': now,
+                'utm_enabled': 0
+            }
+        except ValueError as e:
+            raise UMQueryCallError(__name__ + ' :: ' + str(e))
+
+        utm_query = sub_tokens(utm_query, db=conf.__cohort_meta_instance__,
+                               table=conf.__cohort_meta_db__)
+        try:
+            conn._cur_.execute(utm_query, params)
+            conn._db_.commit()
+        except (ProgrammingError, OperationalError) as e:
+            conn._db_.rollback()
+            raise UMQueryCallError(__name__ + ' :: ' + str(e))
 
     # add data to ``user_tags``
-    value_list_ut = [('{0}'.format(project),
-                      int(uid),
-                      int(usertag))
-                     for uid in users]
-    value_list_ut = str(value_list_ut)[1:-1]
+    if users:
+        # get uid for cohort
+        usertag = get_cohort_id(cohort)
 
-    ut_query = query_store[add_cohort_data.__query_name__] % {
-        'cohort_meta_instance': conf.__cohort_meta_instance__,
-        'cohort_db': conf.__cohort_db__,
-        'value_list': value_list_ut
-    }
-    conn._cur_.execute(ut_query)
-    try:
-        conn._db_.commit()
-    except (ProgrammingError, OperationalError):
-        conn._db_.rollback()
+        logging.debug(__name__ + ' :: Adding cohort {0} users.'.
+                      format(len(users)))
 
+        try:
+            value_list_ut = [('{0}'.format(project),
+                              int(uid),
+                              int(usertag))
+                             for uid in users]
+        except ValueError as e:
+            raise UMQueryCallError(__name__ + ' :: ' + str(e))
+
+        ut_query = query_store[add_cohort_data.__query_name__] + '(' + \
+                   ' %s,' * len(value_list_ut)[:-1] + ')'
+        ut_query = sub_tokens(ut_query, db=conf.__cohort_meta_instance__,
+                              table=conf.__cohort_db__)
+        try:
+            conn._cur_.execute(ut_query, value_list_ut)
+            conn._db_.commit()
+        except (ProgrammingError, OperationalError) as e:
+            conn._db_.rollback()
+            raise UMQueryCallError(__name__ + ' :: ' + str(e))
     del conn
 add_cohort_data.__query_name__ = 'add_cohort'
 
 
-def get_cohort_id(cohort_name):
+def get_cohort_data(cohort_name):
     """
         Returns the cohort tag for a given cohort.
 
@@ -528,16 +604,57 @@ def get_cohort_id(cohort_name):
                 Name of cohort.
     """
     conn = Connector(instance=conf.__cohort_data_instance__)
-    ut_query = query_store[get_cohort_id.__query_name__] % {
-        'cohort_meta_instance': conf.__cohort_meta_instance__,
-        'cohort_meta_db': conf.__cohort_meta_db__,
-        'utm_name': cohort_name
-    }
-    conn._cur_.execute(ut_query)
-    usertag = conn._cur_.fetchone()[0]
+    ut_query = query_store[get_cohort_data.__query_name__]
+    ut_query = sub_tokens(ut_query, db=conf.__cohort_meta_instance__,
+                           table=conf.__cohort_meta_db__)
+
+    try:
+        conn._cur_.execute(ut_query, {'utm_name': str(cohort_name)})
+    except (ValueError, ProgrammingError, OperationalError) as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
+    data = conn._cur_.fetchone()
     del conn
-    return usertag
-get_cohort_id.__query_name__ = 'get_cohort_id'
+    return data
+get_cohort_data.__query_name__ = 'get_cohort_data'
+
+
+def get_cohort_id(cohort_name):
+    try:
+        return get_cohort_data(cohort_name)[0]
+    except TypeError:
+        return None
+
+
+def get_cohort_project_by_meta(cohort_name):
+    try:
+        return get_cohort_data(cohort_name)[1]
+    except TypeError:
+        return None
+
+
+def get_cohort_users(tag_id):
+    """
+        Returns user id list for cohort.
+
+        Parameters
+        ~~~~~~~~~~
+
+            cohort_name : string
+                Name of cohort.
+    """
+    conn = Connector(instance=conf.__cohort_data_instance__)
+    ut_query = query_store[get_cohort_users.__query_name__]
+    ut_query = sub_tokens(ut_query, db=conf.__cohort_meta_instance__,
+                          table=conf.__cohort_db__)
+    try:
+        conn._cur_.execute(ut_query, {'tag_id': int(tag_id)})
+    except (ValueError, ProgrammingError, OperationalError):
+        raise UMQueryCallError(__name__ + ' :: Failed to retrieve users.')
+
+    for row in conn._cur_:
+        yield unicode(row[0])
+    del conn
+get_cohort_users.__query_name__ = 'get_cohort_users'
 
 
 def get_mw_user_id(username, project):
@@ -554,12 +671,16 @@ def get_mw_user_id(username, project):
             MediaWiki project.
     """
     conn = Connector(instance=conf.PROJECT_DB_MAP[project])
-    query = query_store[get_mw_user_id.__query_name__] % {
-        'username': username,
-        'project': project
-    }
-    conn._cur_.execute(query)
-    uid = conn._cur_.fetchone()[0]
+    query = query_store[get_mw_user_id.__query_name__]
+    query = sub_tokens(query, db=escape_var(project))
+
+    try:
+        conn._cur_.execute(query, {'username': str(username)})
+        uid = conn._cur_.fetchone()[0]
+    except (IndexError, ValueError, ProgrammingError,
+            OperationalError, TypeError) as e:
+        raise UMQueryCallError(__name__ + ' :: ' + str(e))
+
     del conn
     return uid
 get_mw_user_id.__query_name__ = 'get_mw_user_id'
@@ -573,10 +694,10 @@ query_store = {
     """
         SELECT
             count(*) as revs
-        FROM %(project)s.revision as r
-            JOIN %(project)s.page as p
-                ON  r.rev_page = p.page_id
-        WHERE %(ns)s AND rev_user = %(uid)s
+        FROM <database>.revision as r
+            JOIN <database>.page as p
+                ON r.rev_page = p.page_id
+        WHERE <where> AND rev_user = %(uid)s
     """,
     live_account_query.__query_name__:
     """
@@ -584,8 +705,8 @@ query_store = {
             e.ept_user,
             MIN(l.log_timestamp) as registration,
             MIN(e.ept_timestamp) as first_click
-        FROM %(from_clause)s
-        WHERE %(where_clause)s
+        FROM <from>
+        WHERE <where>
         GROUP BY 1
     """,
     rev_query.__query_name__:
@@ -594,32 +715,32 @@ query_store = {
             rev_user,
             rev_len,
             rev_parent_id
-        from %(project)s.revision
-            join %(project)s.page
+        from <database>.revision
+            join <database>.page
             on page.page_id = revision.rev_page
-        where %(namespace)s %(where_clause)s
+        where <where>
     """,
     rev_len_query.__query_name__:
     """
         SELECT rev_len
-        FROM %(project)s.revision
+        FROM <database>.revision
         WHERE rev_id = %(parent_rev_id)s
     """,
     rev_user_query.__query_name__:
     """
         SELECT distinct rev_user
-        FROM enwiki.revision
-        WHERE rev_timestamp >= "%(start)s" AND
-            rev_timestamp < "%(end)s"
+        FROM <database>.revision
+        WHERE rev_timestamp >= %(start)s AND
+            rev_timestamp < %(end)s
     """,
     page_rev_hist_query.__query_name__:
     """
         SELECT rev_id, rev_user_text, rev_sha1
-        FROM %(project)s.revision JOIN %(project)s.page
+        FROM <database>.revision JOIN <database>.page
             ON rev_page = page_id
         WHERE rev_page = %(page_id)s
-            AND rev_id %(comparator)s %(rev_id)s
-            AND %(namespace)s
+            AND rev_id <comparator_1> %(rev_id)s
+            AND <where>
         ORDER BY rev_id ASC
         LIMIT %(n)s
     """,
@@ -630,16 +751,16 @@ query_store = {
            rev_page,
            rev_sha1,
            rev_user_text
-       FROM %(project)s.revision
+       FROM <database>.revision
        WHERE rev_user = %(user)s AND
-       rev_timestamp > "%(start_ts)s" AND
-       rev_timestamp <= "%(end_ts)s"
+       rev_timestamp > %(start_ts)s AND
+       rev_timestamp <= %(end_ts)s
     """,
     time_to_threshold_revs_query.__query_name__:
     """
         SELECT rev_timestamp
-        FROM %(project)s.revision
-        WHERE rev_user = "%(user_handle)s"
+        FROM <database>.revision
+        WHERE rev_user = %(user_handle)s
         ORDER BY 1 ASC
     """,
     blocks_user_map_query.__name__:
@@ -647,8 +768,8 @@ query_store = {
         SELECT
             user_id,
             user_name
-        FROM enwiki.user
-        WHERE user_id in (%(users)s)
+        FROM <database>.user
+        WHERE user_id in (<users>)
     """,
     blocks_user_query.__query_name__:
     """
@@ -659,11 +780,11 @@ query_store = {
             count(*) as count,
             min(log_timestamp) as first,
             max(log_timestamp) as last
-        FROM %(project)s.logging
+        FROM <database>.logging
         WHERE log_type = "block"
         AND log_action = "block"
-        AND log_title in (%(user_str)s)
-        AND log_timestamp >= "%(timestamp)s"
+        AND log_title in (<users>)
+        AND log_timestamp >= %(timestamp)s
         GROUP BY 1, 2
     """,
     edit_count_user_query.__query_name__:
@@ -671,8 +792,10 @@ query_store = {
         SELECT
             rev_user,
             count(*)
-        FROM %(project)s.revision
-        WHERE rev_user IN (%(users)s) %(ts_condition)s
+        FROM <database>.revision
+        WHERE rev_user IN (<users>)
+            AND rev_timestamp >= %(start)s
+            AND rev_timestamp < %(end)s
         GROUP BY 1
     """,
     namespace_edits_rev_query.__query_name__:
@@ -681,78 +804,92 @@ query_store = {
             r.rev_user,
             p.page_namespace,
             count(*) AS revs
-        FROM %(project)s.revision AS r
-            JOIN %(project)s.page AS p
+        FROM <database>.revision AS r
+            JOIN <database>.page AS p
             ON r.rev_page = p.page_id
-        WHERE %(user_cond)s AND %(ts_cond)s
+        WHERE rev_user in (<users>)
+            AND rev_timestamp >= %(start)s
+            AND rev_timestamp < %(end)s
         GROUP BY 1,2
     """,
-    user_registration_date.__query_name__:
+    user_registration_date_logging.__query_name__:
     """
         SELECT
             log_user,
             log_timestamp
-        FROM %(project)s.logging
+        FROM <database>.logging
         WHERE (log_action = 'create' OR
             log_action = 'autocreate') AND
             log_type='newusers' AND
-            log_user in (%(uid)s)
+            log_user in (<users>)
+    """,
+    user_registration_date_user.__query_name__:
+    """
+        SELECT
+            user_id,
+            user_registration
+        FROM <database>.user
+        WHERE user_id in (<users>)
     """,
     delete_usertags.__query_name__:
     """
-        DELETE FROM %(cohort_meta_instance)s.%(cohort_db)s
+        DELETE FROM <database>.<table>
         WHERE ut_tag = %(ut_tag)s
     """,
     delete_usertags_meta.__query_name__:
     """
         DELETE FROM
-            %(cohort_meta_instance)s.%(cohort_meta_db)s
+            <database>.<database>
         WHERE ut_tag = %(ut_tag)s
     """,
     get_api_user.__query_name__ + '_by_id':
     """
         SELECT user_name, user_id, user_pass
-        FROM %(cohort_meta_instance)s.api_user
+        FROM <database>.api_user
         WHERE user_id = %(user)s
     """,
     get_api_user.__query_name__ + '_by_name':
     """
         SELECT user_name, user_id, user_pass
-        FROM %(cohort_meta_instance)s.api_user
-        WHERE user_name = '%(user)s'
+        FROM <database>.api_user
+        WHERE user_name = %(user)s
     """,
     insert_api_user.__query_name__:
-        """
-            INSERT INTO %(cohort_meta_instance)s.api_user
-                (user_name, user_pass)
-            VALUES ("%(user)s", "%(pass)s")
-        """,
+    """
+        INSERT INTO <database>.api_user
+            (user_name, user_pass)
+        VALUES (%(user)s, %(pass)s)
+    """,
     add_cohort_data.__query_name__:
     """
-        INSERT INTO %(cohort_meta_instance)s.%(cohort_db)s
-            VALUES %(value_list)s
+        INSERT INTO <database>.<table>
+            VALUES
     """,
     add_cohort_data.__query_name__ + '_meta':
     """
-        INSERT INTO %(cohort_meta_instance)s.%(cohort_meta_db)s
-        (utm_name, utm_project, utm_notes, utm_touched, utm_enabled)
-        VALUES ("%(utm_name)s", "%(utm_project)s",
-            "%(utm_notes)s", "%(utm_touched)s", %(utm_enabled)s)
+        INSERT INTO <database>.<table>
+            (utm_name, utm_project, utm_notes, utm_group, utm_owner,
+            utm_touched, utm_enabled)
+        VALUES (%(utm_name)s, %(utm_project)s,
+            %(utm_notes)s, %(utm_group)s, %(utm_owner)s,
+            %(utm_touched)s, %(utm_enabled)s)
     """,
-    get_cohort_id.__query_name__:
+    get_cohort_data.__query_name__:
     """
-        SELECT utm_id
-        FROM %(cohort_meta_instance)s.%(cohort_meta_db)s
-        WHERE utm_name = "%(utm_name)s"
+        SELECT utm_id, utm_project
+        FROM <database>.<table>
+        WHERE utm_name = %(utm_name)s
     """,
     get_mw_user_id.__query_name__:
     """
         SELECT user_id
-        FROM %(project)s.user
-        WHERE user_name = "%(username)s"
+        FROM <database>.user
+        WHERE user_name = %(username)s
+    """,
+    get_cohort_users.__query_name__:
+    """
+        SELECT ut_user
+        FROM <database>.<table>
+        WHERE ut_tag = %(tag_id)s
     """,
 }
-
-
-if __name__ == '__main__':
-    print get_cohort_id('ServerSideAccountCreation_5233795_users')
