@@ -21,6 +21,8 @@ from user_metrics.config import logging
 
 DB_TOKEN = '<database>'
 TABLE_TOKEN = '<table>'
+FROM_TOKEN = '<from>'
+WHERE_TOKEN = '<where>'
 
 
 class UMQueryCallError(Exception):
@@ -29,13 +31,15 @@ class UMQueryCallError(Exception):
         Exception.__init__(self, message)
 
 
-def sub_tokens(query, db='', table=''):
+def sub_tokens(query, db='', table='', from_repl='', where=''):
     """
     Substitutes values for portions of queries that specify MySQL databases and
     tables.
     """
     query = sub(DB_TOKEN, db, query)
     query = sub(TABLE_TOKEN, table, query)
+    query = sub(FROM_TOKEN, from_repl, query)
+    query = sub(WHERE_TOKEN, where, query)
     return query
 
 
@@ -51,6 +55,8 @@ def escape_var(var):
 
         - Return:
             - List or string.  escaped elements.
+
+        ** THIS METHOD ONLY EMITS SQL SAFE STRINGS **
     """
 
     # If the input is a list recursively call on elements
@@ -67,7 +73,9 @@ def format_namespace(namespace):
     """ Format the namespace condition in queries and returns the string.
 
         Expects a list of numeric namespace keys.  Otherwise returns
-        an empty condition string
+        an empty condition string.
+
+        ** THIS METHOD ONLY EMITS SQL SAFE STRINGS **
     """
     ns_cond = ''
 
@@ -142,22 +150,17 @@ def rev_count_query(uid, is_survival, namespace, project,
     if is_survival:
         timestamp_cond = ' and rev_timestamp > %(ts)s'
     else:
-        timestamp_cond = ' AND rev_timestamp > ' + \
-                         start_ts + ' AND rev_timestamp <= "%(ts)s"'
+        timestamp_cond = ' AND rev_timestamp > "' + \
+                         escape_var(start_ts) + '" AND ' + \
+                         'rev_timestamp <= %(ts)s'
 
     # format the namespace condition
     ns_cond = format_namespace(deepcopy(namespace))
 
     query = query_store[rev_count_query.__name__] + timestamp_cond
-    query = sub_tokens(query, db=escape_var(project))
-
-    params = {
-        'ts': threshold_ts,
-        'ns': ns_cond,
-        'uid': int(uid)
-    }
-    print params
-    conn._cur_.execute(query, params)
+    query = sub_tokens(query, db=escape_var(project), where=ns_cond)
+    print query
+    conn._cur_.execute(query, {'uid': int(uid), 'ts': threshold_ts})
     try:
         count = int(conn._cur_.fetchone()[0])
     except (IndexError, ValueError):
@@ -671,8 +674,8 @@ query_store = {
             count(*) as revs
         FROM <database>.revision as r
             JOIN <database>.page as p
-                ON  r.rev_page = p.page_id
-        WHERE %(ns)s AND rev_user = %(uid)d
+                ON r.rev_page = p.page_id
+        WHERE <where> AND rev_user = %(uid)s
     """,
     live_account_query.__query_name__:
     """

@@ -156,8 +156,20 @@ def test_user_UMPRegInput():
 # ================
 
 
-def test_get_user_reg_from_logging():
-    assert False  # TODO: implement your test here
+import user_metrics.query.query_calls_sql as qSQL
+
+UID = 13234584
+PROJECT = 'enwiki'
+
+def test_rev_count_query():
+    """
+    Test revision count query.
+    """
+    rev_count = qSQL.rev_count_query(UID, False, [0],
+                                     PROJECT, '20100101000000',
+                                     '20130301000000')
+    assert rev_count == 14
+
 
 
 # ETL tests
