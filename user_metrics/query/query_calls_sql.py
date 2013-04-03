@@ -661,8 +661,8 @@ query_store = {
     """
         SELECT
             count(*) as revs
-        FROM %(project)s.revision as r
-            JOIN %(project)s.page as p
+        FROM <database>.revision as r
+            JOIN <database>.page as p
                 ON  r.rev_page = p.page_id
         WHERE %(ns)s AND rev_user = %(uid)s
     """,
@@ -682,28 +682,28 @@ query_store = {
             rev_user,
             rev_len,
             rev_parent_id
-        from %(project)s.revision
-            join %(project)s.page
+        from <database>.revision
+            join <database>.page
             on page.page_id = revision.rev_page
         where %(namespace)s %(where_clause)s
     """,
     rev_len_query.__query_name__:
     """
         SELECT rev_len
-        FROM %(project)s.revision
+        FROM <database>.revision
         WHERE rev_id = %(parent_rev_id)s
     """,
     rev_user_query.__query_name__:
     """
         SELECT distinct rev_user
-        FROM enwiki.revision
+        FROM <database>.revision
         WHERE rev_timestamp >= "%(start)s" AND
             rev_timestamp < "%(end)s"
     """,
     page_rev_hist_query.__query_name__:
     """
         SELECT rev_id, rev_user_text, rev_sha1
-        FROM %(project)s.revision JOIN %(project)s.page
+        FROM <database>.revision JOIN <database>.page
             ON rev_page = page_id
         WHERE rev_page = %(page_id)s
             AND rev_id %(comparator)s %(rev_id)s
@@ -718,7 +718,7 @@ query_store = {
            rev_page,
            rev_sha1,
            rev_user_text
-       FROM %(project)s.revision
+       FROM <database>.revision
        WHERE rev_user = %(user)s AND
        rev_timestamp > "%(start_ts)s" AND
        rev_timestamp <= "%(end_ts)s"
@@ -726,7 +726,7 @@ query_store = {
     time_to_threshold_revs_query.__query_name__:
     """
         SELECT rev_timestamp
-        FROM %(project)s.revision
+        FROM <database>.revision
         WHERE rev_user = "%(user_handle)s"
         ORDER BY 1 ASC
     """,
@@ -747,7 +747,7 @@ query_store = {
             count(*) as count,
             min(log_timestamp) as first,
             max(log_timestamp) as last
-        FROM %(project)s.logging
+        FROM <database>.logging
         WHERE log_type = "block"
         AND log_action = "block"
         AND log_title in (%(user_str)s)
@@ -759,7 +759,7 @@ query_store = {
         SELECT
             rev_user,
             count(*)
-        FROM %(project)s.revision
+        FROM <database>.revision
         WHERE rev_user IN (%(users)s) %(ts_condition)s
         GROUP BY 1
     """,
@@ -769,8 +769,8 @@ query_store = {
             r.rev_user,
             p.page_namespace,
             count(*) AS revs
-        FROM %(project)s.revision AS r
-            JOIN %(project)s.page AS p
+        FROM <database>.revision AS r
+            JOIN <database>.page AS p
             ON r.rev_page = p.page_id
         WHERE %(user_cond)s AND %(ts_cond)s
         GROUP BY 1,2
@@ -780,7 +780,7 @@ query_store = {
         SELECT
             log_user,
             log_timestamp
-        FROM %(project)s.logging
+        FROM <database>.logging
         WHERE (log_action = 'create' OR
             log_action = 'autocreate') AND
             log_type='newusers' AND
@@ -791,46 +791,46 @@ query_store = {
         SELECT
             user_id,
             user_registration
-        FROM %(project)s.user
+        FROM <database>.user
         WHERE user_id in (%(uid)s)
     """,
     delete_usertags.__query_name__:
     """
-        DELETE FROM %(cohort_meta_instance)s.%(cohort_db)s
+        DELETE FROM <database>.<table>
         WHERE ut_tag = %(ut_tag)s
     """,
     delete_usertags_meta.__query_name__:
     """
         DELETE FROM
-            %(cohort_meta_instance)s.%(cohort_meta_db)s
+            <database>.<database>
         WHERE ut_tag = %(ut_tag)s
     """,
     get_api_user.__query_name__ + '_by_id':
     """
         SELECT user_name, user_id, user_pass
-        FROM %(cohort_meta_instance)s.api_user
+        FROM <database>.api_user
         WHERE user_id = %(user)s
     """,
     get_api_user.__query_name__ + '_by_name':
     """
         SELECT user_name, user_id, user_pass
-        FROM %(cohort_meta_instance)s.api_user
+        FROM <database>.api_user
         WHERE user_name = '%(user)s'
     """,
     insert_api_user.__query_name__:
     """
-        INSERT INTO %(cohort_meta_instance)s.api_user
+        INSERT INTO <database>.api_user
             (user_name, user_pass)
         VALUES ("%(user)s", "%(pass)s")
     """,
     add_cohort_data.__query_name__:
     """
-        INSERT INTO %(cohort_meta_instance)s.%(cohort_db)s
+        INSERT INTO <database>.<table>
             VALUES %(value_list)s
     """,
     add_cohort_data.__query_name__ + '_meta':
     """
-        INSERT INTO %(cohort_meta_instance)s.%(cohort_meta_db)s
+        INSERT INTO <database>.<table>
             (utm_name, utm_project, utm_notes, utm_group, utm_owner,
             utm_touched, utm_enabled)
         VALUES ("%(utm_name)s", "%(utm_project)s",
@@ -840,19 +840,19 @@ query_store = {
     get_cohort_data.__query_name__:
     """
         SELECT utm_id, utm_project
-        FROM %(cohort_meta_instance)s.%(cohort_meta_db)s
+        FROM <database>.<table>
         WHERE utm_name = "%(utm_name)s"
     """,
     get_mw_user_id.__query_name__:
     """
         SELECT user_id
-        FROM %(project)s.user
+        FROM <database>.user
         WHERE user_name = "%(username)s"
     """,
     get_cohort_users.__query_name__:
     """
         SELECT ut_user
-        FROM %(cohort_meta_instance)s.%(cohort_db)s
+        FROM <database>.<table>
         WHERE ut_tag = %(tag_id)s
     """,
 }
