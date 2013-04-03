@@ -47,7 +47,7 @@ __author__ = {
 __date__ = "2012-01-11"
 __license__ = "GPL (version 2 or later)"
 
-from flask import escape
+
 from datetime import datetime
 from re import search
 from collections import OrderedDict
@@ -89,30 +89,6 @@ def get_users(cohort_expr):
     return users
 
 
-def get_cohort_id(utm_name):
-    """ Pull cohort ids from cohort handles """
-
-    # @TODO MOVE DB REFS INTO QUERY MODULE
-    conn = dl.Connector(instance=settings.__cohort_data_instance__)
-    conn._cur_.execute('SELECT utm_id FROM usertags_meta '
-                       'WHERE utm_name = "%s"' % str(escape(utm_name)))
-
-    utm_id = None
-    try:
-        utm_id = conn._cur_.fetchone()[0]
-    except ValueError:
-        pass
-
-    # Ensure the field was retrieved
-    if not utm_id:
-        logging.error(__name__ + '::Missing utm_id for cohort %s.' %
-                                 str(utm_name))
-        utm_id = -1
-
-    del conn
-    return utm_id
-
-
 def get_cohort_refresh_datetime(utm_id):
     """
         Get the latest refresh datetime of a cohort.  Returns current time
@@ -121,8 +97,8 @@ def get_cohort_refresh_datetime(utm_id):
 
     # @TODO MOVE DB REFS INTO QUERY MODULE
     conn = dl.Connector(instance=settings.__cohort_data_instance__)
-    conn._cur_.execute('SELECT utm_touched FROM usertags_meta '
-                       'WHERE utm_id = %s' % str(escape(utm_id)))
+    query = """ SELECT utm_touched FROM usertags_meta WHERE utm_id = %s """
+    conn._cur_.execute(query, int(utm_id))
 
     utm_touched = None
     try:

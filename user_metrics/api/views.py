@@ -24,10 +24,9 @@ from multiprocessing import Lock
 from user_metrics.etl.data_loader import Connector
 from user_metrics.config import logging, settings
 from user_metrics.utils import unpack_fields
-from user_metrics.api.engine.data import get_cohort_id, \
-    get_cohort_refresh_datetime, get_data, get_url_from_keys, \
-    build_key_signature, read_pickle_data
-from user_metrics.api import MetricsAPIError, error_codes
+from user_metrics.api.engine.data import get_cohort_refresh_datetime, \
+    get_data, get_url_from_keys, build_key_signature, read_pickle_data
+from user_metrics.api import MetricsAPIError, error_codes, query_mod
 from user_metrics.api.engine.request_meta import filter_request_input, \
     format_request_params, RequestMetaFactory, \
     get_metric_names
@@ -204,7 +203,7 @@ def output(cohort, metric):
 
     # Get the refresh date of the cohort
     try:
-        cid = get_cohort_id(cohort)
+        cid = query_mod.get_cohort_id(cohort)
         cohort_refresh_ts = get_cohort_refresh_datetime(cid)
     except Exception:
         cohort_refresh_ts = None
