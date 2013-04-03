@@ -93,7 +93,7 @@ def get_cohort_id(utm_name):
     """ Pull cohort ids from cohort handles """
 
     # @TODO MOVE DB REFS INTO QUERY MODULE
-    conn = dl.Connector(instance='slave')
+    conn = dl.Connector(instance=settings.__cohort_data_instance__)
     conn._cur_.execute('SELECT utm_id FROM usertags_meta '
                        'WHERE utm_name = "%s"' % str(escape(utm_name)))
 
@@ -120,7 +120,7 @@ def get_cohort_refresh_datetime(utm_id):
     """
 
     # @TODO MOVE DB REFS INTO QUERY MODULE
-    conn = dl.Connector(instance='slave')
+    conn = dl.Connector(instance=settings.__cohort_data_instance__)
     conn._cur_.execute('SELECT utm_touched FROM usertags_meta '
                        'WHERE utm_id = %s' % str(escape(utm_id)))
 

@@ -121,7 +121,7 @@ else:
 def api_root():
     """ View for root url - API instructions """
     #@@@ TODO make tag list generation a dedicated method
-    conn = Connector(instance='slave')
+    conn = Connector(instance=settings.__cohort_data_instance__)
     conn._cur_.execute('select utm_name from usertags_meta')
     data = [r[0] for r in conn._cur_]
     del conn
@@ -154,7 +154,7 @@ def all_metrics():
 def metric(metric=''):
     """ Display single metric documentation """
     #@@@ TODO make tag list generation a dedicated method
-    conn = Connector(instance='slave')
+    conn = Connector(instance=settings.__cohort_data_instance__)
     conn._cur_.execute('select utm_name from usertags_meta')
     data = [r[0] for r in conn._cur_]
     del conn
@@ -172,7 +172,7 @@ def all_cohorts():
         return cohort(request.form['selectCohort'])
     else:
         #@@@ TODO make tag list generation a dedicated method
-        conn = Connector(instance='slave')
+        conn = Connector(instance=settings.__cohort_data_instance__)
         conn._cur_.execute('select distinct utm_name from usertags_meta')
         o = [r[0] for r in conn._cur_]
         del conn

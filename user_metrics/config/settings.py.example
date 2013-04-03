@@ -95,7 +95,7 @@ except (DistributionNotFound, VersionConflict):
 # ============================
 
 connections = {
-    'slave': {
+    __cohort_data_instance__: {
         'user': 'xxxx',
         'host': '127.0.0.1',
         'db': 'prod',
