@@ -23,6 +23,12 @@ DB_TOKEN = '<database>'
 TABLE_TOKEN = '<table>'
 
 
+class UMQueryCallError(Exception):
+    """ Basic exception class for UserMetric types """
+    def __init__(self, message="Query call failed."):
+        Exception.__init__(self, message)
+
+
 def sub_tokens(query, db='', table=''):
     """
     Substitutes values for portions of queries that specify MySQL databases and
@@ -31,12 +37,6 @@ def sub_tokens(query, db='', table=''):
     query = sub(DB_TOKEN, db, query)
     query = sub(TABLE_TOKEN, table, query)
     return query
-
-
-class UMQueryCallError(Exception):
-    """ Basic exception class for UserMetric types """
-    def __init__(self, message="Query call failed."):
-        Exception.__init__(self, message)
 
 
 def escape_var(var):
@@ -92,6 +92,10 @@ def query_method_deco(f):
         if not hasattr(users, '__iter__'):
             users = [users]
 
+        # escape project & users
+        users = escape_var(users)
+        project = escape_var(project)
+
         # get query and call
         if hasattr(args, 'log') and args.log:
             logging.debug(__name__ + ':: calling "%(method)s" '
@@ -101,8 +105,10 @@ def query_method_deco(f):
                                          'project': project
                                      }
                           )
-        # Call query escaping user and project variables for SQL injection
-        query = f(escape_var(users), escape_var(project), args)
+        # 1. Synthesize query
+        # 2. substitute project
+        query = f(users, project, args)
+        query = sub_tokens(query, db=project)
 
         try:
             conn = Connector(instance=conf.PROJECT_DB_MAP[project])
@@ -143,19 +149,20 @@ def rev_count_query(uid, is_survival, namespace, project,
     ns_cond = format_namespace(deepcopy(namespace))
 
     query = query_store[rev_count_query.__name__] + timestamp_cond
-    print query
+    query = sub_tokens(query, db=escape_var(project))
+
     params = {
-        'project': project,
-        'ts': escape_var(threshold_ts),
+        'ts': threshold_ts,
         'ns': ns_cond,
-        'uid': long(uid)
+        'uid': int(uid)
     }
-    query = " ".join(query.strip().splitlines())
+    print params
     conn._cur_.execute(query, params)
     try:
         count = int(conn._cur_.fetchone()[0])
     except (IndexError, ValueError):
         raise UMQueryCallError()
+    del conn
     return count
 rev_count_query.__query_name__ = 'rev_count_query'
 
@@ -164,7 +171,8 @@ rev_count_query.__query_name__ = 'rev_count_query'
 def live_account_query(users, project, args):
     """ Format query for live_account metric """
 
-    user_cond = DataLoader().format_condition_in('ept_user', users)
+    user_cond = DataLoader().format_condition_in('ept_user',
+                                                 escape_var(users))
     ns_cond = format_namespace(args.namespace)
 
     where_clause = 'log_action = "create"'
@@ -178,12 +186,14 @@ def live_account_query(users, project, args):
     if ns_cond:
         from_clause += " LEFT JOIN %(project)s.page as p " \
                        "ON e.ept_title = p.page_title"
-    from_clause = from_clause % {"project": project}
-    sql = query_store[live_account_query.__query_name__] % {
+    from_clause = from_clause % {
+        "project": escape_var(project)
+    }
+    query = query_store[live_account_query.__query_name__] % {
         'from_clause': from_clause,
         'where_clause': where_clause,
     }
-    return " ".join(sql.strip().splitlines())
+    return query
 live_account_query.__query_name__ = 'live_account_query'
 
 
@@ -209,9 +219,7 @@ def rev_query(users, project, args):
 
     query = query_store[rev_query.__query_name__] % {
         'where_clause': where_clause,
-        'project': project,
         'namespace': ns_cond}
-    query = " ".join(query.strip().splitlines())
     return query
 rev_query.__query_name__ = 'rev_query'
 
@@ -220,15 +228,15 @@ def rev_len_query(rev_id, project):
     """ Get parent revision length - returns long """
     conn = Connector(instance=conf.PROJECT_DB_MAP[project])
     query = query_store[rev_len_query.__name__] % {
-        'project': escape_var(project),
         'parent_rev_id': int(rev_id),
     }
-    query = " ".join(query.strip().splitlines())
+    query = sub_tokens(query, db=escape_var(project))
     conn._cur_.execute(query)
     try:
         rev_len = conn._cur_.fetchone()[0]
     except (IndexError, KeyError, ProgrammingError):
         raise UMQueryCallError()
+    del conn
     return rev_len
 rev_len_query.__query_name__ = 'rev_len_query'
 
@@ -240,9 +248,10 @@ def rev_user_query(project, start, end):
         'start': escape_var(start),
         'end': escape_var(end),
     }
-    query = " ".join(query.strip().splitlines())
+    query = sub_tokens(query, db=escape_var(project))
     conn._cur_.execute(query)
     users = [str(row[0]) for row in conn._cur_]
+    del conn
     return users
 rev_user_query.__query_name__ = 'rev_user_query'
 
@@ -256,14 +265,16 @@ def page_rev_hist_query(rev_id, page_id, n, project, namespace,
     ns_cond = format_namespace(namespace)
     comparator = '>' if look_ahead else '<'
 
-    conn._cur_.execute(query_store[page_rev_hist_query.__name__] % {
+    query = query_store[page_rev_hist_query.__name__] % {
         'rev_id':  long(rev_id),
         'page_id': long(page_id),
         'n':       int(n),
-        'project': escape_var(project),
         'namespace': ns_cond,
         'comparator': comparator,
-    })
+    }
+    query = sub_tokens(query, db=escape_var(project))
+    conn._cur_.execute(query)
+
     for row in conn._cur_:
         yield row
     del conn
@@ -275,7 +286,6 @@ def revert_rate_user_revs_query(user, project, args):
     """ Get revision history for a user """
     return query_store[revert_rate_user_revs_query.__query_name__] % {
         'user': user[0],
-        'project': project,
         'start_ts': escape_var(args.date_start),
         'end_ts': escape_var(args.date_end),
     }
@@ -286,8 +296,8 @@ revert_rate_user_revs_query.__query_name__ = 'revert_rate_user_revs_query'
 def time_to_threshold_revs_query(user_id, project, args):
     """ Obtain revisions to perform threshold computation """
     sql = query_store[time_to_threshold_revs_query.__query_name__] % {
-        'user_handle': str(user_id[0]),
-        'project': project}
+        'user_handle': str(user_id[0])
+    }
     return " ".join(sql.strip().splitlines())
 time_to_threshold_revs_query.__query_name__ = 'time_to_threshold_revs_query'
 
@@ -299,9 +309,10 @@ def blocks_user_map_query(users, project):
     user_str = DataLoader().format_comma_separated_list(
         escape_var(users))
 
-    query = query_store[blocks_user_map_query.__name__] % \
-        {'users': user_str}
-    query = " ".join(query.strip().splitlines())
+    query = query_store[blocks_user_map_query.__name__] % {
+        'users': user_str
+    }
+    query = sub_tokens(query, db=escape_var(project))
     conn._cur_.execute(query)
 
     # keys username on userid
@@ -319,9 +330,7 @@ def blocks_user_query(users, project, args):
     query = query_store[blocks_user_query.__query_name__] % {
         'user_str': user_str,
         'timestamp': escape_var(args.date_start),
-        'project': project
     }
-    query = " ".join(query.strip().splitlines())
     return query
 blocks_user_query.__query_name__ = 'blocks_user_query'
 
@@ -336,9 +345,7 @@ def edit_count_user_query(users, project, args):
     query = query_store[edit_count_user_query.__query_name__] % {
         'users': user_str,
         'ts_condition': ts_condition,
-        'project': project
     }
-    query = " ".join(query.strip().splitlines())
     return query
 edit_count_user_query.__query_name__ = 'edit_count_user_query'
 
@@ -362,9 +369,7 @@ def namespace_edits_rev_query(users, project, args):
     query = query_store[namespace_edits_rev_query.__query_name__] % {
         "user_cond": user_str,
         "ts_cond": ts_cond,
-        "project": project,
     }
-    query = " ".join(query.strip().splitlines())
     return query
 namespace_edits_rev_query.__query_name__ = 'namespace_edits_rev_query'
 
@@ -377,7 +382,6 @@ def user_registration_date_logging(users, project, args):
                                                        include_quotes=False)
     query = query_store[user_registration_date_logging.__query_name__] % {
         "uid": uid_str,
-        "project": project,
     }
     return " ".join(query.strip().splitlines())
 user_registration_date_logging.__query_name__ = \
@@ -390,11 +394,9 @@ def user_registration_date_user(users, project, args):
     users = DataLoader().cast_elems_to_string(users)
     uid_str = DataLoader().format_comma_separated_list(users,
                                                        include_quotes=False)
-    query = query_store[user_registration_date_user.__query_name__] % {
+    return query_store[user_registration_date_user.__query_name__] % {
         "uid": uid_str,
-        "project": project,
     }
-    return " ".join(query.strip().splitlines())
 user_registration_date_user.__query_name__ = 'user_registration_date_user'
 
 
@@ -406,12 +408,14 @@ def delete_usertags(ut_tag):
     conn = Connector(instance=conf.PROJECT_DB_MAP[
         conf.__cohort_data_instance__])
     del_query = query_store[delete_usertags.__query_name__] % {
-        'cohort_meta_instance': conf.__cohort_meta_instance__,
-        'cohort_db': conf.__cohort_db__,
         'ut_tag': ut_tag
     }
+    del_query = sub_tokens(del_query,
+                       db=conf.__cohort_meta_instance__,
+                       table=conf.__cohort_db__)
     conn._cur_.execute(del_query)
     conn._db_.commit()
+    del conn
 delete_usertags.__query_name__ = 'delete_usertags'
 
 
@@ -423,12 +427,14 @@ def delete_usertags_meta(ut_tag):
     conn = Connector(instance=conf.PROJECT_DB_MAP[
         conf.__cohort_data_instance__])
     del_query = query_store[delete_usertags_meta.__query_name__] % {
-        'cohort_meta_instance': conf.__cohort_meta_instance__,
-        'cohort_meta_db': conf.__cohort_meta_db__,
         'ut_tag': ut_tag
     }
+    del_query = sub_tokens(del_query,
+                           db=conf.__cohort_meta_instance__,
+                           table=conf.__cohort_meta_db__)
     conn._cur_.execute(del_query)
     conn._db_.commit()
+    del conn
 delete_usertags_meta.__query_name__ = 'delete_usertags_meta'
 
 
@@ -452,10 +458,11 @@ def get_api_user(user, by_id=True):
     else:
         query = get_api_user.__query_name__ + '_by_name'
     query = query_store[query] % {
-        'cohort_meta_instance': conf.__cohort_meta_instance__,
         'user': str(escape_var(user))
     }
+    query = sub_tokens(query, db=conf.__cohort_meta_instance__)
     conn._cur_.execute(query)
+
     api_user_tuple = conn._cur_.fetchone()
     del conn
     return api_user_tuple
@@ -478,10 +485,10 @@ def insert_api_user(user, password):
     conn = Connector(instance=conf.__cohort_data_instance__)
     query = insert_api_user.__query_name__
     query = query_store[query] % {
-        'cohort_meta_instance': conf.__cohort_meta_instance__,
         'user': str(escape_var(user)),
         'pass': str(escape_var(password))
     }
+    query = sub_tokens(query, db=conf.__cohort_meta_instance__)
     conn._cur_.execute(query)
     conn._db_.commit()
     del conn
@@ -519,8 +526,6 @@ def add_cohort_data(cohort, users, project,
 
         # Create an entry in ``usertags_meta``
         utm_query = query_store[add_cohort_data.__query_name__ + '_meta'] % {
-            'cohort_meta_instance': conf.__cohort_meta_instance__,
-            'cohort_meta_db': conf.__cohort_meta_db__,
             'utm_name': escape_var(cohort),
             'utm_project': escape_var(project),
             'utm_notes': notes,
@@ -529,6 +534,8 @@ def add_cohort_data(cohort, users, project,
             'utm_touched': now,
             'utm_enabled': '0'
         }
+        utm_query = sub_tokens(utm_query, db=conf.__cohort_meta_instance__,
+                               table=conf.__cohort_meta_db__)
         conn._cur_.execute(utm_query)
         try:
             conn._db_.commit()
@@ -550,10 +557,10 @@ def add_cohort_data(cohort, users, project,
         value_list_ut = str(value_list_ut)[1:-1]
 
         ut_query = query_store[add_cohort_data.__query_name__] % {
-            'cohort_meta_instance': conf.__cohort_meta_instance__,
             'cohort_db': conf.__cohort_db__,
             'value_list': value_list_ut
         }
+        ut_query = sub_tokens(ut_query, db=conf.__cohort_meta_instance__)
         conn._cur_.execute(ut_query)
         try:
             conn._db_.commit()
@@ -576,10 +583,10 @@ def get_cohort_data(cohort_name):
     """
     conn = Connector(instance=conf.__cohort_data_instance__)
     ut_query = query_store[get_cohort_data.__query_name__] % {
-        'cohort_meta_instance': conf.__cohort_meta_instance__,
-        'cohort_meta_db': conf.__cohort_meta_db__,
         'utm_name': cohort_name
     }
+    ut_query = sub_tokens(ut_query, db=conf.__cohort_meta_instance__,
+                           table=conf.__cohort_meta_db__)
     conn._cur_.execute(ut_query)
     data = conn._cur_.fetchone()
     del conn
@@ -613,10 +620,10 @@ def get_cohort_users(tag_id):
     """
     conn = Connector(instance=conf.__cohort_data_instance__)
     ut_query = query_store[get_cohort_users.__query_name__] % {
-        'cohort_meta_instance': conf.__cohort_meta_instance__,
-        'cohort_db': conf.__cohort_db__,
         'tag_id': tag_id
     }
+    ut_query = sub_tokens(ut_query, db=conf.__cohort_meta_instance__,
+                          table=conf.__cohort_db__)
     try:
         conn._cur_.execute(ut_query)
     except OperationalError:
@@ -646,6 +653,7 @@ def get_mw_user_id(username, project):
         'username': username,
         'project': project
     }
+    query = sub_tokens(query, db=escape_var(project))
     conn._cur_.execute(query)
     uid = conn._cur_.fetchone()[0]
     del conn
@@ -664,7 +672,7 @@ query_store = {
         FROM <database>.revision as r
             JOIN <database>.page as p
                 ON  r.rev_page = p.page_id
-        WHERE %(ns)s AND rev_user = %(uid)s
+        WHERE %(ns)s AND rev_user = %(uid)d
     """,
     live_account_query.__query_name__:
     """
@@ -735,7 +743,7 @@ query_store = {
         SELECT
             user_id,
             user_name
-        FROM enwiki.user
+        FROM <database>.user
         WHERE user_id in (%(users)s)
     """,
     blocks_user_query.__query_name__:
