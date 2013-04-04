@@ -20,7 +20,7 @@ can be found in the file `settings.py` under
 the connections dictionary to point to a replicated production MySQL instance
 containing the .  The 'db' setting should be an instance which 'user' has write
 access to.  If you are from outside the Wikimedia Foundation and do not have
-access to these credentials contact me at rfaulkner@wikimedi.org if you'd
+access to these credentials please contact us at usermetrics@wikimedia.org if you'd
 like to work with this package.
 
 The template configuration file looks like the following:
@@ -129,5 +129,10 @@ operational modules are the following:
     user_metrics.utils.multiprocessing_wrapper
     user_metrics.utils.record_type
 
-More complete docs can be found at:
-    http://stat1.wikimedia.org/rfaulk/pydocs/_build/
+
+Links
+-----
+
+- UserMetrics API: http://metrics.wikimedia.org
+- Project homepage: https://www.mediawiki.org/wiki/UserMetrics
+- Code documentation: http://stat1.wikimedia.org/rfaulk/pydocs/_build/
