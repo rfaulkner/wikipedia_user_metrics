@@ -34,7 +34,6 @@ from user_metrics.config import logging, settings
 from user_metrics.etl.data_loader import Connector
 from datetime import datetime, timedelta
 from user_metrics.metrics import query_mod
-from user_metrics.metrics.user_metric import UserMetricError
 from collections import namedtuple
 from user_metrics.utils import enum, format_mediawiki_timestamp
 from dateutil.parser import parse as date_parse
@@ -150,7 +149,7 @@ def generate_test_cohort(project,
             'rev_lower_limit': int(rev_lower_limit),
         }
     except ValueError as e:
-        raise UserMetricError(__name__ + ' :: Bad params ' + str(e))
+        raise Exception(__name__ + ' :: Bad params ' + str(e))
 
     conn = Connector(instance=settings.PROJECT_DB_MAP[project])
     conn._cur_.execute(query, params)
