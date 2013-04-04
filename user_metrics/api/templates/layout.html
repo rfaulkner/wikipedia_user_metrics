@@ -4,11 +4,12 @@
 <title>User Metrics API</title>
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.css') }}">
 <style>
-      body {
-        padding-top: 60px;
-        padding-bottom: 60px;
-      }
+      body { padding-top: 60px; padding-bottom: 60px; }
+      .nav { width: 70%; }
+      .nav li:last-child { color: #cacaca; float: right !important; }
+      .nav li:last-child a { color: #0088cc; display: inline-block; }
 </style>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
 <script src="{{ url_for('static', filename='js/bootstrap.js') }}"></script>
 </head>
 <body>
@@ -28,6 +29,13 @@
               <li><a href="{{ url_for('job_queue') }}">Jobs</a></li>
               <li><a href="{{ url_for('about') }}">About</a></li>
               <li><a href="{{ url_for('contact') }}">Contact</a></li>
+              <li class="pull-right">
+              {% if current_user.is_authenticated() %}
+                  <em>Welcome {{ current_user.name }}</em> <a href="/logout">(logout)</a>
+              {% else %}
+                  <a href="/login">(login)</a>
+              {% endif %}
+              </li>
             </ul>
           </div><!--/.nav-collapse -->
         </div>

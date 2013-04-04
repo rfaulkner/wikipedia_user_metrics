@@ -38,3 +38,6 @@ _mailinglist
 *.tsv
 *.csv
 *.json
+
+# Ignore temporary files
+*.swp
