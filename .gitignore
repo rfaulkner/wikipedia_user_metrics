@@ -36,4 +36,8 @@ _mailinglist
 # Ignore data files
 *.pkl
 *.tsv
+*.csv
+*.json
+
+# Ignore temporary files
 *.swp

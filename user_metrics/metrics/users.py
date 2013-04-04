@@ -34,9 +34,11 @@ from user_metrics.config import logging, settings
 from user_metrics.etl.data_loader import Connector
 from datetime import datetime, timedelta
 from user_metrics.metrics import query_mod
+from user_metrics.metrics.user_metric import UserMetricError
 from collections import namedtuple
 from user_metrics.utils import enum, format_mediawiki_timestamp
 from dateutil.parser import parse as date_parse
+from user_metrics.query.query_calls_sql import sub_tokens, escape_var
 
 # Module level query definitions
 # @TODO move these to the query package
@@ -48,15 +50,15 @@ SELECT_PROJECT_IDS =\
             rev_user,
             COUNT(*) as revs
         FROM
-            %(project)s.revision
+            <database>.revision
         WHERE
             rev_user IN (
                 SELECT user_id
-                FROM %(project)s.user
-                WHERE user_registration > '%(ts_start)s'
-                    AND user_registration < '%(ts_end_user)s')
-            AND rev_timestamp > '%(ts_start)s'
-            AND rev_timestamp <= '%(ts_end_revs)s'
+                FROM <database>.user
+                WHERE user_registration > %(ts_start)s
+                    AND user_registration < %(ts_end_user)s)
+            AND rev_timestamp > %(ts_start)s
+            AND rev_timestamp <= %(ts_end_revs)s
         GROUP BY 1
         HAVING revs > %(rev_lower_limit)s
         ORDER BY 2 DESC
@@ -135,16 +137,24 @@ def generate_test_cohort(project,
                                    rev_lower_limit
                                    )
                  )
-    select_users = SELECT_PROJECT_IDS % {
-        'project': project,
-        'ts_start': ts_start,
-        'ts_end_user': ts_end_user,
-        'ts_end_revs': ts_end_revs,
-        'max_size': max_size,
-        'rev_lower_limit': rev_lower_limit,
-    }
+    query = sub_tokens(SELECT_PROJECT_IDS, db=escape_var(str(project)))
+
+    # @TODO MOVE DB REFS INTO QUERY MODULE
+
+    try:
+        params = {
+            'ts_start': str(ts_start),
+            'ts_end_user': str(ts_end_user),
+            'ts_end_revs': str(ts_end_revs),
+            'max_size': int(max_size),
+            'rev_lower_limit': int(rev_lower_limit),
+        }
+    except ValueError as e:
+        raise UserMetricError(__name__ + ' :: Bad params ' + str(e))
+
     conn = Connector(instance=settings.PROJECT_DB_MAP[project])
-    conn._cur_.execute(select_users)
+    conn._cur_.execute(query, params)
+
     users = [row for row in conn._cur_]
     del conn
 
@@ -185,7 +195,7 @@ class MediaWikiUser(object):
     # Queries MediaWiki database for account creations via Logging table
     USER_QUERY_LOG = """
                     SELECT log_user
-                    FROM %(project)s.logging
+                    FROM <database>.logging
                     WHERE log_timestamp > %(date_start)s AND
                      log_timestamp <= %(date_end)s AND
                      log_action = 'create' AND log_type='newusers'
@@ -194,7 +204,7 @@ class MediaWikiUser(object):
     # Queries MediaWiki database for account creations via User table
     USER_QUERY_USER = """
                     SELECT user_id
-                    FROM %(project)s.user
+                    FROM <database>.user
                     WHERE user_registration > %(date_start)s AND
                      user_registration <= %(date_end)s
                 """
@@ -212,14 +222,17 @@ class MediaWikiUser(object):
         """
             Returns a Generator for MediaWiki user IDs.
         """
-        param_dict = {
+
+        # @TODO MOVE DB REFS INTO QUERY MODULE
+
+        params = {
             'date_start': format_mediawiki_timestamp(date_start),
             'date_end': format_mediawiki_timestamp(date_end),
-            'project': project,
         }
         conn = Connector(instance=settings.PROJECT_DB_MAP[project])
-        sql = self.QUERY_TYPES[self._query_type] % param_dict
-        conn._cur_.execute(sql)
+        query = sub_tokens(self.QUERY_TYPES[self._query_type],
+            db=escape_var(project))
+        conn._cur_.execute(query, params)
 
         for row in conn._cur_:
             yield row[0]
@@ -251,6 +264,28 @@ class MediaWikiUser(object):
 # enumeration for user periods
 USER_METRIC_PERIOD_TYPE = enum('REGISTRATION', 'INPUT', 'REGINPUT')
 USER_METRIC_PERIOD_DATA = namedtuple('UMPData', 'user start end')
+
+
+def get_registration_dates(users, project):
+    """
+    Method to handle pulling reg dates from project datastores.
+
+        users : list
+            List of user ids.
+
+        project : str
+            project from which to retrieve ids
+    """
+
+    # Get registration dates from logging table
+    reg = query_mod.user_registration_date_logging(users, project, None)
+
+    # If any reg dates were missing in set from logging table
+    # look in user table
+    missing_users = list(set(users) - set([r[0] for r in reg]))
+    reg += query_mod.user_registration_date_user(missing_users, project, None)
+
+    return reg
 
 
 class UserMetricPeriod(object):
@@ -287,8 +322,9 @@ class UMPRegistration(UserMetricPeriod):
     """
     @staticmethod
     def get(users, metric):
-        for row in query_mod.user_registration_date(users, metric.project,
-                                                    None):
+        # For each registration date build time interval
+        reg = get_registration_dates(users, metric.project)
+        for row in reg:
             reg = date_parse(row[1])
             end = reg + timedelta(hours=int(metric.t))
             yield USER_METRIC_PERIOD_DATA(row[0],
@@ -312,31 +348,32 @@ class UMPInput(UserMetricPeriod):
 
 
 class UMPRegInput(UserMetricPeriod):
-        """
-            This ``UserMetricPeriod`` class returns the set of users
-            conditional on their registration falling within the time interval
-            defined by ``metric``.
-        """
-        @staticmethod
-        def get(users, metric):
-            for row in query_mod.user_registration_date(users, metric.project,
-                                                        None):
+    """
+        This ``UserMetricPeriod`` class returns the set of users
+        conditional on their registration falling within the time interval
+        defined by ``metric``.
+    """
 
-                user = row[0]
-                reg = date_parse(row[1])
+    @staticmethod
+    def get(users, metric):
+        reg = get_registration_dates(users, metric.project)
+        for row in reg:
 
-                start = format_mediawiki_timestamp(metric.datetime_start)
-                end = format_mediawiki_timestamp(metric.datetime_end)
+            user = row[0]
+            reg = date_parse(row[1])
 
-                if date_parse(start) <= reg <= date_parse(end):
-                    reg_plus_t = reg + timedelta(hours=int(metric.t))
-                    yield USER_METRIC_PERIOD_DATA(user,
-                                                  format_mediawiki_timestamp
-                                                  (reg),
-                                                  format_mediawiki_timestamp
-                                                  (reg_plus_t))
-                else:
-                    continue
+            start = format_mediawiki_timestamp(metric.datetime_start)
+            end = format_mediawiki_timestamp(metric.datetime_end)
+
+            if date_parse(start) <= reg <= date_parse(end):
+                reg_plus_t = reg + timedelta(hours=int(metric.t))
+                yield USER_METRIC_PERIOD_DATA(user,
+                                              format_mediawiki_timestamp
+                                              (reg),
+                                              format_mediawiki_timestamp
+                                              (reg_plus_t))
+            else:
+                continue
 
 
 # Define a mapping from UMP types to get methods

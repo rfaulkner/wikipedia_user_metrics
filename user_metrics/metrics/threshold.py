@@ -127,6 +127,7 @@ def _process_help(args):
                                               metric_params.survival_,
                                               metric_params.namespace,
                                               metric_params.project,
+                                              t.start,
                                               t.end)
         except query_mod.UMQueryCallError:
             dropped_users += 1

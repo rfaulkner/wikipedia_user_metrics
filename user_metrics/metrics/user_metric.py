@@ -118,9 +118,9 @@ def log_pool_worker_start(metric_name, worker_name, data, args):
         Logging method for processing pool workers.
     """
     logging.debug('{0} :: {1}\n'
-                  '\tData = {2} rows\n'
-                  '\tArgs = {3}\n'
-                  '\tPID = {4}\n'.format(metric_name, worker_name, len(data),
+                  '\tData = {2} rows,'
+                  '\tArgs = {3},'
+                  '\tPID = {4}'.format(metric_name, worker_name, len(data),
                                          str(args), getpid()))
 
 
@@ -129,8 +129,8 @@ def log_pool_worker_end(metric_name, worker_name, extra=''):
         Logging method for job completion.
     """
     logging.debug('{0} :: {1}\n'
-                  '\tPID = {2} complete.\n'
-                  '\t{3}\n'.format(metric_name, worker_name, getpid(), extra))
+                  '\tPID = {2} complete.'
+                  '\t{3}'.format(metric_name, worker_name, getpid(), extra))
 
 
 class UserMetricError(Exception):

@@ -82,10 +82,11 @@ __date__ = "2013-03-05"
 __license__ = "GPL (version 2 or later)"
 
 from user_metrics.config import logging, settings
-from user_metrics.api import MetricsAPIError, error_codes
+from user_metrics.api import MetricsAPIError, error_codes, query_mod
 from user_metrics.api.engine.data import get_users
 from user_metrics.api.engine.request_meta import rebuild_unpacked_request
 from user_metrics.metrics.users import MediaWikiUser
+from user_metrics.metrics.user_metric import UserMetricError
 from user_metrics.utils import unpack_fields
 
 from multiprocessing import Process, Queue
@@ -283,6 +284,14 @@ def process_metrics(p, request_meta):
     # "TYPICAL" COHORT PROCESSING
     else:
         users = get_users(request_meta.cohort_expr)
+
+        # Default project is what is stored in usertags_meta
+        project = query_mod.get_cohort_project_by_meta(
+            request_meta.cohort_expr)
+        request_meta.project = project
+        logging.debug(__name__ + ' :: Using default project from ' \
+                                 'usertags_meta {0}.'.format(project))
+
         valid = True
         err_msg = ''
 
@@ -449,11 +458,18 @@ def process_data_request(request_meta, users):
                                     'start': str(start),
                                     'end': str(end),
                                     })
-        metric_obj.process(users,
-                           k_=USER_THREADS,
-                           kr_=REVISION_THREADS,
-                           log_=True,
-                           **args)
+
+        try:
+            metric_obj.process(users,
+                               k_=USER_THREADS,
+                               kr_=REVISION_THREADS,
+                               log_=True,
+                               **args)
+        except UserMetricError as e:
+            logging.error(__name__ + ' :: Metrics call failed: ' + str(e))
+            results['data'] = str(e)
+            return results
+
         r = um.aggregator(aggregator_func, metric_obj, metric_obj.header())
         results['header'] = to_string(r.header)
         results['data'] = r.data[1:]
@@ -467,11 +483,17 @@ def process_data_request(request_meta, users):
                                     'start': str(start),
                                     'end': str(end),
                                     })
-        metric_obj.process(users,
-                           k_=USER_THREADS,
-                           kr_=REVISION_THREADS,
-                           log_=True,
-                           **args)
+        try:
+            metric_obj.process(users,
+                               k_=USER_THREADS,
+                               kr_=REVISION_THREADS,
+                               log_=True,
+                               **args)
+        except UserMetricError as e:
+            logging.error(__name__ + ' :: Metrics call failed: ' + str(e))
+            results['data'] = str(e)
+            return results
+
         for m in metric_obj.__iter__():
             results['data'][m[0]] = m[1:]
 
