@@ -222,7 +222,7 @@ def job_control(request_queue, response_queue):
         # Add newest job to the queue
         # ---------------------------
 
-        if req_item and concurrent_jobs <= MAX_CONCURRENT_JOBS:
+        if req_item:
 
             # Build the request item
             rm = rebuild_unpacked_request(req_item)
