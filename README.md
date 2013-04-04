@@ -5,11 +5,7 @@ wmf_user_metrics
 Introduction
 ------------
 
-This package implements log retrieval, metrics generation, and data
-analysis tools used by the Editor Engagement Experiment (E3) team at
-the Wikimedia Foundation. The modules herein will be used to perform
-the ETL and analysis operations necessary to process the experimental
-data generated from E3 projects.
+UserMetrics is a set of data analysis tools developed by the Wikimedia Foundation to measure on-site user activity via a set of standardized metrics. Using the modules in this package, a set of key metrics can be selected and applied to an arbitrary list of user IDs to measure their engagement and productivity. UserMetrics is designed for extensibility (creating new metrics, modifying metric parameters) and to support various types of cohort analysis and program evaluation in a user-friendly way. The methods are exposed via a RESTful API that can be used to generate requests and retrieve the results in JSON format.
 
 Installation
 ------------
