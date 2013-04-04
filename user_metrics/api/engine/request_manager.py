@@ -288,7 +288,8 @@ def process_metrics(p, request_meta):
         # Default project is what is stored in usertags_meta
         project = query_mod.get_cohort_project_by_meta(
             request_meta.cohort_expr)
-        request_meta.project = project
+        if project:
+            request_meta.project = project
         logging.debug(__name__ + ' :: Using default project from ' \
                                  'usertags_meta {0}.'.format(project))
 
