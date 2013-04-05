@@ -107,11 +107,15 @@ def nested_import(name):
 
 def reverse_dict(d):
     """ Simply reverse a dictionary mapping """
-    return dict((v,k) for k,v in d.iteritems())
+    return dict((v, k) for k, v in d.iteritems())
 
 
 def build_key_tree(nested_dict):
-    """ Builds a tree of key values from a nested dict. """
+    """
+    Builds a tree of key values from a nested dict.  This method potentially
+    contructs a Trie (http://en.wikipedia.org/wiki/Trie) from a nested dict.
+    The nodes themselves are generators of their children.
+    """
     if hasattr(nested_dict, 'keys'):
         for key in nested_dict.keys():
             yield (key, build_key_tree(nested_dict[key]))
@@ -141,7 +145,6 @@ def get_keys_from_tree(tree):
     return key_sigs
 
 
-
 def salt_string(unencoded_string, secret_key):
     """
         Produces a hash code using the SHA-1 hashing algorithm.
@@ -169,7 +172,7 @@ def terminate_process_with_checks(proc):
         Gracefully terminates a process exposing the correct interface
     """
     if proc and hasattr(proc, 'is_alive') and proc.is_alive() and \
-       hasattr(proc, 'terminate'):
+            hasattr(proc, 'terminate'):
         proc.terminate()
 
 
