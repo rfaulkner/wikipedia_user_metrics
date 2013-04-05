@@ -34,7 +34,6 @@ from user_metrics.config import logging, settings
 from user_metrics.etl.data_loader import Connector
 from datetime import datetime, timedelta
 from user_metrics.metrics import query_mod
-from user_metrics.metrics.user_metric import UserMetricError
 from collections import namedtuple
 from user_metrics.utils import enum, format_mediawiki_timestamp
 from dateutil.parser import parse as date_parse
@@ -150,7 +149,7 @@ def generate_test_cohort(project,
             'rev_lower_limit': int(rev_lower_limit),
         }
     except ValueError as e:
-        raise UserMetricError(__name__ + ' :: Bad params ' + str(e))
+        raise Exception(__name__ + ' :: Bad params ' + str(e))
 
     conn = Connector(instance=settings.PROJECT_DB_MAP[project])
     conn._cur_.execute(query, params)
@@ -281,8 +280,9 @@ def get_registration_dates(users, project):
     reg = query_mod.user_registration_date_logging(users, project, None)
 
     # If any reg dates were missing in set from logging table
-    # look in user table
-    missing_users = list(set(users) - set([r[0] for r in reg]))
+    # look in user table - ensure that all IDs are string values
+    missing_users = list(set([str(u) for u in users]) -
+                         set([str(r[0]) for r in reg]))
     reg += query_mod.user_registration_date_user(missing_users, project, None)
 
     return reg
