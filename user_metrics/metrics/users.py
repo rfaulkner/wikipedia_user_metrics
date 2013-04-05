@@ -280,8 +280,9 @@ def get_registration_dates(users, project):
     reg = query_mod.user_registration_date_logging(users, project, None)
 
     # If any reg dates were missing in set from logging table
-    # look in user table
-    missing_users = list(set(users) - set([r[0] for r in reg]))
+    # look in user table - ensure that all IDs are string values
+    missing_users = list(set([str(u) for u in users]) -
+                         set([str(r[0]) for r in reg]))
     reg += query_mod.user_registration_date_user(missing_users, project, None)
 
     return reg
