@@ -39,12 +39,18 @@ def sub_tokens(query, db='', table='', from_repl='', where='',
     Substitutes values for portions of queries that specify MySQL databases and
     tables.
     """
-    query = sub(DB_TOKEN, db, query)
-    query = sub(TABLE_TOKEN, table, query)
-    query = sub(FROM_TOKEN, from_repl, query)
-    query = sub(WHERE_TOKEN, where, query)
-    query = sub(COMP1_TOKEN, comp_1, query)
-    query = sub(USERS_TOKEN, users, query)
+    tokens = {
+        DB_TOKEN: db,
+        TABLE_TOKEN: table,
+        FROM_TOKEN: from_repl,
+        WHERE_TOKEN: where,
+        COMP1_TOKEN: comp_1,
+        USERS_TOKEN: users,
+    }
+    for token in tokens:
+        token_value = tokens[token]
+        if token_value:
+            query = sub(token, token_value, query)
     return query
 
 
