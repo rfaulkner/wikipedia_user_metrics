@@ -15,6 +15,9 @@ query_mod = nested_import(settings.__query_module__)
 # defined in request_manager.py
 REQ_NCB_LOCK = Lock()
 
+# The url path that precedes an API request
+REQUEST_PATH = 'cohorts/'
+
 
 # Error codes for web requests
 # ############################
