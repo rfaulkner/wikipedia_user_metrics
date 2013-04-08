@@ -522,7 +522,8 @@ def requests_notification_callback(msg_queue_in, msg_queue_out):
                                    requests_notification_callback.__name__)
     logging.debug('{0}  - STARTING...'.format(log_name))
 
-    cache = OrderedDict()
+    # TODO - potentially extend with an in-memory cache
+    job_list = OrderedDict()
     while 1:
 
         try:
@@ -543,7 +544,7 @@ def requests_notification_callback(msg_queue_in, msg_queue_out):
         # Init request
         if type == 0:
             try:
-                cache[msg[1]] = [True, msg[2]]
+                job_list[msg[1]] = [True, msg[2]]
                 logging.debug(log_name + ' - Initialize Request: ' \
                                          '{0}.'.format(str(msg)))
             except Exception:
@@ -553,7 +554,7 @@ def requests_notification_callback(msg_queue_in, msg_queue_out):
         # Kill request - leave on cache
         elif type == 1:
             try:
-                cache[msg[1]][0] = False
+                job_list[msg[1]][0] = False
                 logging.debug(log_name + ' - Set request finished: ' \
                                          '{0}.\n'.format(str(msg)))
             except Exception:
@@ -563,8 +564,8 @@ def requests_notification_callback(msg_queue_in, msg_queue_out):
         # Is the key in the cache and running?
         elif type == 2:
             try:
-                if msg[1] in cache:
-                    msg_queue_out.put([cache[msg[1]][0]], True)
+                if msg[1] in job_list:
+                    msg_queue_out.put([job_list[msg[1]][0]], True)
                 else:
                     msg_queue_out.put([False], True)
                 logging.debug(log_name + ' - Get request alive: ' \
@@ -575,13 +576,13 @@ def requests_notification_callback(msg_queue_in, msg_queue_out):
 
         # Get keys
         elif type == 3:
-            msg_queue_out.put(cache.keys(), True)
+            msg_queue_out.put(job_list.keys(), True)
 
         # Get url
         elif type == 4:
             try:
-                if msg[1] in cache:
-                    msg_queue_out.put([cache[msg[1]][1]], True)
+                if msg[1] in job_list:
+                    msg_queue_out.put([job_list[msg[1]][1]], True)
                 else:
                     logging.error(log_name + ' - Get URL failed: {0}'.
                     format(str(msg)))
