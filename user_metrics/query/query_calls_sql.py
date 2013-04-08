@@ -688,6 +688,12 @@ def get_mw_user_id(username, project):
 get_mw_user_id.__query_name__ = 'get_mw_user_id'
 
 
+@query_method_deco
+def get_latest_user_activity(users, project, args):
+    return query_store[get_latest_user_activity.__query_name__], None
+get_latest_user_activity.__query_name__ = 'get_latest_user_activity'
+
+
 # QUERY DEFINITIONS
 # #################
 
@@ -896,5 +902,14 @@ query_store = {
         SELECT ut_user
         FROM <database>.<table>
         WHERE ut_tag = %(tag_id)s
+    """,
+    get_latest_user_activity.__query_name__:
+    """
+        SELECT
+            rev_user,
+            MAX(rev_timestamp)
+        FROM <database>.revision
+        WHERE rev_user in (<users>)
+        GROUP BY 1
     """,
 }
