@@ -839,7 +839,7 @@ query_store = {
     delete_usertags_meta.__query_name__:
     """
         DELETE FROM
-            <database>.<database>
+            <database>.<table>
         WHERE ut_tag = %(ut_tag)s
     """,
     get_api_user.__query_name__ + '_by_id':

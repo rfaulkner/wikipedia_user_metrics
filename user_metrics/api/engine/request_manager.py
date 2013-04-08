@@ -82,8 +82,10 @@ __date__ = "2013-03-05"
 __license__ = "GPL (version 2 or later)"
 
 from user_metrics.config import logging, settings
-from user_metrics.api import MetricsAPIError, error_codes, query_mod
-from user_metrics.api.engine.data import get_users
+from user_metrics.api import MetricsAPIError, error_codes, query_mod, \
+    REQ_NCB_LOCK, REQUEST_PATH
+from user_metrics.api.engine.data import get_users, get_url_from_keys, \
+    build_key_signature
 from user_metrics.api.engine.request_meta import rebuild_unpacked_request
 from user_metrics.metrics.users import MediaWikiUser
 from user_metrics.metrics.user_metric import UserMetricError
@@ -231,6 +233,11 @@ def job_control(request_queue, response_queue):
                                      '\n\tCOHORT = {0} - METRIC = {1}'
                 .format(rm.cohort_expr, rm.metric))
             wait_queue.append(rm)
+
+            # Communicate with request notification callback about new job
+            key_sig = build_key_signature(rm, hash_result=True)
+            url = get_url_from_keys(build_key_signature(rm), REQUEST_PATH)
+            req_cb_add_req(key_sig, url, REQ_NCB_LOCK)
 
 
     logging.debug('{0} - FINISHING.'.format(log_name))
@@ -522,7 +529,8 @@ def requests_notification_callback(msg_queue_in, msg_queue_out):
                                    requests_notification_callback.__name__)
     logging.debug('{0}  - STARTING...'.format(log_name))
 
-    cache = OrderedDict()
+    # TODO - potentially extend with an in-memory cache
+    job_list = OrderedDict()
     while 1:
 
         try:
@@ -543,17 +551,17 @@ def requests_notification_callback(msg_queue_in, msg_queue_out):
         # Init request
         if type == 0:
             try:
-                cache[msg[1]] = [True, msg[2]]
+                job_list[msg[1]] = [True, msg[2]]
                 logging.debug(log_name + ' - Initialize Request: ' \
                                          '{0}.'.format(str(msg)))
             except Exception:
                 logging.error(log_name + ' - Initialize Request' \
                                          ' failed: {0}'.format(str(msg)))
 
-        # Kill request - leave on cache
+        # Flag request complete - leave on queue
         elif type == 1:
             try:
-                cache[msg[1]][0] = False
+                job_list[msg[1]][0] = False
                 logging.debug(log_name + ' - Set request finished: ' \
                                          '{0}.\n'.format(str(msg)))
             except Exception:
@@ -563,8 +571,8 @@ def requests_notification_callback(msg_queue_in, msg_queue_out):
         # Is the key in the cache and running?
         elif type == 2:
             try:
-                if msg[1] in cache:
-                    msg_queue_out.put([cache[msg[1]][0]], True)
+                if msg[1] in job_list:
+                    msg_queue_out.put([job_list[msg[1]][0]], True)
                 else:
                     msg_queue_out.put([False], True)
                 logging.debug(log_name + ' - Get request alive: ' \
@@ -575,13 +583,13 @@ def requests_notification_callback(msg_queue_in, msg_queue_out):
 
         # Get keys
         elif type == 3:
-            msg_queue_out.put(cache.keys(), True)
+            msg_queue_out.put(job_list.keys(), True)
 
         # Get url
         elif type == 4:
             try:
-                if msg[1] in cache:
-                    msg_queue_out.put([cache[msg[1]][1]], True)
+                if msg[1] in job_list:
+                    msg_queue_out.put([job_list[msg[1]][1]], True)
                 else:
                     logging.error(log_name + ' - Get URL failed: {0}'.
                     format(str(msg)))
@@ -643,4 +651,10 @@ def req_cb_get_is_running(key, lock):
 def req_cb_add_req(key, url, lock):
     lock.acquire()
     req_notification_queue_in.put([0, key, url])
+    lock.release()
+
+
+def req_cb_flag_job_complete(key, lock):
+    lock.acquire()
+    req_notification_queue_in.put([1, key], True)
     lock.release()
