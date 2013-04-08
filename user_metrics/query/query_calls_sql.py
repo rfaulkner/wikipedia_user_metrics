@@ -95,6 +95,15 @@ def format_namespace(namespace, col='page_namespace'):
             ns_cond = '{0} in ('.format(col) + \
                 ",".join(DataLoader()
                 .cast_elems_to_string(escape_var(list(namespace)))) + ')'
+    else:
+        try:
+            ns_cond = '{0} = '.format(col) + escape_var(int(namespace))
+        except ValueError:
+            # No namespace condition
+            logging.error(__name__ + ' :: Could not apply namespace '
+                                     'condition on {0}'.format(str(namespace)))
+            pass
+
     return ns_cond
 
 
