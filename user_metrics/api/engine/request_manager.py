@@ -551,7 +551,7 @@ def requests_notification_callback(msg_queue_in, msg_queue_out):
                 logging.error(log_name + ' - Initialize Request' \
                                          ' failed: {0}'.format(str(msg)))
 
-        # Kill request - leave on cache
+        # Flag request complete - leave on queue
         elif type == 1:
             try:
                 job_list[msg[1]][0] = False
@@ -644,4 +644,10 @@ def req_cb_get_is_running(key, lock):
 def req_cb_add_req(key, url, lock):
     lock.acquire()
     req_notification_queue_in.put([0, key, url])
+    lock.release()
+
+
+def req_cb_flag_job_complete(key, lock):
+    lock.acquire()
+    req_notification_queue_in.put([1, key], True)
     lock.release()
