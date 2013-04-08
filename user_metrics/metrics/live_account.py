@@ -11,6 +11,7 @@ import user_metrics.utils.multiprocessing_wrapper as mpw
 from collections import namedtuple
 from os import getpid
 from dateutil.parser import parse as date_parse
+from datetime import datetime
 from user_metrics.etl.aggregator import decorator_builder, boolean_rate
 from user_metrics.metrics import query_mod
 
@@ -123,8 +124,20 @@ def _process_help(args):
 
     # Iterate over results to determine boolean indicating whether
     # account is "live"
+
     results = {long(user): -1 for user in users}
+
+    user_reg = query_mod.user_registration_date_logging(
+        users, thread_args.project, None)
+    user_reg = {long(r[0]): (datetime.now() - date_parse(r[1])).
+                            total_seconds() / 60 for r in user_reg}
+
+    for user in results:
+        if user in user_reg and user_reg[user] >= thread_args.t:
+                results[user] = 0
+
     for row in query_results:
+        user = row[0]
         try:
             # get the difference in minutes
             diff = (date_parse(row[2]) - date_parse(row[1])).total_seconds()
@@ -133,9 +146,9 @@ def _process_help(args):
             continue
 
         if diff <= thread_args.t:
-            results[row[0]] = 1
+            results[user] = 1
         else:
-            results[row[0]] = 0
+            results[user] = 0
 
     return [(str(key), results[key]) for key in results]
 

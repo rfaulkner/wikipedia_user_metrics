@@ -39,12 +39,18 @@ def sub_tokens(query, db='', table='', from_repl='', where='',
     Substitutes values for portions of queries that specify MySQL databases and
     tables.
     """
-    query = sub(DB_TOKEN, db, query)
-    query = sub(TABLE_TOKEN, table, query)
-    query = sub(FROM_TOKEN, from_repl, query)
-    query = sub(WHERE_TOKEN, where, query)
-    query = sub(COMP1_TOKEN, comp_1, query)
-    query = sub(USERS_TOKEN, users, query)
+    tokens = {
+        DB_TOKEN: db,
+        TABLE_TOKEN: table,
+        FROM_TOKEN: from_repl,
+        WHERE_TOKEN: where,
+        COMP1_TOKEN: comp_1,
+        USERS_TOKEN: users,
+    }
+    for token in tokens:
+        token_value = tokens[token]
+        if token_value:
+            query = sub(token, token_value, query)
     return query
 
 
@@ -74,7 +80,7 @@ def escape_var(var):
         return escape_string(''.join(str(var).split()))
 
 
-def format_namespace(namespace):
+def format_namespace(namespace, col='page_namespace'):
     """ Format the namespace condition in queries and returns the string.
 
         Expects a list of numeric namespace keys.  Otherwise returns
@@ -89,11 +95,21 @@ def format_namespace(namespace):
 
     if hasattr(namespace, '__iter__'):
         if len(namespace) == 1:
-            ns_cond = 'page_namespace = ' + escape_var(str(namespace.pop()))
+            ns_cond = '{0} = '.format(col) \
+                + escape_var(str(namespace.pop()))
         else:
-            ns_cond = 'page_namespace in (' + \
+            ns_cond = '{0} in ('.format(col) + \
                 ",".join(DataLoader()
                 .cast_elems_to_string(escape_var(list(namespace)))) + ')'
+    else:
+        try:
+            ns_cond = '{0} = '.format(col) + escape_var(int(namespace))
+        except ValueError:
+            # No namespace condition
+            logging.error(__name__ + ' :: Could not apply namespace '
+                                     'condition on {0}'.format(str(namespace)))
+            pass
+
     return ns_cond
 
 
@@ -184,29 +200,15 @@ rev_count_query.__query_name__ = 'rev_count_query'
 def live_account_query(users, project, args):
     """ Format query for live_account metric """
 
-    user_cond = DataLoader().format_condition_in('ept_user',
-                                                 escape_var(users))
-
     try:
-        ns_cond = format_namespace(args.namespace)
+        ns_cond = format_namespace(args.namespace, col='e.ept_namespace')
+        if ns_cond:
+            ns_cond = ' AND ' + ns_cond
     except AttributeError as e:
         raise UMQueryCallError(__name__ + ' :: ' + str(e))
 
-    where_clause = 'log_action = "create"'
-    if user_cond:
-        where_clause += ' AND ' + user_cond
-    if ns_cond:
-        where_clause += ' AND ' + ns_cond
-
-    from_clause = '<database>.edit_page_tracking AS e RIGHT JOIN ' \
-                  '<database>.logging AS l ON e.ept_user = l.log_user'
-    if ns_cond:
-        from_clause += " LEFT JOIN <database>.page as p " \
-                       "ON e.ept_title = p.page_title"
-    from_clause = sub_tokens(from_clause, db=escape_var(project))
-
     query = query_store[live_account_query.__query_name__]
-    query = sub_tokens(query, from_repl=from_clause, where=where_clause)
+    query = sub_tokens(query, where=ns_cond)
     return query, None
 live_account_query.__query_name__ = 'live_account_query'
 
@@ -686,6 +688,12 @@ def get_mw_user_id(username, project):
 get_mw_user_id.__query_name__ = 'get_mw_user_id'
 
 
+@query_method_deco
+def get_latest_user_activity(users, project, args):
+    return query_store[get_latest_user_activity.__query_name__], None
+get_latest_user_activity.__query_name__ = 'get_latest_user_activity'
+
+
 # QUERY DEFINITIONS
 # #################
 
@@ -702,11 +710,14 @@ query_store = {
     live_account_query.__query_name__:
     """
         SELECT
-            e.ept_user,
+            l.log_user,
             MIN(l.log_timestamp) as registration,
             MIN(e.ept_timestamp) as first_click
-        FROM <from>
-        WHERE <where>
+        FROM <database>.logging AS l
+            LEFT JOIN <database>.edit_page_tracking AS e
+            ON e.ept_user = l.log_user
+        WHERE (log_action = "create" OR log_action = "autocreate")
+            AND log_user in (<users>) <where>
         GROUP BY 1
     """,
     rev_query.__query_name__:
@@ -891,5 +902,14 @@ query_store = {
         SELECT ut_user
         FROM <database>.<table>
         WHERE ut_tag = %(tag_id)s
+    """,
+    get_latest_user_activity.__query_name__:
+    """
+        SELECT
+            rev_user,
+            MAX(rev_timestamp)
+        FROM <database>.revision
+        WHERE rev_user in (<users>)
+        GROUP BY 1
     """,
 }
