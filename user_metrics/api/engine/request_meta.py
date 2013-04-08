@@ -96,7 +96,7 @@ def RequestMetaFactory(cohort_expr, cohort_gen_timestamp, metric_expr):
 
 # Defines what variables may be extracted from the query string
 REQUEST_META_QUERY_STR = ['aggregator', 'time_series', 'project', 'namespace',
-                          'start', 'end', 'interval', 't', 'n',
+                          'start', 'end', 'slice', 't', 'n',
                           'time_unit', 'time_unit_count', 'look_ahead',
                           'look_back', 'threshold_type', 'group', 'is_user']
 
@@ -257,7 +257,7 @@ class ParameterMapping(object):
                      varMapping('end', 'datetime_end'),
                      varMapping('project', 'project'),
                      varMapping('namespace', 'namespace'),
-                     varMapping('interval', 'interval'),
+                     varMapping('slice', 'slice'),
                      varMapping('time_series', 'time_series'),
                      varMapping('aggregator', 'aggregator'),
                      varMapping('t', 't'),

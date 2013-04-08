@@ -52,7 +52,7 @@ def format_response(request):
     response['time_of_response'] = datetime.now().strftime(DATETIME_STR_FORMAT)
     response['aggregator'] = str(request.aggregator)
     response['metric'] = str(request.metric)
-    response['interval_hours'] = request.interval
+    response['slice_size'] = request.slice
 
     if request.group:
         response['group'] = REVERSE_GROUP_MAP[int(request.group)]

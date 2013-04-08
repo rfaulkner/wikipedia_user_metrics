@@ -377,10 +377,10 @@ def process_data_request(request_meta, users):
     """
 
     # Set interval length in hours if not present
-    if not request_meta.interval:
-        request_meta.interval = DEFAULT_INERVAL_LENGTH
+    if not request_meta.slice:
+        request_meta.slice = DEFAULT_INERVAL_LENGTH
     else:
-        request_meta.interval = float(request_meta.interval)
+        request_meta.slice = float(request_meta.slice)
 
     # Get the aggregator key
     agg_key = get_agg_key(request_meta.aggregator, request_meta.metric) if \
@@ -405,7 +405,7 @@ def process_data_request(request_meta, users):
 
         # Determine intervals and thread allocation
         total_intervals = (date_parse(end) - date_parse(start)).\
-                          total_seconds() / (3600 * request_meta.interval)
+                          total_seconds() / (3600 * request_meta.slice)
         time_threads = max(1, int(total_intervals / INTERVALS_PER_THREAD))
         time_threads = min(MAX_THREADS, time_threads)
 
@@ -424,14 +424,14 @@ def process_data_request(request_meta, users):
 
         new_kwargs = deepcopy(args)
 
-        del new_kwargs['interval']
+        del new_kwargs['slice']
         del new_kwargs['aggregator']
         del new_kwargs['datetime_start']
         del new_kwargs['datetime_end']
 
         out = tspm.build_time_series(start,
             end,
-            request_meta.interval,
+            request_meta.slice,
             metric_class,
             aggregator_func,
             users,
