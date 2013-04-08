@@ -19,14 +19,14 @@ __license__ = "GPL (version 2 or later)"
 from flask import Flask, render_template, Markup, redirect, url_for, \
     request, escape, flash, jsonify, make_response
 from re import sub
-from multiprocessing import Lock
 
 from user_metrics.etl.data_loader import Connector
 from user_metrics.config import logging, settings
 from user_metrics.utils import unpack_fields
 from user_metrics.api.engine.data import get_cohort_refresh_datetime, \
     get_data, get_url_from_keys, build_key_signature, read_pickle_data
-from user_metrics.api import MetricsAPIError, error_codes, query_mod
+from user_metrics.api import MetricsAPIError, error_codes, query_mod, \
+    REQ_NCB_LOCK
 from user_metrics.api.engine.request_meta import filter_request_input, \
     format_request_params, RequestMetaFactory, \
     get_metric_names
@@ -35,9 +35,6 @@ from user_metrics.api.engine.request_manager import api_request_queue, \
     req_cb_add_req
 from user_metrics.metrics.users import MediaWikiUser
 from user_metrics.api.session import APIUser
-
-# View Lock for atomic operations
-VIEW_LOCK = Lock()
 
 # Instantiate flask app
 app = Flask(__name__)
@@ -248,7 +245,7 @@ def output(cohort, metric):
     key_sig = build_key_signature(rm, hash_result=True)
 
     # Is the request already running?
-    is_running = req_cb_get_is_running(key_sig, VIEW_LOCK)
+    is_running = req_cb_get_is_running(key_sig, REQ_NCB_LOCK)
 
     # Determine if request is already hashed
     if data and not refresh:
@@ -263,7 +260,7 @@ def output(cohort, metric):
     # Add the request to the queue
     else:
         api_request_queue.put(unpack_fields(rm), block=True)
-        req_cb_add_req(key_sig, url, VIEW_LOCK)
+        req_cb_add_req(key_sig, url, REQ_NCB_LOCK)
 
     return render_template('processing.html', url_str=str(rm))
 
@@ -277,11 +274,11 @@ def job_queue():
     p_list.append(Markup('<thead><tr><th>is_alive</th><th>url'
                          '</th></tr></thead>\n<tbody>\n'))
 
-    keys = req_cb_get_cache_keys(VIEW_LOCK)
+    keys = req_cb_get_cache_keys(REQ_NCB_LOCK)
     for key in keys:
         # Log the status of the job
-        url = req_cb_get_url(key, VIEW_LOCK)
-        is_alive = str(req_cb_get_is_running(key, VIEW_LOCK))
+        url = req_cb_get_url(key, REQ_NCB_LOCK)
+        is_alive = str(req_cb_get_is_running(key, REQ_NCB_LOCK))
 
         p_list.append('<tr><td>')
         response_url = "".join(['<a href="',
