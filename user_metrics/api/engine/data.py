@@ -234,14 +234,14 @@ def get_url_from_keys(keys, path_root):
     for key in keys:
         parts = key.split(HASH_KEY_DELIMETER)
         if parts[0] in REQUEST_META_BASE:
-            path_root += '/' + parts[1]
+            path_root += parts[1] + '/'
         elif parts[0] in REQUEST_META_QUERY_STR:
             query_str += parts[0] + '=' + parts[1] + '&'
 
     if not path_root:
         raise MetricsAPIError()
     if query_str:
-        url = path_root + '?' + query_str[:-1]
+        url = path_root[:-1] + '?' + query_str[:-1]
     else:
         url = path_root
     return url
