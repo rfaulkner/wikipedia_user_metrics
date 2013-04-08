@@ -7,8 +7,17 @@
 
 from user_metrics.utils import nested_import
 from user_metrics.config import settings
+from multiprocessing import Lock
 
 query_mod = nested_import(settings.__query_module__)
+
+# Lock for request notification callback operations
+# defined in request_manager.py
+REQ_NCB_LOCK = Lock()
+
+# The url path that precedes an API request
+REQUEST_PATH = 'cohorts/'
+
 
 # Error codes for web requests
 # ############################
