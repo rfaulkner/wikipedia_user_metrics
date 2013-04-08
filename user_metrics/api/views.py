@@ -31,8 +31,7 @@ from user_metrics.api.engine.request_meta import filter_request_input, \
     format_request_params, RequestMetaFactory, \
     get_metric_names
 from user_metrics.api.engine.request_manager import api_request_queue, \
-    req_cb_get_cache_keys, req_cb_get_url, req_cb_get_is_running, \
-    req_cb_add_req
+    req_cb_get_cache_keys, req_cb_get_url, req_cb_get_is_running
 from user_metrics.metrics.users import MediaWikiUser
 from user_metrics.api.session import APIUser
 
@@ -260,7 +259,6 @@ def output(cohort, metric):
     # Add the request to the queue
     else:
         api_request_queue.put(unpack_fields(rm), block=True)
-        req_cb_add_req(key_sig, url, REQ_NCB_LOCK)
 
     return render_template('processing.html', url_str=str(rm))
 

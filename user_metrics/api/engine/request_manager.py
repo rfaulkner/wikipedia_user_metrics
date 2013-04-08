@@ -82,8 +82,10 @@ __date__ = "2013-03-05"
 __license__ = "GPL (version 2 or later)"
 
 from user_metrics.config import logging, settings
-from user_metrics.api import MetricsAPIError, error_codes, query_mod
-from user_metrics.api.engine.data import get_users
+from user_metrics.api import MetricsAPIError, error_codes, query_mod, \
+    REQ_NCB_LOCK, REQUEST_PATH
+from user_metrics.api.engine.data import get_users, get_url_from_keys, \
+    build_key_signature
 from user_metrics.api.engine.request_meta import rebuild_unpacked_request
 from user_metrics.metrics.users import MediaWikiUser
 from user_metrics.metrics.user_metric import UserMetricError
@@ -231,6 +233,11 @@ def job_control(request_queue, response_queue):
                                      '\n\tCOHORT = {0} - METRIC = {1}'
                 .format(rm.cohort_expr, rm.metric))
             wait_queue.append(rm)
+
+            # Communicate with request notification callback about new job
+            key_sig = build_key_signature(rm, hash_result=True)
+            url = get_url_from_keys(build_key_signature(rm), REQUEST_PATH)
+            req_cb_add_req(key_sig, url, REQ_NCB_LOCK)
 
 
     logging.debug('{0} - FINISHING.'.format(log_name))
