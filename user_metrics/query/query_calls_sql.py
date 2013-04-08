@@ -184,29 +184,15 @@ rev_count_query.__query_name__ = 'rev_count_query'
 def live_account_query(users, project, args):
     """ Format query for live_account metric """
 
-    user_cond = DataLoader().format_condition_in('ept_user',
-                                                 escape_var(users))
-
     try:
         ns_cond = format_namespace(args.namespace)
+        if ns_cond:
+            ns_cond = ' AND ' + ns_cond
     except AttributeError as e:
         raise UMQueryCallError(__name__ + ' :: ' + str(e))
 
-    where_clause = 'log_action = "create"'
-    if user_cond:
-        where_clause += ' AND ' + user_cond
-    if ns_cond:
-        where_clause += ' AND ' + ns_cond
-
-    from_clause = '<database>.edit_page_tracking AS e RIGHT JOIN ' \
-                  '<database>.logging AS l ON e.ept_user = l.log_user'
-    if ns_cond:
-        from_clause += " LEFT JOIN <database>.page as p " \
-                       "ON e.ept_title = p.page_title"
-    from_clause = sub_tokens(from_clause, db=escape_var(project))
-
     query = query_store[live_account_query.__query_name__]
-    query = sub_tokens(query, from_repl=from_clause, where=where_clause)
+    query = sub_tokens(query, where=ns_cond)
     return query, None
 live_account_query.__query_name__ = 'live_account_query'
 
@@ -702,11 +688,15 @@ query_store = {
     live_account_query.__query_name__:
     """
         SELECT
-            e.ept_user,
-            MIN(l.log_timestamp) as registration,
-            MIN(e.ept_timestamp) as first_click
-        FROM <from>
-        WHERE <where>
+            l.log_user,
+        MIN(e.ept_title),
+        MIN(l.log_timestamp) as registration,
+        MIN(e.ept_timestamp) as first_click
+        FROM <database>.logging AS l
+            LEFT JOIN <database>.edit_page_tracking AS e
+            ON e.ept_user = l.log_user
+        WHERE (log_action = "create" OR log_action = "autocreate")
+            AND log_user in (<users>) <where>
         GROUP BY 1
     """,
     rev_query.__query_name__:
