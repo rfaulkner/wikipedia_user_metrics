@@ -337,17 +337,17 @@ aggregator_dict =\
     'mean+bytes_added': ba_mean_agg,
     'std+bytes_added': ba_std_agg,
     'sum+namespace_edits': namespace_edits_sum,
-    'average+threshold': threshold_editors_agg,
-    'average+survival': survival_editors_agg,
-    'average+live_account': live_accounts_agg,
-    'average+revert_rate': revert_rate_avg,
-    'average+edit_rate': edit_rate_agg,
-    'average+time_to_threshold': ttt_avg_agg,
+    'proportion+threshold': threshold_editors_agg,
+    'proportion+survival': survival_editors_agg,
+    'proportion+live_account': live_accounts_agg,
+    'mean+revert_rate': revert_rate_avg,
+    'mean+edit_rate': edit_rate_agg,
+    'mean+time_to_threshold': ttt_avg_agg,
     'median+bytes_added': ba_median_agg,
     'min+bytes_added': ba_min_agg,
     'max+bytes_added': ba_max_agg,
     'dist+edit_rate': er_stats_agg,
-    'average+blocks': block_rate_agg,
+    'proportion+blocks': block_rate_agg,
     'dist+time_to_threshold': ttt_stats_agg,
     }
 
@@ -401,7 +401,9 @@ request_types = enum(time_series='time_series',
 
 def get_request_type(request_meta):
     """ Determines request type. """
-    if request_meta.aggregator and request_meta.time_series:
+    if request_meta.aggregator and request_meta.time_series \
+       and request_meta.group and request_meta.slice and request_meta.start \
+       and request_meta.end:
         return request_types.time_series
     elif request_meta.aggregator:
         return request_types.aggregator
