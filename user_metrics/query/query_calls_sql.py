@@ -74,7 +74,7 @@ def escape_var(var):
         return escape_string(''.join(str(var).split()))
 
 
-def format_namespace(namespace):
+def format_namespace(namespace, col='page_namespace'):
     """ Format the namespace condition in queries and returns the string.
 
         Expects a list of numeric namespace keys.  Otherwise returns
@@ -89,9 +89,10 @@ def format_namespace(namespace):
 
     if hasattr(namespace, '__iter__'):
         if len(namespace) == 1:
-            ns_cond = 'page_namespace = ' + escape_var(str(namespace.pop()))
+            ns_cond = '{0} = '.format(col) \
+                + escape_var(str(namespace.pop()))
         else:
-            ns_cond = 'page_namespace in (' + \
+            ns_cond = '{0} in ('.format(col) + \
                 ",".join(DataLoader()
                 .cast_elems_to_string(escape_var(list(namespace)))) + ')'
     return ns_cond
@@ -185,7 +186,7 @@ def live_account_query(users, project, args):
     """ Format query for live_account metric """
 
     try:
-        ns_cond = format_namespace(args.namespace)
+        ns_cond = format_namespace(args.namespace, col='e.ept_namespace')
         if ns_cond:
             ns_cond = ' AND ' + ns_cond
     except AttributeError as e:
@@ -689,9 +690,8 @@ query_store = {
     """
         SELECT
             l.log_user,
-        MIN(e.ept_title),
-        MIN(l.log_timestamp) as registration,
-        MIN(e.ept_timestamp) as first_click
+            MIN(l.log_timestamp) as registration,
+            MIN(e.ept_timestamp) as first_click
         FROM <database>.logging AS l
             LEFT JOIN <database>.edit_page_tracking AS e
             ON e.ept_user = l.log_user
