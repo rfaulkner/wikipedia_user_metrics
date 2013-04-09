@@ -145,8 +145,8 @@ class UserMetric(object):
     ALL_NAMESPACES = 'all'
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
-    DEFAULT_DATE_START = '20101025080000'
-    DEFAULT_DATE_END = '20110101000000'
+    DEFAULT_DATE_START = '20100101000000'
+    DEFAULT_DATE_END = '20200101000000'
 
     # Default number of days for a metric computation
     DEFAULT_DATA_RANGE = 14
