@@ -40,6 +40,7 @@ from user_metrics.utils import format_mediawiki_timestamp, enum
 from user_metrics.utils.record_type import recordtype
 from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine import DEFAULT_QUERY_VAL
+from user_metrics.metrics.users import USER_METRIC_PERIOD_TYPE
 from collections import namedtuple, OrderedDict
 from flask import escape
 from user_metrics.config import logging
@@ -49,15 +50,14 @@ from user_metrics.utils import unpack_fields
 # DEFINE REQUEST META OBJECT, CREATION, AND PROCESSING
 # ####################################################
 
-
 DEFAULT_PROJECT = 'enwiki'
 
-# Structure that maps values in the query string to new ones
+# Default group + structure that maps values in the query string to new ones
+DEFAULT_GROUP = USER_METRIC_PERIOD_TYPE.REGISTRATION
 REQUEST_VALUE_MAPPING = {
     'group': {
-        'reg': 0,
-        'input': 1,
-        'reginput': 2,
+        'reg': USER_METRIC_PERIOD_TYPE.REGISTRATION,
+        'activity': USER_METRIC_PERIOD_TYPE.INPUT,
     }
 }
 
@@ -136,6 +136,9 @@ def format_request_params(request_meta):
 
     if not request_meta.project:
         request_meta.project = DEFAULT_PROJECT
+
+    if not request_meta.group in REQUEST_VALUE_MAPPING:
+        request_meta.group = DEFAULT_GROUP
 
     # set the aggregator if there is one
     agg_key = get_agg_key(request_meta.aggregator, request_meta.metric)
