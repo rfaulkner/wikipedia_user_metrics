@@ -125,11 +125,11 @@ def _process_help(args):
     # Iterate over results to determine boolean indicating whether
     # account is "live"
 
-    results = {long(user): -1 for user in users}
+    results = {str(user): -1 for user in users}
 
     user_reg = query_mod.user_registration_date_logging(
         users, thread_args.project, None)
-    user_reg = {long(r[0]): (datetime.now() - date_parse(r[1])).
+    user_reg = {str(r[0]): (datetime.now() - date_parse(r[1])).
                             total_seconds() / 60 for r in user_reg}
 
     for user in results:
@@ -137,7 +137,7 @@ def _process_help(args):
                 results[user] = 0
 
     for row in query_results:
-        user = row[0]
+        user = str(row[0])
         try:
             # get the difference in minutes
             diff = (date_parse(row[2]) - date_parse(row[1])).total_seconds()

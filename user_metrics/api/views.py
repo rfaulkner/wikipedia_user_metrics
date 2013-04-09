@@ -18,7 +18,6 @@ __license__ = "GPL (version 2 or later)"
 
 from flask import Flask, render_template, Markup, redirect, url_for, \
     request, escape, flash, jsonify, make_response
-from re import sub
 
 from user_metrics.etl.data_loader import Connector
 from user_metrics.config import logging, settings
@@ -191,11 +190,8 @@ def output(cohort, metric):
     """ View corresponding to a data request -
         All of the setup and execution for a request happens here. """
 
-    # Get URL.  Check for refresh flag - drop from url
-    url = request.url.split(request.url_root)[1]
+    # Check for refresh flag
     refresh = True if 'refresh' in request.args else False
-    if refresh:
-        url = sub(REFRESH_REGEX, '', url)
 
     # Get the refresh date of the cohort
     try:
