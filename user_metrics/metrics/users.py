@@ -261,7 +261,7 @@ class MediaWikiUser(object):
 # ==========================
 
 # enumeration for user periods
-USER_METRIC_PERIOD_TYPE = enum('REGISTRATION', 'INPUT', 'REGINPUT')
+USER_METRIC_PERIOD_TYPE = enum(REGISTRATION='REGISTRATION', INPUT='INPUT')
 USER_METRIC_PERIOD_DATA = namedtuple('UMPData', 'user start end')
 
 
@@ -316,39 +316,6 @@ class UserMetricPeriod(object):
 
 class UMPRegistration(UserMetricPeriod):
     """
-        This ``UserMetricPeriod`` class returns the set of users with
-        ``start`` and ``end`` time defined by the user registration
-        date and ``t`` hours later.
-    """
-    @staticmethod
-    def get(users, metric):
-        # For each registration date build time interval
-        reg = get_registration_dates(users, metric.project)
-        for row in reg:
-            reg = date_parse(row[1])
-            end = reg + timedelta(hours=int(metric.t))
-            yield USER_METRIC_PERIOD_DATA(row[0],
-                                          format_mediawiki_timestamp(reg),
-                                          format_mediawiki_timestamp(end))
-
-
-class UMPInput(UserMetricPeriod):
-    """
-        This ``UserMetricPeriod`` class returns the set of users
-        with the ``start`` and ``end`` timestamps defined by ``metric``.
-    """
-    @staticmethod
-    def get(users, metric):
-        for user in users:
-            yield USER_METRIC_PERIOD_DATA(user,
-                                          format_mediawiki_timestamp
-                                          (metric.datetime_start),
-                                          format_mediawiki_timestamp
-                                          (metric.datetime_end))
-
-
-class UMPRegInput(UserMetricPeriod):
-    """
         This ``UserMetricPeriod`` class returns the set of users
         conditional on their registration falling within the time interval
         defined by ``metric``.
@@ -368,21 +335,31 @@ class UMPRegInput(UserMetricPeriod):
             if date_parse(start) <= reg <= date_parse(end):
                 reg_plus_t = reg + timedelta(hours=int(metric.t))
                 yield USER_METRIC_PERIOD_DATA(user,
-                                              format_mediawiki_timestamp
-                                              (reg),
-                                              format_mediawiki_timestamp
-                                              (reg_plus_t))
+                    format_mediawiki_timestamp
+                        (reg),
+                    format_mediawiki_timestamp
+                        (reg_plus_t))
             else:
                 continue
+
+
+class UMPInput(UserMetricPeriod):
+    """
+        This ``UserMetricPeriod`` class returns the set of users
+        with the ``start`` and ``end`` timestamps defined by ``metric``.
+    """
+    @staticmethod
+    def get(users, metric):
+        for user in users:
+            yield USER_METRIC_PERIOD_DATA(user,
+                                          format_mediawiki_timestamp
+                                          (metric.datetime_start),
+                                          format_mediawiki_timestamp
+                                          (metric.datetime_end))
 
 
 # Define a mapping from UMP types to get methods
 UMP_MAP = {
     USER_METRIC_PERIOD_TYPE.REGISTRATION: UMPRegistration.get,
     USER_METRIC_PERIOD_TYPE.INPUT: UMPInput.get,
-    USER_METRIC_PERIOD_TYPE.REGINPUT: UMPRegInput.get,
 }
-
-
-if __name__ == '__main__':
-    generate_test_cohort('dewiki', write=True)

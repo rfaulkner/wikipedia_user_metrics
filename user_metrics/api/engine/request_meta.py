@@ -40,6 +40,7 @@ from user_metrics.utils import format_mediawiki_timestamp, enum
 from user_metrics.utils.record_type import recordtype
 from user_metrics.api import MetricsAPIError
 from user_metrics.api.engine import DEFAULT_QUERY_VAL
+from user_metrics.metrics.users import USER_METRIC_PERIOD_TYPE
 from collections import namedtuple, OrderedDict
 from flask import escape
 from user_metrics.config import logging
@@ -49,15 +50,14 @@ from user_metrics.utils import unpack_fields
 # DEFINE REQUEST META OBJECT, CREATION, AND PROCESSING
 # ####################################################
 
-
 DEFAULT_PROJECT = 'enwiki'
 
-# Structure that maps values in the query string to new ones
+# Default group + structure that maps values in the query string to new ones
+DEFAULT_GROUP = USER_METRIC_PERIOD_TYPE.REGISTRATION
 REQUEST_VALUE_MAPPING = {
     'group': {
-        'reg': 0,
-        'input': 1,
-        'reginput': 2,
+        'reg': USER_METRIC_PERIOD_TYPE.REGISTRATION,
+        'activity': USER_METRIC_PERIOD_TYPE.INPUT,
     }
 }
 
@@ -136,6 +136,9 @@ def format_request_params(request_meta):
 
     if not request_meta.project:
         request_meta.project = DEFAULT_PROJECT
+
+    if not request_meta.group in REQUEST_VALUE_MAPPING:
+        request_meta.group = DEFAULT_GROUP
 
     # set the aggregator if there is one
     agg_key = get_agg_key(request_meta.aggregator, request_meta.metric)
@@ -337,17 +340,17 @@ aggregator_dict =\
     'mean+bytes_added': ba_mean_agg,
     'std+bytes_added': ba_std_agg,
     'sum+namespace_edits': namespace_edits_sum,
-    'average+threshold': threshold_editors_agg,
-    'average+survival': survival_editors_agg,
-    'average+live_account': live_accounts_agg,
-    'average+revert_rate': revert_rate_avg,
-    'average+edit_rate': edit_rate_agg,
-    'average+time_to_threshold': ttt_avg_agg,
+    'proportion+threshold': threshold_editors_agg,
+    'proportion+survival': survival_editors_agg,
+    'proportion+live_account': live_accounts_agg,
+    'mean+revert_rate': revert_rate_avg,
+    'mean+edit_rate': edit_rate_agg,
+    'mean+time_to_threshold': ttt_avg_agg,
     'median+bytes_added': ba_median_agg,
     'min+bytes_added': ba_min_agg,
     'max+bytes_added': ba_max_agg,
     'dist+edit_rate': er_stats_agg,
-    'average+blocks': block_rate_agg,
+    'proportion+blocks': block_rate_agg,
     'dist+time_to_threshold': ttt_stats_agg,
     }
 
@@ -401,7 +404,9 @@ request_types = enum(time_series='time_series',
 
 def get_request_type(request_meta):
     """ Determines request type. """
-    if request_meta.aggregator and request_meta.time_series:
+    if request_meta.aggregator and request_meta.time_series \
+       and request_meta.group and request_meta.slice and request_meta.start \
+       and request_meta.end:
         return request_types.time_series
     elif request_meta.aggregator:
         return request_types.aggregator

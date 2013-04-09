@@ -145,8 +145,8 @@ class UserMetric(object):
     ALL_NAMESPACES = 'all'
     DATETIME_STR_FORMAT = "%Y%m%d%H%M%S"
 
-    DEFAULT_DATE_START = '20101025080000'
-    DEFAULT_DATE_END = '20110101000000'
+    DEFAULT_DATE_START = '20100101000000'
+    DEFAULT_DATE_END = '20200101000000'
 
     # Default number of days for a metric computation
     DEFAULT_DATA_RANGE = 14
@@ -162,7 +162,7 @@ class UserMetric(object):
             'datetime_end': [str, 'Latest date metric is measured.',
                              DEFAULT_DATE_END],
             't': [int, 'Hours over which to measure metric.', 24],
-            'group': [int, 'Defines the type of period over which '
+            'group': [str, 'Defines the type of period over which '
                                  'user metrics are measured.',
                             USER_METRIC_PERIOD_TYPE.REGISTRATION],
             'project': [str, 'The project (language) being inspected.',
