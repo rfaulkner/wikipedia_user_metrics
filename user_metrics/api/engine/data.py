@@ -138,7 +138,12 @@ def get_data(request_meta, hash_result=True):
     if item:
         # item[0] will be a stringified structure that
         # is initialized, see set_data.
-        return eval(item[0])
+        try:
+            return eval(item[0])
+        except SyntaxError:
+            logging.error(__name__ + ' :: Failed to retrieve {0}'.
+                          format(key_sig))
+            return None
     else:
         return None
 
