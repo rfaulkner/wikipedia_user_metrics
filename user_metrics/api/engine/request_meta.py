@@ -53,7 +53,7 @@ from user_metrics.utils import unpack_fields
 DEFAULT_PROJECT = 'enwiki'
 
 # Default group + structure that maps values in the query string to new ones
-DEFAULT_GROUP = USER_METRIC_PERIOD_TYPE.REGISTRATION
+DEFAULT_GROUP = 'reg'
 REQUEST_VALUE_MAPPING = {
     'group': {
         'reg': USER_METRIC_PERIOD_TYPE.REGISTRATION,
