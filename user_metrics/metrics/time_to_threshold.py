@@ -13,9 +13,6 @@ from user_metrics.etl.aggregator import weighted_rate, decorator_builder, \
 from user_metrics.metrics import query_mod
 from numpy import median, min, max
 
-LAST_EDIT = -1
-REGISTRATION = 0
-
 
 class TimeToThreshold(um.UserMetric):
     """
@@ -128,14 +125,15 @@ class TimeToThreshold(um.UserMetric):
             """
 
             try:
-                self._first_edit_ = int(kwargs['first_edit']) if 'first_edit' \
-                    in kwargs else self._param_types['init']['first_edit'][2]
+                self.first_edit = int(kwargs['first_edit'])
+                self.threshold_edit = int(kwargs['threshold_edit'])
 
-                self._threshold_edit_ = int(kwargs['threshold_edit']) if \
-                    'threshold_edit' in kwargs else self._param_types[
-                        'init']['threshold_edit'][2]
+            except (KeyError, ValueError):
 
-            except ValueError:
+                # Apply defaults
+                self.first_edit = self._param_types['init']['first_edit'][2]
+                self.threshold_edit = self._param_types['init'][
+                                      'threshold_edit'][2]
                 raise um.UserMetricError(
                     str(self.__class__()) + ': Invalid init params.')
 
@@ -163,41 +161,48 @@ class TimeToThreshold(um.UserMetric):
                                                  None)
                 revs = [rev[0] for rev in revs]
                 minutes_to_threshold.append(
-                    [user, self._get_minute_diff_result(revs)])
+                    [user, get_minute_diff_result(revs,
+                                                  self.threshold_edit,
+                                                  self.first_edit)])
 
             return minutes_to_threshold
 
-        def _get_minute_diff_result(self, results):
-            """
-                Private method for this class.  This computes the minutes
-                to threshold for the timestamp results.
-
-                    - Parameters:
-                        - **results** - list.  list of revision records with
-                            timestamp for a given user.
-            """
-            if self._threshold_edit_ == REGISTRATION and len(results):
-                dat_obj_end = date_parse(results[0])
-            elif self._threshold_edit_ == LAST_EDIT and len(results):
-                dat_obj_end = date_parse(results[len(results) - 1])
-            elif self._threshold_edit_ < len(results):
-                dat_obj_end = date_parse(results[self._threshold_edit_])
-            else:
-                return -1
-
-            if self._first_edit_ == REGISTRATION and len(results) > 0:
-                dat_obj_start = date_parse(results[0])
-            elif self._first_edit_ == LAST_EDIT and len(results):
-                dat_obj_start = date_parse(results[len(results) - 1])
-            elif self._first_edit_ < len(results):
-                dat_obj_start = date_parse(results[self._first_edit_])
-            else:
-                return -1
-
-            time_diff = dat_obj_end - dat_obj_start
-            return int(time_diff.seconds / 60) + abs(time_diff.days) * 24
-
     __threshold_types = {'edit_count_threshold': EditCountThreshold}
+
+
+LAST_EDIT = -1
+REGISTRATION = 0
+
+
+def get_minute_diff_result(results, first, threshold):
+    """
+        Helper method.  This computes the minutes
+        to threshold for the timestamp results.
+
+            - Parameters:
+                - **results** - list.  list of revision records with
+                    timestamp for a given user.
+    """
+    if threshold == REGISTRATION and len(results):
+        dat_obj_end = date_parse(results[0])
+    elif threshold == LAST_EDIT and len(results):
+        dat_obj_end = date_parse(results[len(results) - 1])
+    elif threshold < len(results):
+        dat_obj_end = date_parse(results[threshold])
+    else:
+        return -1
+
+    if first == REGISTRATION and len(results) > 0:
+        dat_obj_start = date_parse(results[0])
+    elif first == LAST_EDIT and len(results):
+        dat_obj_start = date_parse(results[len(results) - 1])
+    elif first < len(results):
+        dat_obj_start = date_parse(results[first])
+    else:
+        return -1
+
+    time_diff = dat_obj_end - dat_obj_start
+    return int(time_diff.seconds / 60) + abs(time_diff.days) * 24
 
 
 # ==========================
