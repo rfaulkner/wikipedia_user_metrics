@@ -15,11 +15,6 @@ from datetime import datetime
 from user_metrics.etl.aggregator import decorator_builder, boolean_rate
 from user_metrics.metrics import query_mod
 
-# Definition of persistent state for RevertRate objects
-LiveAccountArgsClass = namedtuple('LiveAccountArgs',
-                                  'project namespace log '
-                                  'date_start date_end t')
-
 
 class LiveAccount(um.UserMetric):
     """
@@ -91,9 +86,7 @@ class LiveAccount(um.UserMetric):
     @um.UserMetric.pre_process_metric_call
     def process(self, user_handle, **kwargs):
 
-        # Multiprocessing vs. single processing execution
-        args = [self.project, self.namespace, self.log_, self.datetime_start,
-                self.datetime_end, self.t]
+        args = self._pack_params()
         self._results = mpw.build_thread_pool(user_handle, _process_help,
                                               self.k_, args)
         return self
@@ -103,12 +96,12 @@ def _process_help(args):
 
     # Unpack args
     state = args[1]
-    thread_args = LiveAccountArgsClass(state[0], state[1], state[2], state[3],
-                                       state[4], state[5])
     users = args[0]
 
+    thread_args = um.UserMetric._unpack_params(state)
+
     # Log progress
-    if thread_args.log:
+    if thread_args.log_:
         logging.debug(__name__ + '::Computing live account. (PID = %s)' %
                                  getpid())
 
