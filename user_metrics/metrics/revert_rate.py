@@ -8,20 +8,12 @@ from user_metrics.config import logging
 
 from collections import namedtuple
 import user_metric as um
-import collections
 import os
 import user_metrics.utils.multiprocessing_wrapper as mpw
 from user_metrics.etl.aggregator import decorator_builder, weighted_rate
 from user_metrics.metrics import query_mod
 from user_metrics.metrics.users import UMP_MAP
 from user_metrics.utils import format_mediawiki_timestamp
-
-# Definition of persistent state for RevertRate objects
-RevertRateArgsClass = collections.namedtuple('RevertRateArgs',
-                                             'project log_progress '
-                                             'look_ahead look_back t '
-                                             'rev_threads namespace '
-                                             'group')
 
 
 class RevertRate(um.UserMetric):
@@ -101,9 +93,7 @@ class RevertRate(um.UserMetric):
         if not hasattr(user_handle, '__iter__'):
             user_handle = [user_handle]
 
-        args = [self.project, self.log_, self.look_ahead,
-                self.look_back, self.t, self.datetime_end, self.kr_,
-                self.namespace, self.group]
+        args = self._pack_params()
         self._results = mpw.build_thread_pool(user_handle, _process_help,
                                               self.k_, args)
 
@@ -158,12 +148,11 @@ def _process_help(args):
         Should not be called externally. """
 
     state = args[1]
-    thread_args = RevertRateArgsClass(state[0], state[1], state[2],
-                                      state[3], state[4], state[6],
-                                      state[7], state[8])
     users = args[0]
 
-    if thread_args.log_progress:
+    thread_args = um.UserMetric._unpack_params(state)
+
+    if thread_args.log_:
         logging.info(__name__ +
                     ' :: Computing reverts on %s users (PID %s)'
                     % (len(users), str(os.getpid())))
@@ -197,7 +186,7 @@ def _process_help(args):
             continue
 
         results_thread = mpw.build_thread_pool(revisions, _revision_proc,
-                                               thread_args.rev_threads, state)
+                                               thread_args.kr_, state)
 
         for r in results_thread:
             total_revisions += r[0]
@@ -208,7 +197,7 @@ def _process_help(args):
             results_agg.append([user_data.user, total_reverts / total_revisions,
                                 total_revisions])
 
-    if thread_args.log_progress:
+    if thread_args.log_:
         logging.debug(__name__ + ' :: PID {0} complete. Dropped users = {1}'.
             format(str(os.getpid()), dropped_users))
 
@@ -219,9 +208,8 @@ def _revision_proc(args):
     """ helper method for computing reverts """
 
     state = args[1]
-    thread_args = RevertRateArgsClass(state[0], state[1], state[2],
-                                      state[3], state[4], state[6],
-                                      state[7], state[8])
+    thread_args = um.UserMetric._unpack_params(state)
+
     rev_data = args[0]
 
     revision_count = 0.0
