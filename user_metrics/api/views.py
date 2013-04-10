@@ -313,7 +313,7 @@ def all_urls():
     url_list = list()
     for key_sig in key_sigs:
 
-        url = get_url_from_keys(key_sig, 'cohorts')
+        url = get_url_from_keys(key_sig, 'cohorts/')
         url_list.append("".join(['<a href="',
                                  request.url_root, url + '">',
                                  url,
