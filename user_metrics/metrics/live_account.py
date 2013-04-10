@@ -64,7 +64,7 @@ class LiveAccount(um.UserMetric):
     # Structure that defines parameters for RevertRate class
     _param_types = {
         'init': {
-            't': ['int', 'The time in minutes until the threshold.', 60],
+            #'t': ['int', 'The time in minutes until the threshold.', 60],
         },
         'process': {}
     }
@@ -129,9 +129,12 @@ def _process_help(args):
 
     user_reg = query_mod.user_registration_date_logging(
         users, thread_args.project, None)
-    user_reg = {str(r[0]): (datetime.now() - date_parse(r[1])).
-                            total_seconds() / 60 for r in user_reg}
 
+    # uid: diff_time
+    user_reg = {str(r[0]): (datetime.now() - date_parse(r[1])).
+                            total_seconds() / 3600 for r in user_reg}
+
+    # Flag all users alive longer than t hours as "not invalid"
     for user in results:
         if user in user_reg and user_reg[user] >= thread_args.t:
                 results[user] = 0
@@ -139,9 +142,9 @@ def _process_help(args):
     for row in query_results:
         user = str(row[0])
         try:
-            # get the difference in minutes
+            # get the difference in hours
             diff = (date_parse(row[2]) - date_parse(row[1])).total_seconds()
-            diff /= 60
+            diff /= 3600
         except Exception:
             continue
 
