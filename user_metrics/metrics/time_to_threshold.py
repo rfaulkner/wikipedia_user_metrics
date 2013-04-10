@@ -118,11 +118,10 @@ def _process_help(args):
 
     thread_args = um.UserMetric._unpack_params(state)
 
-    # Log progress
     if thread_args.log_:
-        logging.debug(__name__ + '::Computing Time to threshold. (PID = %s)' %
-                                 getpid())
-
+        logging.debug(__name__ + '::Computing Time to threshold on '
+                                 '{0} users. (PID = {1})'.format(len(users),
+                                                                 getpid()))
     minutes_to_threshold = list()
 
     # For each user gather their revisions and produce a time diff
@@ -134,6 +133,9 @@ def _process_help(args):
             [user, get_minute_diff_result(revs,
                                           thread_args.threshold_edit,
                                           thread_args.first_edit)])
+
+    if thread_args.log_:
+        logging.info(__name__ + '::Processed PID = {0}.'.format(getpid()))
 
     return minutes_to_threshold
 
