@@ -56,10 +56,10 @@ class TimeToThreshold(um.UserMetric):
     _param_types = {
         'init':
         {
-                'first_edit': ['int',
+                'first_edit': [int,
                                'Event that initiates measurement period.',
                                REGISTRATION],
-                'threshold_edit': ['int', 'Threshold event.', 1],
+                'threshold_edit': [int, 'Threshold event.', 1],
         },
         'process': {},
     }
@@ -120,8 +120,9 @@ def _process_help(args):
 
     # Log progress
     if thread_args.log_:
-        logging.debug(__name__ + '::Computing live account. (PID = %s)' %
+        logging.debug(__name__ + '::Computing Time to threshold. (PID = %s)' %
                                  getpid())
+
     minutes_to_threshold = list()
 
     # For each user gather their revisions and produce a time diff
@@ -131,8 +132,8 @@ def _process_help(args):
         revs = [rev[0] for rev in revs]
         minutes_to_threshold.append(
             [user, get_minute_diff_result(revs,
-                thread_args.threshold_edit,
-                thread_args.first_edit)])
+                                          thread_args.threshold_edit,
+                                          thread_args.first_edit)])
 
     return minutes_to_threshold
 
