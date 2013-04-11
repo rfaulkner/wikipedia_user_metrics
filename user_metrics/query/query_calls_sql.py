@@ -158,8 +158,8 @@ def query_method_deco(f):
                 conn._cur_.execute(query)
         except (OperationalError, ProgrammingError) as e:
             logging.error(__name__ +
-                          ' :: Query failed: {0}'.
-                          format(query))
+                          ' :: Query failed: {0}, params = {1}'.
+                          format(query, str(params)))
             raise UMQueryCallError(__name__ + ' :: ' + str(e))
         results = [row for row in conn._cur_]
         del conn
