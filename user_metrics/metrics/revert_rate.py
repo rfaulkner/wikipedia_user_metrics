@@ -170,9 +170,10 @@ def _process_help(args):
         # 1. Obtain user registration date
         # 2. Compute end date based on 't'
         # 3. Get user revisions in time period
-        query_args = namedtuple('QueryArgs', 'date_start date_end')\
+        query_args = namedtuple('QueryArgs', 'date_start date_end namespace')\
             (format_mediawiki_timestamp(user_data.start),
-             format_mediawiki_timestamp(user_data.end))
+             format_mediawiki_timestamp(user_data.end),
+             thread_args.namespace)
 
         try:
             revisions = query_mod.\

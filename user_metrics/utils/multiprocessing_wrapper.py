@@ -30,11 +30,12 @@ def build_thread_pool(data, callback, k, args):
     arg_list = list()
 
     for i in xrange(k):
-        arg_list.append([data[i * n : (i + 1) * n], args])
+        arg_list.append([data[i * n: (i + 1) * n], args])
 
     # remove any args with empty revision lists
     arg_list = filter(lambda x: len(x[0]), arg_list)
-    if not arg_list: return []
+    if not arg_list:
+        return []
 
     pool = NonDaemonicPool(processes=len(arg_list))
     results = list()
@@ -62,6 +63,7 @@ class NoDaemonicProcess(mp.Process):
 
     def _get_daemon(self):
         return False
+
     def _set_daemon(self, value):
         pass
     daemon = property(_get_daemon, _set_daemon)

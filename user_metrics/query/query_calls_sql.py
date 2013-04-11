@@ -158,7 +158,8 @@ def query_method_deco(f):
                 conn._cur_.execute(query)
         except (OperationalError, ProgrammingError) as e:
             logging.error(__name__ +
-                          ' :: Query failed: {0}'.format(query))
+                          ' :: Query failed: {0}, params = {1}'.
+                          format(query, str(params)))
             raise UMQueryCallError(__name__ + ' :: ' + str(e))
         results = [row for row in conn._cur_]
         del conn
@@ -309,6 +310,9 @@ page_rev_hist_query.__query_name__ = 'page_rev_hist_query'
 @query_method_deco
 def revert_rate_user_revs_query(user, project, args):
     """ Get revision history for a user """
+    ns_cond = format_namespace(args.namespace)
+    query = query_store[revert_rate_user_revs_query.__query_name__]
+    query = sub_tokens(query, where=ns_cond)
     try:
         params = {
             'user': int(user[0]),
@@ -317,8 +321,7 @@ def revert_rate_user_revs_query(user, project, args):
         }
     except ValueError as e:
         raise UMQueryCallError(__name__ + ' :: ' + str(e))
-
-    return query_store[revert_rate_user_revs_query.__query_name__], params
+    return query, params
 revert_rate_user_revs_query.__query_name__ = 'revert_rate_user_revs_query'
 
 
@@ -757,15 +760,18 @@ query_store = {
     """,
     revert_rate_user_revs_query.__query_name__:
     """
-       SELECT
-           rev_user,
-           rev_page,
-           rev_sha1,
-           rev_user_text
-       FROM <database>.revision
-       WHERE rev_user = %(user)s AND
-       rev_timestamp > %(start_ts)s AND
-       rev_timestamp <= %(end_ts)s
+           SELECT
+               r.rev_user,
+               r.rev_page,
+               r.rev_sha1,
+               r.rev_user_text
+           FROM <database>.revision as r
+                JOIN <database>.page as p
+                ON r.rev_page = p.page_id
+           WHERE r.rev_user = %(user)s AND
+           r.rev_timestamp > %(start_ts)s AND
+           r.rev_timestamp <= %(end_ts)s AND
+           <where>
     """,
     time_to_threshold_revs_query.__query_name__:
     """
