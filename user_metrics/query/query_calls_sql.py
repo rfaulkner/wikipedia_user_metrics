@@ -761,7 +761,7 @@ query_store = {
     revert_rate_user_revs_query.__query_name__:
     """
            SELECT
-               r.rev_user,
+               r.rev_id,
                r.rev_page,
                r.rev_sha1,
                r.rev_user_text
