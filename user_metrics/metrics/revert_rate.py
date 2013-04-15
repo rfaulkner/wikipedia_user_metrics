@@ -103,20 +103,14 @@ class RevertRate(um.UserMetric):
 def __revert(rev_id, page_id, sha1, user_text, metric_args):
     """ Returns the revision corresponding to a revision if it exists. """
 
-    print 'current'
-    print str(rev_id) + ", " + str(sha1)
 
     history = {}
-    print 'history'
     for rev in __history(rev_id, page_id, metric_args.look_back,
                          metric_args.project, metric_args.namespace):
-        print str(rev[0]) + ", " + str(rev[RevertRate.REV_SHA1_IDX])
         history[rev[RevertRate.REV_SHA1_IDX]] = rev
 
-    print 'future'
     for rev in __future(rev_id, page_id, metric_args.look_ahead,
                         metric_args.project, metric_args.namespace):
-        print str(rev[0]) + ", " + str(rev[RevertRate.REV_SHA1_IDX])
         if rev[RevertRate.REV_SHA1_IDX] in history and \
            rev[RevertRate.REV_SHA1_IDX] != sha1:
             if user_text == rev[RevertRate.REV_USER_TEXT_IDX]:
@@ -246,13 +240,3 @@ setattr(revert_rate_avg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
                                                     'average_rate',])
 setattr(revert_rate_avg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 1,
                                                        'weight_idx' : 1})
-
-# testing
-if __name__ == "__main__":
-    r = RevertRate()
-    users = ['17792132', '17797320', '17792130', '17792131', '17792136',
-             '17792137', '17792134', '17797328', '17797329', '17792138']
-    for r in r.process(users, k_=1, kr_=1, log_=True):
-        print r
-
-
