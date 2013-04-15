@@ -102,6 +102,7 @@ class RevertRate(um.UserMetric):
 
 def __revert(rev_id, page_id, sha1, user_text, metric_args):
     """ Returns the revision corresponding to a revision if it exists. """
+
     history = {}
     for rev in __history(rev_id, page_id, metric_args.look_back,
                          metric_args.project, metric_args.namespace):
@@ -238,15 +239,5 @@ setattr(revert_rate_avg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
                                                     'average_rate',])
 setattr(revert_rate_avg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 1,
                                                        'weight_idx' : 1})
-
-# testing
-if __name__ == "__main__":
-    r = RevertRate()
-    users = ['17792132', '17797320', '17792130', '17792131', '17792136',
-             '17792137', '17792134', '17797328', '17797329', '17792138']
-    for i in xrange(5):
-        users += users
-    for r in r.process(users,num_threads=50,rev_threads=50, log_progress=True):
-        print r
 
 

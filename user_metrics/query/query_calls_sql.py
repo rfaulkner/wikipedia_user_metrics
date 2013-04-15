@@ -25,6 +25,7 @@ FROM_TOKEN = '<from>'
 WHERE_TOKEN = '<where>'
 COMP1_TOKEN = '<comparator_1>'
 USERS_TOKEN = '<users>'
+ORDER_TOKEN = '<order>'
 
 
 class UMQueryCallError(Exception):
@@ -34,7 +35,7 @@ class UMQueryCallError(Exception):
 
 
 def sub_tokens(query, db='', table='', from_repl='', where='',
-               comp_1='', users=''):
+               comp_1='', users='', order=''):
     """
     Substitutes values for portions of queries that specify MySQL databases and
     tables.
@@ -46,6 +47,7 @@ def sub_tokens(query, db='', table='', from_repl='', where='',
         WHERE_TOKEN: where,
         COMP1_TOKEN: comp_1,
         USERS_TOKEN: users,
+        ORDER_TOKEN: order,
     }
     for token in tokens:
         token_value = tokens[token]
@@ -287,10 +289,13 @@ def page_rev_hist_query(rev_id, page_id, n, project, namespace,
 
     # Format namespace expression and comparator
     ns_cond = format_namespace(namespace)
+
     comparator = '>' if look_ahead else '<'
+    order = 'ASC' if look_ahead else 'DESC'
+
     query = query_store[page_rev_hist_query.__name__]
     query = sub_tokens(query, db=escape_var(project),
-                       comp_1=comparator, where=ns_cond)
+                       comp_1=comparator, where=ns_cond, order=order)
     try:
         params = {
             'rev_id':  long(rev_id),
@@ -755,13 +760,13 @@ query_store = {
         WHERE rev_page = %(page_id)s
             AND rev_id <comparator_1> %(rev_id)s
             AND <where>
-        ORDER BY rev_id ASC
+        ORDER BY rev_id <order>
         LIMIT %(n)s
     """,
     revert_rate_user_revs_query.__query_name__:
     """
            SELECT
-               r.rev_user,
+               r.rev_id,
                r.rev_page,
                r.rev_sha1,
                r.rev_user_text
