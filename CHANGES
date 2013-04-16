@@ -41,7 +41,7 @@ To be released on March 11th 2013.
     like survival and threshold.  This can be bettet
 - Refactor API source - break up functionality for easier maintenance and
     extensibility.
-- Manage requests via a separate job manager.
+- Manage requests via a separate Job Controller (JC).
     user_metrics.api.engine.request_manager module.
 - Generate unique hashes from Request objects.
     build_key_signature method in user_metrics.api.engine.data
@@ -61,9 +61,9 @@ To be released on March 26th 2013.
 - More robust testing.
     - added some testing
 - Interface to load cohorts
-- Request notifications listener
+- Request notifications listener (RNL) that handle
 - Update request_manager module to handle larger responses on the queue
-- Response Handler that builds responses for caching as they finish
+- Response Handler (RH) that builds responses for caching as they finish
 - Add backend facility for loading cohorts
     (add_cohort_data in query_calls module)
 - Add backend facility for registering users (session.py)
@@ -76,9 +76,10 @@ https://github.com/wikimedia/user_metrics/pull/13
 https://github.com/wikimedia/user_metrics/pull/14
 https://github.com/wikimedia/user_metrics/pull/15
 https://github.com/wikimedia/user_metrics/pull/16
+https://github.com/wikimedia/user_metrics/pull/17
 
 
-Version 0.1.5-dev
+Version 0.1.5
 -----------------
 
 To be released on April 15th 2013.
@@ -91,6 +92,25 @@ To be released on April 15th 2013.
 - Facility for importing cohorts
 - Fix/Test Single user endpoint request
 - Fix/Test cohort combo request
+- Fix/Test magic keyword cohort request
+    (e.g. cohorts/all/threshold?start=20120101&end=20120102)
+- Exception handling in metric worker threads
+- Fall back on user table if user registration date not found in logging
+- displaying logged in user in nav bar
+- Modify PROJECT_MAP generation to use "noc.wikiedia.org"
+- Define methods with locks to make requests to RNL about jobs
+- Handle "invalid" values for live account metric
+- Rename "average" aggregators to "proportion", and "mean" where relevant
+- Rename "interval" parameter to "slice"
+- Better exception handling around retrieving results from cache
+- URIs filtered and persisted in RequestMeta objects entirely
+- TimeToThreshold now simplified and uses multiprocessing Pools
+- Fixed RevertRate
+
+
+https://github.com/wikimedia/user_metrics/pull/18
+...
+https://github.com/wikimedia/user_metrics/pull/28
 
 
 Future Work
