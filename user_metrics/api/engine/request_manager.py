@@ -615,8 +615,9 @@ def req_cb_get_url(key, lock):
     except Empty:
         logging.error(__name__ + ' :: req_cb_get_url -'
                                  ' Block time expired.')
-        return ''
-    lock.release()
+        val = ''
+    finally:
+        lock.release()
     return val
 
 
@@ -629,8 +630,9 @@ def req_cb_get_cache_keys(lock):
     except Empty:
         logging.error(__name__ + ' :: req_cb_get_cache_keys -'
                                  ' Block time expired.')
-        return []
-    lock.release()
+        val = []
+    finally:
+        lock.release()
     return val
 
 
@@ -643,18 +645,27 @@ def req_cb_get_is_running(key, lock):
     except Empty:
         logging.error(__name__ + ' :: req_cb_get_is_running -'
                                  ' Block time expired.')
-        return False
-    lock.release()
+        val = False
+    finally:
+        lock.release()
     return val
 
 
 def req_cb_add_req(key, url, lock):
     lock.acquire()
-    req_notification_queue_in.put([0, key, url])
-    lock.release()
+    try:
+        req_notification_queue_in.put([0, key, url])
+    except:
+        pass
+    finally:
+        lock.release()
 
 
 def req_cb_flag_job_complete(key, lock):
     lock.acquire()
-    req_notification_queue_in.put([1, key], True)
-    lock.release()
+    try:
+        req_notification_queue_in.put([1, key], True)
+    except:
+        pass
+    finally:
+        lock.release()
