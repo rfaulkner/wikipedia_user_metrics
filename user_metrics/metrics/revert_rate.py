@@ -103,7 +103,6 @@ class RevertRate(um.UserMetric):
 def __revert(rev_id, page_id, sha1, user_text, metric_args):
     """ Returns the revision corresponding to a revision if it exists. """
 
-
     history = {}
     for rev in __history(rev_id, page_id, metric_args.look_back,
                          metric_args.project, metric_args.namespace):
