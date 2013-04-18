@@ -239,5 +239,3 @@ setattr(revert_rate_avg, um.METRIC_AGG_METHOD_HEAD, ['total_users',
                                                     'average_rate',])
 setattr(revert_rate_avg, um.METRIC_AGG_METHOD_KWARGS, {'val_idx' : 1,
                                                        'weight_idx' : 1})
-
-

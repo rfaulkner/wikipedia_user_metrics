@@ -20,6 +20,8 @@ from user_metrics.metrics.users import UMP_MAP, USER_METRIC_PERIOD_TYPE
 from user_metrics.config import settings
 from user_metrics.etl.data_loader import Connector, ConnectorError
 
+from user_metrics.metrics import revert_rate
+
 # User Metric tests
 # =================
 
@@ -74,8 +76,26 @@ def test_bytes_added():
     assert False  # TODO: implement your test here
 
 
+
 def test_revert_rate():
-    assert False  # TODO: implement your test here
+    r = revert_rate.RevertRate()
+    users = {
+        '17792132': 0.0,
+        '17797320': 0.5,
+        '17792130': 0.0,
+        '17792131': 0.0,
+        '17792136': 0.0,
+        '17792137': 0.0,
+        '17792134': 0.0,
+        '17797328': 0.0,
+        '17797329': 0.0,
+        '17792138': 1.0
+    }
+
+    for r in r.process(users.keys(), k_=1, kr_=1, log_=True):
+        if not float(r[1]) == float(users[str(r[0])]):
+            assert False
+    assert True
 
 
 def test_user():
@@ -228,3 +248,7 @@ def test_cohort_parse():
 
 def test_recordtype():
     assert False  # TODO: implement your test here
+
+
+if __name__ == '__main__':
+    test_revert_rate()
