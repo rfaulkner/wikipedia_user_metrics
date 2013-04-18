@@ -655,7 +655,7 @@ def req_cb_add_req(key, url, lock):
     lock.acquire()
     try:
         req_notification_queue_in.put([0, key, url])
-    except:
+    except Empty:
         pass
     finally:
         lock.release()
@@ -665,7 +665,7 @@ def req_cb_flag_job_complete(key, lock):
     lock.acquire()
     try:
         req_notification_queue_in.put([1, key], True)
-    except:
+    except Empty:
         pass
     finally:
         lock.release()
