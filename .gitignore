@@ -3,7 +3,7 @@
 MANIFEST
 .DS_Store
 .idea
-
+*.iml
 
 # ignore docs and build sub-folders
 build/*

@@ -109,6 +109,30 @@ setup_controller(api_request_queue, api_response_queue,
 
 app.config['SECRET_KEY'] = settings.__secret_key__
 
+#Send serious errors to devs
+ADMINS = ['dvanliere@wikimedia.org', 'rfaulkner@wikimedia.org']
+if not app.debug:
+    import logging
+    from logging.handlers import SMTPHandler
+    from logging import Formatter
+
+    mail_handler = SMTPHandler('127.0.0.1',
+                               'no-reply@user-metrics.wikimedia.org',
+                               ADMINS, 'UserMetrics API encountered serious error')
+    mail_handler.setLevel(logging.ERROR)
+    mail_handler.setFormatter(Formatter('''
+    Message type:       %(levelname)s
+    Location:           %(pathname)s:%(lineno)d
+    Module:             %(module)s
+    Function:           %(funcName)s
+    Time:               %(asctime)s
+
+    Message:
+
+    %(message)s
+    '''))
+    app.logger.addHandler(mail_handler)
+
 # With the presence of flask.ext.login module
 if settings.__flask_login_exists__:
     from user_metrics.api.session import login_manager

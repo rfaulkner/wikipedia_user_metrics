@@ -702,6 +702,26 @@ def get_latest_user_activity(users, project, args):
 get_latest_user_activity.__query_name__ = 'get_latest_user_activity'
 
 
+@query_method_deco
+def pages_created_query(uid, project, args):
+    """
+    Returns pages created by user with user ID "uid"
+    """
+
+    query = query_store[pages_created_query.__query_name__]
+
+    ns_cond = format_namespace(deepcopy(args.namespace))
+    query = sub_tokens(query, where=ns_cond)
+
+    params = {
+        'user'  : int(uid[0]),
+        'start' : str(args.datetime_start),
+        'end'   : str(args.datetime_end)
+    }
+    return query, params
+pages_created_query.__query_name__ = 'pages_created_query'
+
+
 # QUERY DEFINITIONS
 # #################
 
@@ -922,5 +942,17 @@ query_store = {
         FROM <database>.revision
         WHERE rev_user in (<users>)
         GROUP BY 1
+    """,
+    pages_created_query.__query_name__:
+    """
+        SELECT count(*)
+        FROM <database>.revision
+        JOIN <database>.page
+            ON rev_page = page_id
+        WHERE rev_parent_id = 0
+            AND <where>
+            AND rev_user = %(user)s
+            AND rev_timestamp > %(start)s
+            AND rev_timestamp <= %(end)s
     """,
 }
