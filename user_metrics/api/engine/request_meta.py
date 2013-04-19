@@ -280,6 +280,7 @@ class ParameterMapping(object):
                                         varMapping('look_ahead',
                                                    'look_ahead')],
         'survival': common_params,
+        'pages_created': common_params,
         'threshold': common_params + [varMapping('n', 'n')],
         'time_to_threshold': common_params +
         [varMapping('threshold_type', 'threshold_type_class')],
@@ -316,6 +317,7 @@ from user_metrics.metrics.edit_rate import EditRate, edit_rate_agg, \
 from user_metrics.metrics.namespace_of_edits import NamespaceEdits, \
     namespace_edits_sum
 from user_metrics.metrics.live_account import LiveAccount, live_accounts_agg
+from user_metrics.metrics.pages_created import PagesCreated
 
 
 # Registered metrics types
@@ -330,6 +332,7 @@ metric_dict =\
     'edit_rate': EditRate,
     'namespace_edits': NamespaceEdits,
     'live_account': LiveAccount,
+    'pages_created': PagesCreated,
     }
 
 # @TODO: let metric types handle this mapping themselves and obsolete this
