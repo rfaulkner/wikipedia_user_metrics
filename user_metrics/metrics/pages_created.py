@@ -6,9 +6,9 @@ __license__ = "GPL (version 2 or later)"
 from user_metrics.config import logging
 
 import os
+from numpy import mean, std, median
 import user_metrics.utils.multiprocessing_wrapper as mpw
 import user_metric as um
-from user_metrics.etl.aggregator import decorator_builder, boolean_rate
 from user_metrics.metrics import query_mod
 from user_metrics.metrics.users import UMP_MAP
 
@@ -119,4 +119,21 @@ def _process_help(args):
 # DEFINE METRIC AGGREGATORS
 # ==========================
 
-# TODO - add sum, median, mean, min, and max aggregators
+from user_metrics.etl.aggregator import build_numpy_op_agg, build_agg_meta
+from user_metrics.metrics.user_metric import METRIC_AGG_METHOD_KWARGS
+
+metric_header = PagesCreated.header()
+
+field_prefixes =\
+    {
+        'count_': 1,
+    }
+
+# Build "dist" decorator
+op_list = [sum, mean, std, median, min, max]
+pages_created_stats_agg = build_numpy_op_agg(
+    build_agg_meta(op_list, field_prefixes), metric_header,
+    'pages_created_stats_agg')
+
+agg_kwargs = getattr(pages_created_stats_agg, METRIC_AGG_METHOD_KWARGS)
+setattr(pages_created_stats_agg, METRIC_AGG_METHOD_KWARGS, agg_kwargs)
