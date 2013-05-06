@@ -355,6 +355,7 @@ aggregator_dict =\
     'dist+edit_rate': er_stats_agg,
     'proportion+blocks': block_rate_agg,
     'dist+time_to_threshold': ttt_stats_agg,
+    'dist+pages_created': ttt_stats_agg,
     }
 
 
